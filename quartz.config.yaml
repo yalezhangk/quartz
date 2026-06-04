@@ -1,6 +1,4 @@
-# yaml-language-server: $schema=../../plugins/quartz-plugins.schema.json
-# Template: default
-# A clean Quartz setup with sensible defaults.
+# yaml-language-server: $schema=./quartz/plugins/quartz-plugins.schema.json
 configuration:
   pageTitle: MVC SAMPLE
   pageTitleSuffix: ""
@@ -9,7 +7,7 @@ configuration:
   analytics:
     provider: plausible
   locale: en-US
-  baseUrl: quartz.jzhao.xyz
+  baseUrl: mysite.github.io/quartz
   ignorePatterns:
     - private
     - templates
@@ -241,7 +239,7 @@ plugins:
         - aliases
       excludedProperties: []
       hidePropertiesView: false
-      delimiters: "---"
+      delimiters: ---
       language: yaml
     order: 5
     layout:
