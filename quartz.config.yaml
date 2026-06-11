@@ -225,6 +225,14 @@ plugins:
       position: left
       priority: 25
       display: mobile-only
+  - source: ./.local-plugins/chats
+    enabled: true
+    options:
+      proxyUrl: http://127.0.0.1:8000
+      title: Chats
+    layout:
+      position: left
+      priority: 60
   - source: github:quartz-community/bases-page
     enabled: true
     options: {}
@@ -271,3 +279,13 @@ layout:
         right: []
     canvas: {}
     bases: {}
+    chats:
+      exclude:
+        - graph
+        - backlinks
+        - breadcrumbs
+        - article-title
+        - content-meta
+        - note-properties
+        - reader-mode
+        - table-of-contents
