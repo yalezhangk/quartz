@@ -19,7 +19,7 @@
 - 后端接口当前只接了单个问答接口：
   `POST /api/query`
 - 当前默认后端地址是硬编码本地地址：
-  `http://127.0.0.1:8000`
+`/api`
 - `answer` 作为正文 Markdown 渲染。
 - `sources` 单独显示为回答底部引用区。
 - 左侧聊天历史目前完全保存在浏览器 `localStorage` / `sessionStorage`，没有后端持久化会话。

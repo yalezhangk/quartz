@@ -3,6 +3,7 @@ export { ChatPage, Chats } from './components/index.js';
 
 interface ChatPageTypeOptions {
     title?: string;
+    proxyUrl?: string;
 }
 declare const ChatPageType: QuartzPageTypePlugin<ChatPageTypeOptions>;
 

@@ -42,7 +42,7 @@ function getChatConfig(el: HTMLElement): ChatConfig {
     // NOTE: 这里仍然保留了本地后端地址的硬编码兜底。
     // 当前 chats 插件依赖外部 wiki-backend 的 /api/query。
     // 若后续改成由 Quartz 反代、环境变量注入或运行时配置，这里必须同步调整。
-    proxyUrl: el.getAttribute("data-proxy-url") || "http://127.0.0.1:8000",
+    proxyUrl: el.getAttribute("data-proxy-url") || "/api",
   }
 }
 
@@ -260,11 +260,29 @@ function stripMarkdown(markdown: string): string {
     .trim()
 }
 
+function createConversationId(): string {
+  if (typeof crypto !== "undefined") {
+    if (typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID()
+    }
+
+    if (typeof crypto.getRandomValues === "function") {
+      const bytes = crypto.getRandomValues(new Uint8Array(16))
+      bytes[6] = (bytes[6] & 0x0f) | 0x40
+      bytes[8] = (bytes[8] & 0x3f) | 0x80
+      const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0"))
+      return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10, 16).join("")}`
+    }
+  }
+
+  return `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 function createConversation(firstQuestion: string): Conversation {
   const title = firstQuestion.trim().slice(0, 36) || "New Chat"
   const now = new Date().toISOString()
   return {
-    id: crypto.randomUUID(),
+    id: createConversationId(),
     title,
     lastMessage: "",
     updatedAt: now,

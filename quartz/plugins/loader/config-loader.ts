@@ -32,6 +32,41 @@ const DEFAULT_CONFIG_YAML_PATH = path.join(process.cwd(), "quartz.config.default
 const LEGACY_PLUGINS_JSON_PATH = path.join(process.cwd(), "quartz.plugins.json")
 const LEGACY_DEFAULT_PLUGINS_JSON_PATH = path.join(process.cwd(), "quartz.plugins.default.json")
 
+const ENV_PLACEHOLDER = /\$\{([A-Z0-9_]+)(?::-(.+?))?\}/gi
+
+function resolveEnvValue(value: string): string {
+  return value.replace(ENV_PLACEHOLDER, (match, envName: string, fallback: string | undefined) => {
+    const envValue = process.env[envName]
+    if (envValue !== undefined && envValue !== "") {
+      return envValue
+    }
+
+    if (fallback !== undefined) {
+      return fallback
+    }
+
+    return match
+  })
+}
+
+function resolveEnvPlaceholders<T>(value: T): T {
+  if (typeof value === "string") {
+    return resolveEnvValue(value) as T
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveEnvPlaceholders(item)) as T
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, resolveEnvPlaceholders(nestedValue)]),
+    ) as T
+  }
+
+  return value
+}
+
 function resolveConfigPath(): string {
   if (fs.existsSync(CONFIG_YAML_PATH)) return CONFIG_YAML_PATH
   if (fs.existsSync(LEGACY_PLUGINS_JSON_PATH)) return LEGACY_PLUGINS_JSON_PATH
@@ -46,9 +81,9 @@ function readPluginsJson(): QuartzPluginsJson | null {
   }
   const raw = fs.readFileSync(configPath, "utf-8")
   if (configPath.endsWith(".yaml") || configPath.endsWith(".yml")) {
-    return YAML.parse(raw) as QuartzPluginsJson
+    return resolveEnvPlaceholders(YAML.parse(raw) as QuartzPluginsJson)
   }
-  return JSON.parse(raw) as QuartzPluginsJson
+  return resolveEnvPlaceholders(JSON.parse(raw) as QuartzPluginsJson)
 }
 
 function extractPluginName(source: PluginSource): string {

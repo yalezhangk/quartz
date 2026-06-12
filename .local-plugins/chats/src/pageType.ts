@@ -4,16 +4,22 @@ import type {
   FullSlug,
   VirtualPage,
   GlobalConfiguration,
+  QuartzComponentConstructor,
 } from "@quartz-community/types"
-import ChatPageBody from "./components/ChatPage"
+import ChatPageBody, { type ChatPageOptions } from "./components/ChatPage"
 import { i18n } from "./i18n"
 
 export interface ChatPageTypeOptions {
   title?: string
+  proxyUrl?: string
 }
 
 const chatMatcher: PageMatcher = ({ slug }) => {
   return slug === "chats" || slug.startsWith("chats/")
+}
+
+const createChatPageBody = (opts?: Partial<ChatPageOptions>): QuartzComponentConstructor => {
+  return (bodyOpts?: Partial<ChatPageOptions>) => ChatPageBody({ ...opts, ...bodyOpts })
 }
 
 export const ChatPageType: QuartzPageTypePlugin<ChatPageTypeOptions> = (opts) => ({
@@ -36,5 +42,7 @@ export const ChatPageType: QuartzPageTypePlugin<ChatPageTypeOptions> = (opts) =>
   },
   layout: "chats",
   frame: "default",
-  body: ChatPageBody,
+  body: createChatPageBody({
+    proxyUrl: opts?.proxyUrl,
+  }),
 })

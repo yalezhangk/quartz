@@ -12,6 +12,41 @@ const TEMPLATES_DIR = path.join(process.cwd(), "quartz", "cli", "templates")
 const LEGACY_PLUGINS_JSON_PATH = path.join(process.cwd(), "quartz.plugins.json")
 const LEGACY_DEFAULT_PLUGINS_JSON_PATH = path.join(process.cwd(), "quartz.plugins.default.json")
 
+const ENV_PLACEHOLDER = /\$\{([A-Z0-9_]+)(?::-(.+?))?\}/gi
+
+function resolveEnvValue(value) {
+  return value.replace(ENV_PLACEHOLDER, (match, envName, fallback) => {
+    const envValue = process.env[envName]
+    if (envValue !== undefined && envValue !== "") {
+      return envValue
+    }
+
+    if (fallback !== undefined) {
+      return fallback
+    }
+
+    return match
+  })
+}
+
+function resolveEnvPlaceholders(value) {
+  if (typeof value === "string") {
+    return resolveEnvValue(value)
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveEnvPlaceholders(item))
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, resolveEnvPlaceholders(nestedValue)]),
+    )
+  }
+
+  return value
+}
+
 function resolveConfigPath() {
   if (fs.existsSync(CONFIG_YAML_PATH)) return CONFIG_YAML_PATH
   if (fs.existsSync(LEGACY_PLUGINS_JSON_PATH)) return LEGACY_PLUGINS_JSON_PATH
@@ -31,9 +66,9 @@ function readFileAsData(filePath) {
   try {
     const raw = fs.readFileSync(filePath, "utf-8")
     if (filePath.endsWith(".yaml") || filePath.endsWith(".yml")) {
-      return YAML.parse(raw)
+      return resolveEnvPlaceholders(YAML.parse(raw))
     }
-    return JSON.parse(raw)
+    return resolveEnvPlaceholders(JSON.parse(raw))
   } catch {
     return null
   }

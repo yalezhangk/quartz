@@ -228,7 +228,7 @@ plugins:
   - source: ./.local-plugins/chats
     enabled: true
     options:
-      proxyUrl: http://127.0.0.1:8000
+      proxyUrl: "${CHAT_PROXY_URL:-/api}"
       title: Chats
     layout:
       position: left

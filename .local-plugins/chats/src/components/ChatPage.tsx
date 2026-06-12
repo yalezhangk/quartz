@@ -18,7 +18,7 @@ const defaultOptions: ChatPageOptions = {
   // NOTE: 当前后端地址是直接写死到本地开发地址的。
   // 后续若接入正式 wiki-backend、反向代理或多环境配置，优先把它改成可配置项，
   // 不要继续依赖这里的硬编码默认值。
-  proxyUrl: "http://127.0.0.1:8000",
+  proxyUrl: "/api",
 }
 
 export default ((userOpts?: Partial<ChatPageOptions>) => {
