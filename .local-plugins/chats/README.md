@@ -1,162 +1,62 @@
 # Chats Plugin Notes
 
-这个插件为 Quartz 增加了一个独立的 `Chats` 页面，用来调用外部 AI 后端并在前端展示聊天记录。
+这个插件为 Quartz 增加独立的 `Chats` 页面，并接入 `wiki-backend` 的有状态聊天 API。
 
 ## 目录重点
 
-- `src/components/ChatPage.tsx`
-  `Chats` 页面骨架、左侧历史区、消息区、输入区模板。
-- `src/components/scripts/chat.inline.ts`
-  核心前端逻辑：
-  会话状态、本地存储、调用后端 `/api/query`、Markdown 渲染、wiki-link 解析、Copy 按钮。
-- `src/components/styles/chat.scss`
-  `Chats` 页专用布局和样式，同时覆盖 Quartz 默认三列布局，让聊天区尽量铺满。
-- `src/pageType.ts`
-  注册虚拟页 `/chats`，并让它不进入 Explorer。
+- `src/api/chatApi.ts`：集中处理 Chat API URL、请求和错误信息。
+- `src/components/ChatPage.tsx`：页面骨架、历史区、消息区和输入区模板。
+- `src/components/scripts/chat.inline.ts`：会话交互、消息渲染、wiki-link 和 Copy 按钮。
+- `src/components/styles/chat.scss`：Chats 页面布局和样式。
+- `src/types.ts`：与 `wiki-backend` 响应一致的前端类型。
+- `src/pageType.ts`：注册虚拟页 `/chats`，并让它不进入 Explorer。
 
-## 当前实现约定
+## 后端约定
 
-- 后端接口当前只接了单个问答接口：
-  `POST /api/query`
-- 当前默认后端地址是硬编码本地地址：
-`/api`
-- `answer` 作为正文 Markdown 渲染。
-- `sources` 单独显示为回答底部引用区。
-- 左侧聊天历史目前完全保存在浏览器 `localStorage` / `sessionStorage`，没有后端持久化会话。
+后端基础地址由 `proxyUrl` 配置，本地开发通过 `CHAT_PROXY_URL` 注入：
 
-## 后续维护最需要注意的点
+```powershell
+$env:CHAT_PROXY_URL="http://127.0.0.1:8081"
+```
 
-### 1. 后端 URL 目前是写死的
+`chatApi.ts` 支持以下基础地址：
 
-位置：
+- `http://127.0.0.1:8081` -> `http://127.0.0.1:8081/api/chats`
+- `/api` -> `/api/chats`
 
-- `src/components/ChatPage.tsx`
-- `src/components/scripts/chat.inline.ts`
-
-如果后续改成：
-
-- 反向代理
-- 环境变量
-- 多环境配置
-- 正式 `wiki-backend` 服务发现
-
-不要只改一处，至少要同时检查页面模板里的 `data-proxy-url` 和脚本里的默认兜底值。
-
-### 2. 聊天历史不是真正后端会话
-
-当前位置：
-
-- `chat.inline.ts` 里的 `CONVERSATIONS_KEY`
-- `CURRENT_CHAT_KEY`
-- `CHAT_INTENT_KEY`
-
-当前“New Chat”只是前端本地概念。
-后端并不知道这些会话 id，也不会存储聊天历史。
-
-如果未来后端提供：
+Chats 页面使用以下接口：
 
 - `GET /api/chats`
 - `POST /api/chats`
-- `GET /api/chats/{id}`
-- `POST /api/chats/{id}/messages`
+- `GET /api/chats/{chat_id}/messages`
+- `POST /api/chats/{chat_id}/messages`
+- `PATCH /api/chats/{chat_id}`
 
-那这里应该整体迁移，不建议继续叠加本地临时状态。
+页面不再调用无状态的 `POST /api/query`。
 
-### 3. wiki-link 跳转依赖 Quartz 的 content index
+## 状态与持久化
 
-当前位置：
+- 会话列表和消息以 `wiki-backend` 的 MySQL 数据为准。
+- 页面刷新后重新请求后端，不使用 `localStorage` 保存会话或消息。
+- `sessionStorage` 只保存当前选中的服务端 `chat_id` 和 SPA 跳转意图。
+- 点击“新对话”只清空当前页面；首次发送时才创建后端会话。
+- 发送成功后使用服务端返回的会话和消息更新页面。
+- 发送失败时移除临时消息、显示错误并恢复输入内容。
 
-- `loadContentIndex()`
-- `resolveWikiHref()`
+## 前端渲染约定
 
-当前做法是读取：
+- `assistant_message.content` 作为 Markdown 正文渲染。
+- 回答末尾的来源使用 `content` 自带的 `## Sources`，不重复渲染 `assistant_message.sources`。
+- Copy 按钮直接复制 `content` 的 Markdown 原文，不额外追加来源。
+- wiki-link 通过 `/static/contentIndex.json` 映射到 Quartz 页面。
+- Markdown 渲染器仅支持标题、列表、粗体、斜体、行内代码、普通链接和 wiki-link。
 
-- `/static/contentIndex.json`
+## 验证
 
-然后用宽松匹配把 `[[PIX]]` 这类词映射到真实 slug，如：
+```powershell
+cd C:\job_docs\knowledge_base\mvc_sample\quartz\.local-plugins\chats
+npm.cmd run build
 
-- `/entities/PIX`
-- `/sources/...`
-
-风险：
-
-- 如果 `content-index` 插件关闭、改路径、改结构，会影响跳转。
-- 如果多个页面标题或 basename 重名，可能跳到错误页面。
-
-### 4. Markdown 渲染是轻量自定义实现
-
-当前位置：
-
-- `renderInlineMarkdown()`
-- `renderMarkdown()`
-
-当前只覆盖了常用格式：
-
-- 标题
-- 列表
-- 粗体/斜体
-- 行内 code
-- 普通链接
-- `[[wiki-link]]`
-
-这不是完整 Markdown 解析器。
-如果后端后续开始返回更复杂的 Markdown，比如：
-
-- 表格
-- fenced code block
-- blockquote
-- task list
-- HTML 片段
-
-需要升级这里，不要默认认为已经完整支持。
-
-### 5. Copy 按钮复制的是 Markdown 原文
-
-当前位置：
-
-- `composeAssistantMarkdown()`
-- `bindCopyButton()`
-
-复制逻辑不是从页面 HTML 反推，而是把：
-
-- `answer`
-- `sources`
-
-重新拼装成 Markdown。
-
-如果未来调整回答卡片结构或后端字段，需要一起核对：
-
-- 页面显示内容
-- 复制出的 Markdown
-
-二者是否仍一致。
-
-### 6. Chats 页面布局有意覆盖 Quartz 默认页面框架
-
-当前位置：
-
-- `src/components/styles/chat.scss`
-
-这个页面不是普通文档页，而是“应用页”。
-样式里有针对 `.page:has(.chat-shell)` 的覆盖，用来：
-
-- 去掉右侧栏留白
-- 放大聊天区
-- 隐藏默认 page header
-
-如果未来 Quartz 升级后布局类名或 frame 行为变化，优先检查这里。
-
-## 修改建议
-
-如果以后要继续开发，建议优先按这个顺序排查：
-
-1. 链接/跳转异常：
-   先看 `ChatPage.tsx` 的 `data-chats-path` 和 `chat.inline.ts` 的 `resolveWikiHref()`
-2. 请求地址异常：
-   先看 `proxyUrl`、`getQueryEndpoint()`
-3. 历史会话异常：
-   先看 `localStorage/sessionStorage` 相关逻辑
-4. Markdown 显示异常：
-   先看 `renderMarkdown()`
-5. 聊天页变窄或右侧留白：
-   先看 `chat.scss` 对 Quartz 页面布局的覆盖
+cd C:\job_docs\knowledge_base\mvc_sample\quartz
+npm.cmd run check
+```

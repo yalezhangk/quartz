@@ -1,15 +1,32 @@
-export interface Conversation {
+export interface Chat {
   id: string
   title: string
-  lastMessage?: string
-  updatedAt: string
-  messageCount: number
+  status: string
+  created_at: string
+  updated_at: string
+  last_message_at: string | null
+  last_message_preview: string | null
 }
 
-export interface Message {
-  role: "user" | "assistant" | "system"
+export interface ChatMessage {
+  id: number
+  chat_id: string
+  role: "user" | "assistant"
   content: string
-  timestamp: number
+  sources: string[]
+  relevant_pages: string[]
+  created_at: string
+}
+
+export interface ChatMessagesResponse {
+  chat: Chat
+  messages: ChatMessage[]
+}
+
+export interface ChatTurnResponse {
+  chat: Chat
+  user_message: ChatMessage
+  assistant_message: ChatMessage
 }
 
 export interface ChatSessionData {

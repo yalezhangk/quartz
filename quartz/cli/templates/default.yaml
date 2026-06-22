@@ -2,7 +2,7 @@
 # Template: default
 # A clean Quartz setup with sensible defaults.
 configuration:
-  pageTitle: MVC SAMPLE
+  pageTitle: MKT SAMPLE
   pageTitleSuffix: ""
   enableSPA: true
   enablePopovers: true

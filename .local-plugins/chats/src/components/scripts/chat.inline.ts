@@ -1,20 +1,14 @@
 // @ts-nocheck - Inline script runs in browser context
 
-interface Conversation {
-  id: string
-  title: string
-  lastMessage?: string
-  updatedAt: string
-  messageCount: number
-  messages: Message[]
-}
-
-interface Message {
-  role: "user" | "assistant" | "system"
-  content: string
-  timestamp: number
-  sources?: string[]
-}
+import {
+  ChatApiError,
+  createChat,
+  getChatMessages,
+  listChats,
+  sendChatMessage,
+} from "../../api/chatApi"
+import type { Chat, ChatMessage } from "../../types"
+import { renderMarkdown } from "./markdown"
 
 interface ChatConfig {
   proxyUrl: string
@@ -25,12 +19,6 @@ interface StoredChatIntent {
   id?: string
 }
 
-interface QueryResponse {
-  answer?: string
-  sources?: string[]
-}
-
-const CONVERSATIONS_KEY = "chats:conversations"
 const CURRENT_CHAT_KEY = "chats:current"
 const CHAT_INTENT_KEY = "chats:intent"
 // NOTE: contentIndex 只用于把回答里的 [[wiki-link]] 解析成 Quartz 站内真实 slug。
@@ -39,9 +27,7 @@ let contentIndexPromise: Promise<Record<string, any> | null> | null = null
 
 function getChatConfig(el: HTMLElement): ChatConfig {
   return {
-    // NOTE: 这里仍然保留了本地后端地址的硬编码兜底。
-    // 当前 chats 插件依赖外部 wiki-backend 的 /api/query。
-    // 若后续改成由 Quartz 反代、环境变量注入或运行时配置，这里必须同步调整。
+    // 页面模板通过 CHAT_PROXY_URL 注入后端地址，默认回退到 Quartz 的 /api 反代。
     proxyUrl: el.getAttribute("data-proxy-url") || "/api",
   }
 }
@@ -76,40 +62,6 @@ function setCurrentChatId(id: string | null) {
   } else {
     sessionStorage.removeItem(CURRENT_CHAT_KEY)
   }
-}
-
-function loadConversations(): Conversation[] {
-  // NOTE: 当前聊天历史完全保存在浏览器 localStorage，不在后端持久化。
-  // 这意味着：
-  // 1. 换浏览器/清缓存会丢历史
-  // 2. 无法跨设备同步
-  // 3. 不能作为正式会话存储方案
-  // 若未来 wiki-backend 提供 chat/session API，这块应整体迁移。
-  const raw = localStorage.getItem(CONVERSATIONS_KEY)
-  if (!raw) return []
-
-  try {
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter((item) => item && typeof item.id === "string" && Array.isArray(item.messages))
-  } catch {
-    return []
-  }
-}
-
-function saveConversations(conversations: Conversation[]) {
-  localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations))
-}
-
-function getConversationById(id: string): Conversation | null {
-  return loadConversations().find((conversation) => conversation.id === id) ?? null
-}
-
-function saveConversation(conversation: Conversation) {
-  const conversations = loadConversations()
-  const next = conversations.filter((item) => item.id !== conversation.id)
-  next.unshift(conversation)
-  saveConversations(next)
 }
 
 function normalizeWikiKey(value: string): string {
@@ -162,212 +114,18 @@ async function resolveWikiHref(target: string): Promise<string> {
       ]
 
       if (candidates.includes(lookup)) {
-        return `/${slug.split("/").map((segment) => encodeURIComponent(segment)).join("/")}`
+        return `/${slug
+          .split("/")
+          .map((segment) => encodeURIComponent(segment))
+          .join("/")}`
       }
     }
   }
 
-  return `/${normalizedTarget.split("/").map((segment) => encodeURIComponent(segment)).join("/")}`
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-}
-
-function renderInlineMarkdown(input: string): string {
-  let html = escapeHtml(input)
-
-  html = html.replace(/`([^`]+)`/g, "<code>$1</code>")
-  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>")
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-  html = html.replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, (_, target, label) => `<a class="chat-wikilink unresolved" data-wiki-target="${escapeHtml(target)}" href="#">${label}</a>`)
-  html = html.replace(/\[\[([^\]]+)\]\]/g, (_, target) => `<a class="chat-wikilink unresolved" data-wiki-target="${escapeHtml(target)}" href="#">${target}</a>`)
-
-  return html
-}
-
-function renderMarkdown(markdown: string): string {
-  const lines = markdown.replace(/\r\n/g, "\n").split("\n")
-  const blocks: string[] = []
-  let paragraphLines: string[] = []
-  let listItems: string[] = []
-
-  const flushParagraph = () => {
-    if (paragraphLines.length === 0) return
-    blocks.push(`<p>${renderInlineMarkdown(paragraphLines.join(" "))}</p>`)
-    paragraphLines = []
-  }
-
-  const flushList = () => {
-    if (listItems.length === 0) return
-    blocks.push(`<ul>${listItems.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join("")}</ul>`)
-    listItems = []
-  }
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim()
-
-    if (line.length === 0) {
-      flushParagraph()
-      flushList()
-      continue
-    }
-
-    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/)
-    if (headingMatch) {
-      flushParagraph()
-      flushList()
-      const level = headingMatch[1].length
-      blocks.push(`<h${level}>${renderInlineMarkdown(headingMatch[2])}</h${level}>`)
-      continue
-    }
-
-    const listMatch = line.match(/^[-*]\s+(.*)$/)
-    if (listMatch) {
-      flushParagraph()
-      listItems.push(listMatch[1])
-      continue
-    }
-
-    flushList()
-    paragraphLines.push(line)
-  }
-
-  flushParagraph()
-  flushList()
-
-  return blocks.join("")
-}
-
-function stripMarkdown(markdown: string): string {
-  return markdown
-    .replace(/\r\n/g, "\n")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/^[-*]\s+/gm, "")
-    .replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, "$2")
-    .replace(/\[\[([^\]]+)\]\]/g, "$1")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\*\*([^*]+)\*\*/g, "$1")
-    .replace(/\*([^*]+)\*/g, "$1")
-    .replace(/\n+/g, " ")
-    .trim()
-}
-
-function createConversationId(): string {
-  if (typeof crypto !== "undefined") {
-    if (typeof crypto.randomUUID === "function") {
-      return crypto.randomUUID()
-    }
-
-    if (typeof crypto.getRandomValues === "function") {
-      const bytes = crypto.getRandomValues(new Uint8Array(16))
-      bytes[6] = (bytes[6] & 0x0f) | 0x40
-      bytes[8] = (bytes[8] & 0x3f) | 0x80
-      const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0"))
-      return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10, 16).join("")}`
-    }
-  }
-
-  return `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-}
-
-function createConversation(firstQuestion: string): Conversation {
-  const title = firstQuestion.trim().slice(0, 36) || "New Chat"
-  const now = new Date().toISOString()
-  return {
-    id: createConversationId(),
-    title,
-    lastMessage: "",
-    updatedAt: now,
-    messageCount: 0,
-    messages: [],
-  }
-}
-
-function appendMessage(conversation: Conversation, message: Message) {
-  conversation.messages.push(message)
-  conversation.messageCount = conversation.messages.length
-  conversation.lastMessage = stripMarkdown(message.content)
-  conversation.updatedAt = new Date(message.timestamp).toISOString()
-}
-
-function getQueryEndpoint(proxyUrl: string): string {
-  const normalized = proxyUrl.replace(/\/+$/, "")
-
-  if (normalized.endsWith("/api/query")) {
-    return normalized
-  }
-
-  if (normalized.endsWith("/api")) {
-    return `${normalized}/query`
-  }
-
-  return `${normalized}/api/query`
-}
-
-async function queryWiki(proxyUrl: string, question: string): Promise<QueryResponse> {
-  const res = await fetch(getQueryEndpoint(proxyUrl), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
-  })
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "")
-    throw new Error(`API ${res.status}: ${text.substring(0, 200)}`)
-  }
-
-  return res.json()
-}
-
-function formatAssistantAnswer(response: QueryResponse): string {
-  // NOTE: 当前后端约定是 answer 作为正文 markdown，sources 单独作为引用区展示。
-  // 如果后端以后把 sources 也混回 answer 里，前端会出现重复展示。
-  return (response.answer || "").trim() || "No answer returned."
-}
-
-function normalizeSources(response: QueryResponse): string[] {
-  return Array.isArray(response.sources) ? response.sources.filter(Boolean).map((source) => source.trim()).filter(Boolean) : []
-}
-
-function composeAssistantMarkdown(content: string, sources?: string[]): string {
-  // NOTE: Copy 按钮复制的不是渲染后的 HTML，而是这里重新拼装出来的 markdown。
-  // 若未来调整回答卡片结构，请同时检查“页面显示内容”和“复制出的 markdown”是否仍一致。
-  const trimmedContent = content.trim()
-  const normalizedSources = Array.isArray(sources) ? sources.filter(Boolean).map((source) => source.trim()).filter(Boolean) : []
-
-  if (normalizedSources.length === 0) {
-    return trimmedContent
-  }
-
-  return `${trimmedContent}\n\n## Sources\n\n- ${normalizedSources.join("\n- ")}`
-}
-
-function renderSources(sourcesEl: HTMLElement | null, sources?: string[]) {
-  if (!sourcesEl) return
-
-  if (!sources || sources.length === 0) {
-    sourcesEl.innerHTML = ""
-    sourcesEl.style.display = "none"
-    return
-  }
-
-  const items = sources
-    .map((source) => `<li class="message-source-item">${renderInlineMarkdown(source)}</li>`)
-    .join("")
-
-  sourcesEl.innerHTML = `
-    <div class="message-sources-title">Sources</div>
-    <ul class="message-sources-list">${items}</ul>
-  `
-  sourcesEl.style.display = "block"
+  return `/${normalizedTarget
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/")}`
 }
 
 function removeAllChildren(el: HTMLElement) {
@@ -377,7 +135,9 @@ function removeAllChildren(el: HTMLElement) {
 }
 
 async function hydrateWikiLinks(root: ParentNode) {
-  const links = Array.from(root.querySelectorAll(".chat-wikilink.unresolved")) as HTMLAnchorElement[]
+  const links = Array.from(
+    root.querySelectorAll(".chat-wikilink.unresolved"),
+  ) as HTMLAnchorElement[]
   await Promise.all(
     links.map(async (link) => {
       const target = link.dataset.wikiTarget
@@ -421,15 +181,16 @@ function setChatPageState(messagesEl: HTMLElement, hasMessages: boolean) {
 function renderChatHistory(
   sidebarEl: HTMLElement,
   historyEl: HTMLElement,
-  conversations: Conversation[],
+  chats: Chat[],
   currentChatId: string | null,
+  errorMessage?: string,
 ) {
   removeAllChildren(historyEl)
 
-  if (conversations.length === 0) {
+  if (errorMessage || chats.length === 0) {
     const empty = document.createElement("div")
     empty.className = "chats-empty-state"
-    empty.textContent = "No conversations yet"
+    empty.textContent = errorMessage || "No conversations yet"
     historyEl.appendChild(empty)
     return
   }
@@ -437,7 +198,7 @@ function renderChatHistory(
   const template = document.getElementById("template-chat-item") as HTMLTemplateElement
   if (!template) return
 
-  for (const conversation of conversations) {
+  for (const chat of chats) {
     const clone = template.content.cloneNode(true) as DocumentFragment
     const link = clone.querySelector(".chat-history-item") as HTMLAnchorElement
     const titleEl = clone.querySelector(".chat-item-title") as HTMLElement
@@ -445,24 +206,24 @@ function renderChatHistory(
 
     if (link) {
       link.href = "#"
-      link.setAttribute("data-chat-id", conversation.id)
-      if (conversation.id === currentChatId) {
+      link.setAttribute("data-chat-id", chat.id)
+      if (chat.id === currentChatId) {
         link.classList.add("active")
       }
       link.addEventListener("click", (e) => {
         e.preventDefault()
-        setCurrentChatId(conversation.id)
-        sessionStorage.setItem(CHAT_INTENT_KEY, JSON.stringify({ mode: "chat", id: conversation.id }))
+        setCurrentChatId(chat.id)
+        sessionStorage.setItem(CHAT_INTENT_KEY, JSON.stringify({ mode: "chat", id: chat.id }))
         window.spaNavigate(getChatsUrl(sidebarEl))
       })
     }
 
     if (titleEl) {
-      titleEl.textContent = conversation.title || "Untitled"
+      titleEl.textContent = chat.title || "Untitled"
     }
 
     if (previewEl) {
-      previewEl.textContent = conversation.lastMessage || ""
+      previewEl.textContent = chat.last_message_preview || ""
     }
 
     historyEl.appendChild(clone)
@@ -483,12 +244,14 @@ function renderNewChat(messagesEl: HTMLElement) {
   messagesEl.appendChild(greeting)
 }
 
-function renderMessages(messagesEl: HTMLElement, messages: Message[]) {
+function renderMessages(messagesEl: HTMLElement, messages: ChatMessage[]) {
   removeAllChildren(messagesEl)
   setChatPageState(messagesEl, messages.length > 0)
 
   const userTemplate = document.getElementById("template-message-user") as HTMLTemplateElement
-  const assistantTemplate = document.getElementById("template-message-assistant") as HTMLTemplateElement
+  const assistantTemplate = document.getElementById(
+    "template-message-assistant",
+  ) as HTMLTemplateElement
 
   for (const message of messages) {
     if (message.role === "user") {
@@ -503,16 +266,15 @@ function renderMessages(messagesEl: HTMLElement, messages: Message[]) {
     if (!assistantTemplate) continue
     const clone = assistantTemplate.content.cloneNode(true) as DocumentFragment
     const contentEl = clone.querySelector(".message-content") as HTMLElement
-    const sourcesEl = clone.querySelector(".message-sources") as HTMLElement
     const copyButton = clone.querySelector(".message-copy-button") as HTMLButtonElement
     const loadingEl = clone.querySelector(".message-loading") as HTMLElement
     if (contentEl) contentEl.innerHTML = renderMarkdown(message.content)
-    renderSources(sourcesEl, message.sources)
-    bindCopyButton(copyButton, composeAssistantMarkdown(message.content, message.sources))
+    bindCopyButton(copyButton, message.content.trim())
     if (loadingEl) loadingEl.style.display = "none"
     messagesEl.appendChild(clone)
-    void hydrateWikiLinks(messagesEl)
   }
+
+  void hydrateWikiLinks(messagesEl)
 }
 
 function appendUserMessage(messagesEl: HTMLElement, text: string) {
@@ -525,22 +287,41 @@ function appendUserMessage(messagesEl: HTMLElement, text: string) {
   messagesEl.appendChild(clone)
 }
 
-function appendAssistantMessage(messagesEl: HTMLElement): { contentEl: HTMLElement; sourcesEl: HTMLElement; copyButton: HTMLButtonElement; loadingEl: HTMLElement } {
+function appendAssistantMessage(messagesEl: HTMLElement): {
+  contentEl: HTMLElement
+  copyButton: HTMLButtonElement
+  loadingEl: HTMLElement
+} {
   const template = document.getElementById("template-message-assistant") as HTMLTemplateElement
   if (!template) {
     const fallback = document.createElement("div")
     fallback.className = "message message-assistant"
     messagesEl.appendChild(fallback)
-    return { contentEl: fallback, sourcesEl: fallback, copyButton: fallback as unknown as HTMLButtonElement, loadingEl: fallback }
+    return {
+      contentEl: fallback,
+      copyButton: fallback as unknown as HTMLButtonElement,
+      loadingEl: fallback,
+    }
   }
 
   const clone = template.content.cloneNode(true) as DocumentFragment
   const contentEl = clone.querySelector(".message-content") as HTMLElement
-  const sourcesEl = clone.querySelector(".message-sources") as HTMLElement
   const copyButton = clone.querySelector(".message-copy-button") as HTMLButtonElement
   const loadingEl = clone.querySelector(".message-loading") as HTMLElement
   messagesEl.appendChild(clone)
-  return { contentEl, sourcesEl, copyButton, loadingEl }
+  return { contentEl, copyButton, loadingEl }
+}
+
+function renderRequestError(messagesEl: HTMLElement, error: unknown) {
+  const greeting = messagesEl.querySelector(".message-greeting")
+  if (greeting) greeting.remove()
+  setChatPageState(messagesEl, true)
+
+  const { contentEl, copyButton, loadingEl } = appendAssistantMessage(messagesEl)
+  const message = error instanceof Error ? error.message : String(error)
+  if (contentEl) contentEl.textContent = `Error: ${message}`
+  if (copyButton) copyButton.style.display = "none"
+  if (loadingEl) loadingEl.style.display = "none"
 }
 
 function scrollToBottom(el: HTMLElement) {
@@ -558,19 +339,18 @@ function autoResizeTextarea(textarea: HTMLTextAreaElement) {
   textarea.style.height = Math.min(textarea.scrollHeight, 200) + "px"
 }
 
-type ChatMode =
-  | { type: "new" }
-  | { type: "chat"; id: string }
+type ChatMode = { type: "new" } | { type: "chat"; id: string }
 
 function detectChatMode(): ChatMode {
   const storedIntent = readStoredIntent(true)
   if (storedIntent) {
     if (storedIntent === "new") return { type: "new" }
-    if (storedIntent.mode === "chat" && storedIntent.id) return { type: "chat", id: storedIntent.id }
+    if (storedIntent.mode === "chat" && storedIntent.id)
+      return { type: "chat", id: storedIntent.id }
   }
 
   const currentChatId = getCurrentChatId()
-  if (currentChatId && getConversationById(currentChatId)) {
+  if (currentChatId) {
     return { type: "chat", id: currentChatId }
   }
 
@@ -588,14 +368,31 @@ function runCleanups() {
   cleanupFns.length = 0
 }
 
+let chats: Chat[] = []
+let chatsLoadError: string | null = null
+
+function sortChats(items: Chat[]): Chat[] {
+  return [...items].sort((left, right) => right.updated_at.localeCompare(left.updated_at))
+}
+
+function upsertChat(chat: Chat) {
+  chatsLoadError = null
+  chats = sortChats([chat, ...chats.filter((item) => item.id !== chat.id)])
+}
+
 function refreshSidebars() {
   const currentChatId = getCurrentChatId()
-  const conversations = loadConversations()
 
   for (const sidebarEl of Array.from(document.querySelectorAll(".chats-sidebar"))) {
     const historyEl = sidebarEl.querySelector(".chats-history") as HTMLElement
     if (historyEl) {
-      renderChatHistory(sidebarEl as HTMLElement, historyEl, conversations, currentChatId)
+      renderChatHistory(
+        sidebarEl as HTMLElement,
+        historyEl,
+        chats,
+        currentChatId,
+        chatsLoadError || undefined,
+      )
     }
   }
 }
@@ -609,14 +406,30 @@ async function setupChatPage(pageEl: HTMLElement) {
   if (!messagesEl || !inputEl || !sendButton) return
 
   const mode = detectChatMode()
-  let currentConversation = mode.type === "chat" ? getConversationById(mode.id) : null
+  let currentChatId = mode.type === "chat" ? mode.id : null
+  let currentMessages: ChatMessage[] = []
   let isSending = false
 
-  if (currentConversation) {
-    setCurrentChatId(currentConversation.id)
-    renderMessages(messagesEl, currentConversation.messages)
-  } else {
+  if (!currentChatId) {
     renderNewChat(messagesEl)
+  } else {
+    try {
+      const response = await getChatMessages(config.proxyUrl, currentChatId)
+      currentMessages = response.messages
+      upsertChat(response.chat)
+      setCurrentChatId(response.chat.id)
+      renderMessages(messagesEl, currentMessages)
+      refreshSidebars()
+    } catch (error) {
+      renderNewChat(messagesEl)
+      renderRequestError(messagesEl, error)
+      if (error instanceof ChatApiError && error.status === 404) {
+        chats = chats.filter((chat) => chat.id !== currentChatId)
+        currentChatId = null
+        setCurrentChatId(null)
+        refreshSidebars()
+      }
+    }
   }
 
   scrollToBottom(messagesEl)
@@ -640,56 +453,40 @@ async function setupChatPage(pageEl: HTMLElement) {
     const greeting = messagesEl.querySelector(".message-greeting")
     if (greeting) greeting.remove()
 
-    if (!currentConversation) {
-      // NOTE: 当前“New Chat”仅在前端本地创建一个 conversation id，
-      // 后端并不知道这个会话概念；后端仍然只处理单次 /api/query。
-      currentConversation = createConversation(text)
-      setCurrentChatId(currentConversation.id)
-    }
-
-    const userMessage: Message = {
-      role: "user",
-      content: text,
-      timestamp: Date.now(),
-    }
-
-    appendMessage(currentConversation, userMessage)
-    saveConversation(currentConversation)
-    refreshSidebars()
-
     appendUserMessage(messagesEl, text)
     inputEl.value = ""
     inputEl.style.height = "auto"
     scrollToBottom(messagesEl)
 
-    const { contentEl, sourcesEl, copyButton, loadingEl } = appendAssistantMessage(messagesEl)
+    const { loadingEl } = appendAssistantMessage(messagesEl)
     if (loadingEl) loadingEl.style.display = "block"
     scrollToBottom(messagesEl)
 
     try {
-      const response = await queryWiki(config.proxyUrl, text)
-      const assistantText = formatAssistantAnswer(response)
-      const assistantSources = normalizeSources(response)
-      if (contentEl) contentEl.innerHTML = renderMarkdown(assistantText)
-      renderSources(sourcesEl, assistantSources)
-      bindCopyButton(copyButton, composeAssistantMarkdown(assistantText, assistantSources))
-      void hydrateWikiLinks(messagesEl)
-      if (loadingEl) loadingEl.style.display = "none"
-
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: assistantText,
-        timestamp: Date.now(),
-        sources: assistantSources,
+      if (!currentChatId) {
+        const createdChat = await createChat(config.proxyUrl)
+        currentChatId = createdChat.id
+        setCurrentChatId(createdChat.id)
+        upsertChat(createdChat)
+        refreshSidebars()
       }
 
-      appendMessage(currentConversation, assistantMessage)
-      saveConversation(currentConversation)
+      const response = await sendChatMessage(config.proxyUrl, currentChatId, text)
+      currentMessages = [...currentMessages, response.user_message, response.assistant_message]
+      upsertChat(response.chat)
+      renderMessages(messagesEl, currentMessages)
       refreshSidebars()
-    } catch (err) {
-      const errorText = err instanceof Error ? err.message : String(err)
-      if (contentEl) contentEl.textContent = `Error: ${errorText}`
-      if (loadingEl) loadingEl.style.display = "none"
+      scrollToBottom(messagesEl)
+    } catch (error) {
+      if (currentMessages.length > 0) {
+        renderMessages(messagesEl, currentMessages)
+      } else {
+        renderNewChat(messagesEl)
+      }
+      renderRequestError(messagesEl, error)
+      inputEl.value = text
+      autoResizeTextarea(inputEl)
+      scrollToBottom(messagesEl)
     } finally {
       isSending = false
       inputEl.disabled = false
@@ -713,13 +510,13 @@ async function setupChatPage(pageEl: HTMLElement) {
   addCleanup(() => inputEl.removeEventListener("keydown", onKeydown))
 }
 
-async function setupSidebar(sidebarEl: HTMLElement) {
+function setupSidebar(sidebarEl: HTMLElement) {
   const historyEl = sidebarEl.querySelector(".chats-history") as HTMLElement
   const newChatBtn = sidebarEl.querySelector("[data-new-chat]") as HTMLButtonElement
 
   if (!historyEl || !newChatBtn) return
 
-  renderChatHistory(sidebarEl, historyEl, loadConversations(), getCurrentChatId())
+  renderChatHistory(sidebarEl, historyEl, chats, getCurrentChatId(), chatsLoadError || undefined)
 
   const onNewChat = (e: Event) => {
     e.preventDefault()
@@ -735,9 +532,25 @@ async function setupSidebar(sidebarEl: HTMLElement) {
 async function handleNav() {
   runCleanups()
 
+  const configEl = document.querySelector(
+    ".chat-shell, .chats-sidebar, .chat-page",
+  ) as HTMLElement | null
+  if (configEl) {
+    try {
+      chats = sortChats(await listChats(getChatConfig(configEl).proxyUrl))
+      chatsLoadError = null
+    } catch (error) {
+      chats = []
+      chatsLoadError =
+        error instanceof Error
+          ? `Unable to load conversations: ${error.message}`
+          : "Unable to load conversations"
+    }
+  }
+
   const sidebars = document.querySelectorAll(".chats-sidebar")
   for (const el of Array.from(sidebars)) {
-    await setupSidebar(el as HTMLElement)
+    setupSidebar(el as HTMLElement)
   }
 
   const pages = document.querySelectorAll(".chat-page")

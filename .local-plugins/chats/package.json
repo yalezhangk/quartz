@@ -5,7 +5,11 @@
   "type": "module",
   "license": "MIT",
   "author": "Custom",
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -34,7 +38,9 @@
   },
   "dependencies": {
     "@quartz-community/types": "github:quartz-community/types",
-    "@quartz-community/utils": "github:quartz-community/utils"
+    "@quartz-community/utils": "github:quartz-community/utils",
+    "dompurify": "^3.4.11",
+    "marked": "^18.0.5"
   },
   "devDependencies": {
     "esbuild": "^0.27.2",
@@ -50,7 +56,10 @@
   "quartz": {
     "name": "chats",
     "displayName": "Chats",
-    "category": ["component", "pageType"],
+    "category": [
+      "component",
+      "pageType"
+    ],
     "version": "1.0.0",
     "quartzVersion": ">=5.0.0",
     "dependencies": [],
