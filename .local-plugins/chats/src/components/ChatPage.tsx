@@ -27,6 +27,8 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
   const ChatPage: QuartzComponent = (props: QuartzComponentProps) => {
     const locale = props.cfg?.locale ?? "en-US"
     const strings = i18n(locale)
+    const collapseSidebarLabel = locale.startsWith("zh") ? "收起侧边栏" : "Collapse sidebar"
+    const expandSidebarLabel = locale.startsWith("zh") ? "展开侧边栏" : "Expand sidebar"
     // NOTE: 这里必须继续使用 Quartz 的相对链接生成规则。
     // 之前 chats 页标题/入口跳转异常，核心原因就是写死了绝对路径。
     // 如果未来调整 chats 路由，优先检查这里和 chat.inline.ts 里的导航逻辑是否一致。
@@ -34,7 +36,36 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
 
     return (
       <div class="chat-shell" data-proxy-url={opts.proxyUrl} data-chats-path={chatsHref}>
+        <button
+          type="button"
+          class="chat-sidebar-toggle"
+          data-sidebar-toggle
+          data-collapse-label={collapseSidebarLabel}
+          data-expand-label={expandSidebarLabel}
+          aria-controls="chat-page-sidebar"
+          aria-expanded="true"
+          aria-label={collapseSidebarLabel}
+          title={collapseSidebarLabel}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <line x1="9" y1="3" x2="9" y2="21" />
+            <polyline class="chat-sidebar-toggle-chevron" points="15 8 11 12 15 16" />
+          </svg>
+        </button>
         <aside
+          id="chat-page-sidebar"
           class="chats-sidebar chat-page-sidebar"
           data-proxy-url={opts.proxyUrl}
           data-chats-path={chatsHref}

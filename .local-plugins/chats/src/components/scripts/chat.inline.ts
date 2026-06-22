@@ -563,6 +563,30 @@ function setupSidebar(sidebarEl: HTMLElement) {
   addCleanup(() => newChatBtn.removeEventListener("click", onNewChat))
 }
 
+function setupSidebarToggle(shellEl: HTMLElement) {
+  const toggleButton = shellEl.querySelector("[data-sidebar-toggle]") as HTMLButtonElement
+  if (!toggleButton) return
+
+  const updateToggleState = (collapsed: boolean) => {
+    const label = collapsed
+      ? toggleButton.dataset.expandLabel || "Expand sidebar"
+      : toggleButton.dataset.collapseLabel || "Collapse sidebar"
+
+    shellEl.classList.toggle("sidebar-collapsed", collapsed)
+    toggleButton.setAttribute("aria-expanded", String(!collapsed))
+    toggleButton.setAttribute("aria-label", label)
+    toggleButton.title = label
+  }
+
+  const onToggle = () => {
+    updateToggleState(!shellEl.classList.contains("sidebar-collapsed"))
+  }
+
+  updateToggleState(false)
+  toggleButton.addEventListener("click", onToggle)
+  addCleanup(() => toggleButton.removeEventListener("click", onToggle))
+}
+
 async function handleNav() {
   runCleanups()
 
@@ -585,6 +609,11 @@ async function handleNav() {
   const sidebars = document.querySelectorAll(".chats-sidebar")
   for (const el of Array.from(sidebars)) {
     setupSidebar(el as HTMLElement)
+  }
+
+  const shells = document.querySelectorAll(".chat-shell")
+  for (const el of Array.from(shells)) {
+    setupSidebarToggle(el as HTMLElement)
   }
 
   const pages = document.querySelectorAll(".chat-page")
