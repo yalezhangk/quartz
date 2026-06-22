@@ -148,19 +148,52 @@ async function hydrateWikiLinks(root: ParentNode) {
   )
 }
 
+async function copyText(text: string): Promise<void> {
+  let clipboardError: unknown
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return
+    } catch (error) {
+      clipboardError = error
+    }
+  }
+
+  const textarea = document.createElement("textarea")
+  textarea.value = text
+  textarea.readOnly = true
+  textarea.style.position = "fixed"
+  textarea.style.opacity = "0"
+  textarea.style.pointerEvents = "none"
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+
+  try {
+    if (!document.execCommand("copy")) {
+      throw new Error("The browser rejected the clipboard fallback", {
+        cause: clipboardError,
+      })
+    }
+  } finally {
+    textarea.remove()
+  }
+}
+
 function bindCopyButton(button: HTMLButtonElement | null, markdown: string) {
   if (!button) return
 
   button.dataset.copyMarkdown = markdown
   button.onclick = async () => {
-    // NOTE: 这里依赖浏览器 Clipboard API。
-    // 在某些受限环境、非安全上下文或权限受限时可能失败，目前仅做轻量失败态反馈。
+    // Clipboard API 在非安全上下文或权限受限时可能不可用，copyText 会尝试兼容回退。
     const text = button.dataset.copyMarkdown || ""
     try {
-      await navigator.clipboard.writeText(text)
+      await copyText(text)
       button.classList.add("copied")
       window.setTimeout(() => button.classList.remove("copied"), 1200)
-    } catch {
+    } catch (error) {
+      console.error("[Chats] Failed to copy answer:", error)
       button.classList.add("copy-failed")
       window.setTimeout(() => button.classList.remove("copy-failed"), 1200)
     }
