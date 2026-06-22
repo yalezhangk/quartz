@@ -308,6 +308,7 @@ function appendAssistantMessage(messagesEl: HTMLElement): {
   const contentEl = clone.querySelector(".message-content") as HTMLElement
   const copyButton = clone.querySelector(".message-copy-button") as HTMLButtonElement
   const loadingEl = clone.querySelector(".message-loading") as HTMLElement
+  if (copyButton) copyButton.style.display = "none"
   messagesEl.appendChild(clone)
   return { contentEl, copyButton, loadingEl }
 }
