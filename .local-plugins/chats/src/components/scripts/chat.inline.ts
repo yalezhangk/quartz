@@ -5,6 +5,7 @@ import {
   createChat,
   getChatMessages,
   listChats,
+  saveMessageAsSynthesis,
   sendChatMessage,
 } from "../../api/chatApi"
 import type { Chat, ChatMessage } from "../../types"
@@ -200,6 +201,62 @@ function bindCopyButton(button: HTMLButtonElement | null, markdown: string) {
   }
 }
 
+function syncSynthesisButtonState(button: HTMLButtonElement, message: ChatMessage) {
+  const isSaved = Boolean(message.synthesis_path)
+  button.disabled = isSaved
+  button.classList.toggle("saved", isSaved)
+  button.classList.remove("saving", "save-failed")
+  button.title = isSaved ? "Saved as Synthesis" : "Save as Synthesis"
+  button.setAttribute("aria-label", button.title)
+}
+
+function bindSynthesisButton(
+  button: HTMLButtonElement | null,
+  message: ChatMessage,
+  proxyUrl: string,
+) {
+  if (!button) return
+
+  syncSynthesisButtonState(button, message)
+  button.onclick = async () => {
+    if (button.disabled || message.synthesis_path) return
+
+    button.disabled = true
+    button.classList.add("saving")
+    button.classList.remove("save-failed")
+    button.title = "Saving as Synthesis"
+    button.setAttribute("aria-label", button.title)
+
+    try {
+      const response = await saveMessageAsSynthesis(proxyUrl, message.chat_id, message.id)
+      message.synthesis_path = response.path
+      message.synthesized_at = response.created_at
+      syncSynthesisButtonState(button, message)
+    } catch (error) {
+      const detail = error instanceof ChatApiError ? error.message : ""
+      if (error instanceof ChatApiError && error.status === 409 && detail.includes("path")) {
+        const existingPath = detail.match(/syntheses\/[^:\s]+\.md/)?.[0] || "syntheses/unknown.md"
+        message.synthesis_path = message.synthesis_path || existingPath
+        message.synthesized_at = message.synthesized_at || new Date().toISOString()
+        syncSynthesisButtonState(button, message)
+        return
+      }
+
+      console.error("[Chats] Failed to save synthesis:", error)
+      button.disabled = false
+      button.classList.remove("saving")
+      button.classList.add("save-failed")
+      button.title = "Save failed. Try again"
+      button.setAttribute("aria-label", button.title)
+      window.setTimeout(() => {
+        button.classList.remove("save-failed")
+        button.title = "Save as Synthesis"
+        button.setAttribute("aria-label", button.title)
+      }, 1600)
+    }
+  }
+}
+
 function setChatPageState(messagesEl: HTMLElement, hasMessages: boolean) {
   const chatPage = messagesEl.closest(".chat-page")
   if (!chatPage) return
@@ -277,7 +334,7 @@ function renderNewChat(messagesEl: HTMLElement) {
   messagesEl.appendChild(greeting)
 }
 
-function renderMessages(messagesEl: HTMLElement, messages: ChatMessage[]) {
+function renderMessages(messagesEl: HTMLElement, messages: ChatMessage[], proxyUrl: string) {
   removeAllChildren(messagesEl)
   setChatPageState(messagesEl, messages.length > 0)
 
@@ -300,9 +357,11 @@ function renderMessages(messagesEl: HTMLElement, messages: ChatMessage[]) {
     const clone = assistantTemplate.content.cloneNode(true) as DocumentFragment
     const contentEl = clone.querySelector(".message-content") as HTMLElement
     const copyButton = clone.querySelector(".message-copy-button") as HTMLButtonElement
+    const synthesisButton = clone.querySelector(".message-synthesis-button") as HTMLButtonElement
     const loadingEl = clone.querySelector(".message-loading") as HTMLElement
     if (contentEl) contentEl.innerHTML = renderMarkdown(message.content)
     bindCopyButton(copyButton, message.content.trim())
+    bindSynthesisButton(synthesisButton, message, proxyUrl)
     if (loadingEl) loadingEl.style.display = "none"
     messagesEl.appendChild(clone)
   }
@@ -323,6 +382,7 @@ function appendUserMessage(messagesEl: HTMLElement, text: string) {
 function appendAssistantMessage(messagesEl: HTMLElement): {
   contentEl: HTMLElement
   copyButton: HTMLButtonElement
+  synthesisButton: HTMLButtonElement
   loadingEl: HTMLElement
 } {
   const template = document.getElementById("template-message-assistant") as HTMLTemplateElement
@@ -333,6 +393,7 @@ function appendAssistantMessage(messagesEl: HTMLElement): {
     return {
       contentEl: fallback,
       copyButton: fallback as unknown as HTMLButtonElement,
+      synthesisButton: fallback as unknown as HTMLButtonElement,
       loadingEl: fallback,
     }
   }
@@ -340,10 +401,12 @@ function appendAssistantMessage(messagesEl: HTMLElement): {
   const clone = template.content.cloneNode(true) as DocumentFragment
   const contentEl = clone.querySelector(".message-content") as HTMLElement
   const copyButton = clone.querySelector(".message-copy-button") as HTMLButtonElement
+  const synthesisButton = clone.querySelector(".message-synthesis-button") as HTMLButtonElement
   const loadingEl = clone.querySelector(".message-loading") as HTMLElement
   if (copyButton) copyButton.style.display = "none"
+  if (synthesisButton) synthesisButton.style.display = "none"
   messagesEl.appendChild(clone)
-  return { contentEl, copyButton, loadingEl }
+  return { contentEl, copyButton, synthesisButton, loadingEl }
 }
 
 function renderRequestError(messagesEl: HTMLElement, error: unknown) {
@@ -351,10 +414,11 @@ function renderRequestError(messagesEl: HTMLElement, error: unknown) {
   if (greeting) greeting.remove()
   setChatPageState(messagesEl, true)
 
-  const { contentEl, copyButton, loadingEl } = appendAssistantMessage(messagesEl)
+  const { contentEl, copyButton, synthesisButton, loadingEl } = appendAssistantMessage(messagesEl)
   const message = error instanceof Error ? error.message : String(error)
   if (contentEl) contentEl.textContent = `Error: ${message}`
   if (copyButton) copyButton.style.display = "none"
+  if (synthesisButton) synthesisButton.style.display = "none"
   if (loadingEl) loadingEl.style.display = "none"
 }
 
@@ -452,7 +516,7 @@ async function setupChatPage(pageEl: HTMLElement) {
       currentMessages = response.messages
       upsertChat(response.chat)
       setCurrentChatId(response.chat.id)
-      renderMessages(messagesEl, currentMessages)
+      renderMessages(messagesEl, currentMessages, config.proxyUrl)
       refreshSidebars()
     } catch (error) {
       renderNewChat(messagesEl)
@@ -508,12 +572,12 @@ async function setupChatPage(pageEl: HTMLElement) {
       const response = await sendChatMessage(config.proxyUrl, currentChatId, text)
       currentMessages = [...currentMessages, response.user_message, response.assistant_message]
       upsertChat(response.chat)
-      renderMessages(messagesEl, currentMessages)
+      renderMessages(messagesEl, currentMessages, config.proxyUrl)
       refreshSidebars()
       scrollToBottom(messagesEl)
     } catch (error) {
       if (currentMessages.length > 0) {
-        renderMessages(messagesEl, currentMessages)
+        renderMessages(messagesEl, currentMessages, config.proxyUrl)
       } else {
         renderNewChat(messagesEl)
       }

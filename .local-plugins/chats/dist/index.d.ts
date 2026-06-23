@@ -24,6 +24,8 @@ interface ChatMessage {
     sources: string[];
     relevant_pages: string[];
     created_at: string;
+    synthesis_path: string | null;
+    synthesized_at: string | null;
 }
 interface ChatMessagesResponse {
     chat: Chat;

@@ -205,7 +205,12 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
               <div class="message-body">
                 <div class="message-content"></div>
                 <div class="message-actions">
-                  <button type="button" class="message-copy-button" aria-label="Copy answer">
+                  <button
+                    type="button"
+                    class="message-action-button message-copy-button"
+                    aria-label="Copy answer"
+                    title="Copy answer"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       width="18"
@@ -219,6 +224,29 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                     >
                       <rect x="9" y="9" width="13" height="13" rx="3" ry="3" />
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="message-action-button message-synthesis-button"
+                    aria-label="Save as Synthesis"
+                    title="Save as Synthesis"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.9"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
+                      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+                      <path d="M12 11v6" />
+                      <path d="M9 14h6" />
                     </svg>
                   </button>
                 </div>

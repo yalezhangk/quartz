@@ -16,6 +16,8 @@ export interface ChatMessage {
   sources: string[]
   relevant_pages: string[]
   created_at: string
+  synthesis_path: string | null
+  synthesized_at: string | null
 }
 
 export interface ChatMessagesResponse {
@@ -27,6 +29,15 @@ export interface ChatTurnResponse {
   chat: Chat
   user_message: ChatMessage
   assistant_message: ChatMessage
+}
+
+export interface SynthesisResponse {
+  chat_id: string
+  assistant_message_id: number
+  question_message_id: number
+  title: string
+  path: string
+  created_at: string
 }
 
 export interface ChatSessionData {
