@@ -40,6 +40,26 @@ export interface SynthesisResponse {
   created_at: string
 }
 
+export type IngestJobStatus = "queued" | "running" | "succeeded" | "failed"
+
+export interface IngestJobResponse {
+  job_id: string
+  status: IngestJobStatus
+  original_filename: string
+  source_path: string
+  created_pages: string[]
+  updated_pages: string[]
+  contradictions: string[]
+  validation: {
+    broken_links: Array<[string, string]>
+    unindexed: string[]
+  }
+  error: string | null
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+}
+
 export interface ChatSessionData {
   intent?: "new" | { mode: "chat"; id: string }
 }

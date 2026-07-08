@@ -98,6 +98,14 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
             </button>
           </div>
           <div class="chats-history-panel">
+            <details class="ingests-panel" open>
+              <summary class="ingests-summary">
+                <span>Ingests</span>
+              </summary>
+              <div class="ingests-list">
+                <div class="ingests-empty-state">No ingests yet</div>
+              </div>
+            </details>
             <div class="chats-header">
               <h2>{strings.title}</h2>
             </div>
@@ -134,7 +142,7 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                   type="button"
                   class="chat-attach-button"
                   aria-label="Add attachment"
-                  disabled
+                  title="Upload document"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"

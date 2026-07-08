@@ -4,11 +4,14 @@ import {
   ChatApiError,
   createChat,
   getChatMessages,
+  getIngestJob,
+  listIngestJobs,
   listChats,
   saveMessageAsSynthesis,
   sendChatMessage,
+  uploadIngestDocument,
 } from "../../api/chatApi"
-import type { Chat, ChatMessage } from "../../types"
+import type { Chat, ChatMessage, IngestJobResponse } from "../../types"
 import { renderMarkdown } from "./markdown"
 
 interface ChatConfig {
@@ -468,6 +471,9 @@ function runCleanups() {
 
 let chats: Chat[] = []
 let chatsLoadError: string | null = null
+let ingestJobs: IngestJobResponse[] = []
+let ingestLoadError: string | null = null
+const ingestPollTimers = new Map<string, number>()
 
 function sortChats(items: Chat[]): Chat[] {
   return [...items].sort((left, right) => right.updated_at.localeCompare(left.updated_at))
@@ -476,6 +482,56 @@ function sortChats(items: Chat[]): Chat[] {
 function upsertChat(chat: Chat) {
   chatsLoadError = null
   chats = sortChats([chat, ...chats.filter((item) => item.id !== chat.id)])
+}
+
+function sortIngestJobs(items: IngestJobResponse[]): IngestJobResponse[] {
+  return [...items].sort((left, right) => right.created_at.localeCompare(left.created_at))
+}
+
+function upsertIngestJob(job: IngestJobResponse) {
+  ingestLoadError = null
+  ingestJobs = sortIngestJobs([job, ...ingestJobs.filter((item) => item.job_id !== job.job_id)]).slice(
+    0,
+    20,
+  )
+}
+
+function isIngestPending(job: IngestJobResponse): boolean {
+  return job.status === "queued" || job.status === "running"
+}
+
+function renderIngestJobs(listEl: HTMLElement, jobs: IngestJobResponse[], errorMessage?: string) {
+  removeAllChildren(listEl)
+
+  if (errorMessage || jobs.length === 0) {
+    const empty = document.createElement("div")
+    empty.className = "ingests-empty-state"
+    empty.textContent = errorMessage || "No ingests yet"
+    listEl.appendChild(empty)
+    return
+  }
+
+  for (const job of jobs.slice(0, 3)) {
+    const item = document.createElement("div")
+    item.className = `ingest-item ingest-${job.status}`
+
+    const title = document.createElement("div")
+    title.className = "ingest-item-title"
+    title.textContent = job.original_filename
+
+    const status = document.createElement("div")
+    status.className = "ingest-item-status"
+    if (job.status === "succeeded") {
+      status.textContent = "已导入，可以开始提问"
+    } else if (job.status === "failed") {
+      status.textContent = job.error ? `failed: ${job.error}` : "failed"
+    } else {
+      status.textContent = job.status
+    }
+
+    item.append(title, status)
+    listEl.appendChild(item)
+  }
 }
 
 function refreshSidebars() {
@@ -492,7 +548,41 @@ function refreshSidebars() {
         chatsLoadError || undefined,
       )
     }
+    const ingestsEl = sidebarEl.querySelector(".ingests-list") as HTMLElement
+    if (ingestsEl) {
+      renderIngestJobs(ingestsEl, ingestJobs, ingestLoadError || undefined)
+    }
   }
+}
+
+function stopIngestPolling(jobId: string) {
+  const timer = ingestPollTimers.get(jobId)
+  if (timer !== undefined) {
+    window.clearTimeout(timer)
+    ingestPollTimers.delete(jobId)
+  }
+}
+
+function pollIngestJob(proxyUrl: string, jobId: string) {
+  if (ingestPollTimers.has(jobId)) return
+
+  const poll = async () => {
+    try {
+      const job = await getIngestJob(proxyUrl, jobId)
+      upsertIngestJob(job)
+      refreshSidebars()
+      if (!isIngestPending(job)) {
+        ingestPollTimers.delete(jobId)
+        return
+      }
+    } catch (error) {
+      console.error("[Chats] Failed to poll ingest job:", error)
+    }
+
+    ingestPollTimers.set(jobId, window.setTimeout(poll, 2000))
+  }
+
+  ingestPollTimers.set(jobId, window.setTimeout(poll, 800))
 }
 
 async function setupChatPage(pageEl: HTMLElement) {
@@ -500,6 +590,7 @@ async function setupChatPage(pageEl: HTMLElement) {
   const messagesEl = pageEl.querySelector(".chat-messages") as HTMLElement
   const inputEl = pageEl.querySelector(".chat-input") as HTMLTextAreaElement
   const sendButton = pageEl.querySelector(".chat-send-button") as HTMLButtonElement
+  const attachButton = pageEl.querySelector(".chat-attach-button") as HTMLButtonElement
 
   if (!messagesEl || !inputEl || !sendButton) return
 
@@ -597,6 +688,51 @@ async function setupChatPage(pageEl: HTMLElement) {
   sendButton.addEventListener("click", onSendClick)
   addCleanup(() => sendButton.removeEventListener("click", onSendClick))
 
+  if (attachButton) {
+    const fileInput = document.createElement("input")
+    fileInput.type = "file"
+    fileInput.style.display = "none"
+    fileInput.accept = ".md,.pdf,.docx,.pptx,.xlsx,.xls,.html,.htm,.txt,.csv,.json,.xml,.rst,.rtf,.epub,.ipynb,.yaml,.yml,.tsv,.wav,.mp3"
+    document.body.appendChild(fileInput)
+    attachButton.disabled = false
+
+    const onAttachClick = () => {
+      fileInput.value = ""
+      fileInput.click()
+    }
+
+    const onFileChange = async () => {
+      const file = fileInput.files?.[0]
+      if (!file) return
+
+      attachButton.disabled = true
+      attachButton.classList.add("uploading")
+      try {
+        const job = await uploadIngestDocument(config.proxyUrl, file)
+        upsertIngestJob(job)
+        refreshSidebars()
+        if (isIngestPending(job)) {
+          pollIngestJob(config.proxyUrl, job.job_id)
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Upload failed"
+        ingestLoadError = `Upload failed: ${message}`
+        refreshSidebars()
+      } finally {
+        attachButton.disabled = false
+        attachButton.classList.remove("uploading")
+      }
+    }
+
+    attachButton.addEventListener("click", onAttachClick)
+    fileInput.addEventListener("change", onFileChange)
+    addCleanup(() => {
+      attachButton.removeEventListener("click", onAttachClick)
+      fileInput.removeEventListener("change", onFileChange)
+      fileInput.remove()
+    })
+  }
+
   const onKeydown = (e: KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
@@ -610,11 +746,15 @@ async function setupChatPage(pageEl: HTMLElement) {
 
 function setupSidebar(sidebarEl: HTMLElement) {
   const historyEl = sidebarEl.querySelector(".chats-history") as HTMLElement
+  const ingestsEl = sidebarEl.querySelector(".ingests-list") as HTMLElement
   const newChatBtn = sidebarEl.querySelector("[data-new-chat]") as HTMLButtonElement
 
   if (!historyEl || !newChatBtn) return
 
   renderChatHistory(sidebarEl, historyEl, chats, getCurrentChatId(), chatsLoadError || undefined)
+  if (ingestsEl) {
+    renderIngestJobs(ingestsEl, ingestJobs, ingestLoadError || undefined)
+  }
 
   const onNewChat = (e: Event) => {
     e.preventDefault()
@@ -653,13 +793,17 @@ function setupSidebarToggle(shellEl: HTMLElement) {
 
 async function handleNav() {
   runCleanups()
+  for (const jobId of Array.from(ingestPollTimers.keys())) {
+    stopIngestPolling(jobId)
+  }
 
   const configEl = document.querySelector(
     ".chat-shell, .chats-sidebar, .chat-page",
   ) as HTMLElement | null
   if (configEl) {
+    const proxyUrl = getChatConfig(configEl).proxyUrl
     try {
-      chats = sortChats(await listChats(getChatConfig(configEl).proxyUrl))
+      chats = sortChats(await listChats(proxyUrl))
       chatsLoadError = null
     } catch (error) {
       chats = []
@@ -667,6 +811,15 @@ async function handleNav() {
         error instanceof Error
           ? `Unable to load conversations: ${error.message}`
           : "Unable to load conversations"
+    }
+
+    try {
+      ingestJobs = sortIngestJobs(await listIngestJobs(proxyUrl, 20))
+      ingestLoadError = null
+    } catch (error) {
+      ingestJobs = []
+      ingestLoadError =
+        error instanceof Error ? `Unable to load ingests: ${error.message}` : "Unable to load ingests"
     }
   }
 
@@ -683,6 +836,15 @@ async function handleNav() {
   const pages = document.querySelectorAll(".chat-page")
   for (const el of Array.from(pages)) {
     await setupChatPage(el as HTMLElement)
+  }
+
+  if (configEl) {
+    const proxyUrl = getChatConfig(configEl).proxyUrl
+    for (const job of ingestJobs) {
+      if (isIngestPending(job)) {
+        pollIngestJob(proxyUrl, job.job_id)
+      }
+    }
   }
 }
 

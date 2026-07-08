@@ -1,4 +1,10 @@
-import type { Chat, ChatMessagesResponse, ChatTurnResponse, SynthesisResponse } from "../types"
+import type {
+  Chat,
+  ChatMessagesResponse,
+  ChatTurnResponse,
+  IngestJobResponse,
+  SynthesisResponse,
+} from "../types"
 
 export class ChatApiError extends Error {
   constructor(
@@ -26,6 +32,10 @@ function getChatsEndpoint(proxyUrl: string): string {
 
 function getSynthesisEndpoint(proxyUrl: string): string {
   return `${getApiBaseUrl(proxyUrl)}/synthesis`
+}
+
+function getIngestJobsEndpoint(proxyUrl: string): string {
+  return `${getApiBaseUrl(proxyUrl)}/ingest/jobs`
 }
 
 function getErrorDetail(payload: unknown): string | null {
@@ -125,5 +135,33 @@ export function saveMessageAsSynthesis(
       assistant_message_id: assistantMessageId,
       ...(title ? { title } : {}),
     }),
+  )
+}
+
+export function uploadIngestDocument(
+  proxyUrl: string,
+  file: File,
+): Promise<IngestJobResponse> {
+  const body = new FormData()
+  body.append("file", file)
+  body.append("auto_convert", "true")
+  return request<IngestJobResponse>(getIngestJobsEndpoint(proxyUrl), {
+    method: "POST",
+    body,
+  })
+}
+
+export function getIngestJob(proxyUrl: string, jobId: string): Promise<IngestJobResponse> {
+  return request<IngestJobResponse>(
+    `${getIngestJobsEndpoint(proxyUrl)}/${encodeURIComponent(jobId)}`,
+  )
+}
+
+export function listIngestJobs(
+  proxyUrl: string,
+  limit: number = 20,
+): Promise<IngestJobResponse[]> {
+  return request<IngestJobResponse[]>(
+    `${getIngestJobsEndpoint(proxyUrl)}?limit=${encodeURIComponent(String(limit))}`,
   )
 }

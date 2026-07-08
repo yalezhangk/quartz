@@ -188,6 +188,102 @@
   overflow: hidden;
 }
 
+.ingests-panel {
+  border-bottom: 1px solid rgba(20, 20, 20, 0.08);
+}
+
+.ingests-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 0.9rem 0.55rem;
+  cursor: pointer;
+  color: rgba(34, 34, 34, 0.86);
+  font-size: 1rem;
+  font-weight: 600;
+  list-style: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &::after {
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    border-right: 1.8px solid currentColor;
+    border-bottom: 1.8px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.16s ease;
+  }
+}
+
+.ingests-panel:not([open]) .ingests-summary::after {
+  transform: rotate(-45deg);
+}
+
+.ingests-list {
+  padding: 0 0.45rem 0.7rem;
+}
+
+.ingests-empty-state {
+  padding: 0.75rem 0.8rem;
+  color: var(--gray);
+  font-size: 0.86rem;
+  font-style: italic;
+}
+
+.ingest-item {
+  padding: 0.68rem 0.72rem;
+  margin: 0.18rem 0;
+  border-radius: 12px;
+  background: rgba(40, 75, 99, 0.06);
+  border: 1px solid rgba(20, 20, 20, 0.06);
+  overflow: hidden;
+}
+
+.ingest-item-title,
+.ingest-item-status {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ingest-item-title {
+  font-size: 0.9rem;
+  font-weight: 550;
+  color: var(--dark);
+}
+
+.ingest-item-status {
+  margin-top: 0.24rem;
+  font-size: 0.78rem;
+  color: var(--gray);
+}
+
+.ingest-running,
+.ingest-queued {
+  border-color: rgba(40, 75, 99, 0.16);
+}
+
+.ingest-succeeded {
+  background: rgba(31, 122, 77, 0.07);
+  border-color: rgba(31, 122, 77, 0.14);
+
+  .ingest-item-status {
+    color: #1f7a4d;
+  }
+}
+
+.ingest-failed {
+  background: rgba(181, 71, 71, 0.07);
+  border-color: rgba(181, 71, 71, 0.16);
+
+  .ingest-item-status {
+    color: #b54747;
+  }
+}
+
 .chats-header {
   padding: 0.8rem 0.9rem 0.5rem;
 
@@ -833,6 +929,10 @@
 .chat-attach-button:disabled {
   opacity: 0.75;
   cursor: not-allowed;
+}
+
+.chat-attach-button.uploading {
+  cursor: wait;
 }
 
 .chat-input {
