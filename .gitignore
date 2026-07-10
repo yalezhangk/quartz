@@ -1,13 +1,42 @@
+# OS / editor
 .DS_Store
-.gitignore
-node_modules
-public
-prof
+Thumbs.db
+.obsidian/
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output / cache
+public/
+.quartz-cache/
+quartz/.quartz-cache/
+prof/
 tsconfig.tsbuildinfo
-.obsidian
-.quartz-cache
-private/
+*.tsbuildinfo
+quartz/cli/tui/dist/
+
+# Runtime logs
+*.log
+.quartz-dev*.log
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Local machine paths / generated plugin cache
+content
+.quartz/plugins/
+
+# Agent/session local state
+.agents/
+.codex/
+.sisyphus/
+
+# Replit
 .replit
 replit.nix
-# .quartz/
-quartz/cli/tui/dist/
+
+# Private content
+private/
