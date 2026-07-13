@@ -6,58 +6,50 @@ Quartz is a set of tools that helps you publish your [digital garden](https://jz
 
 🔗 Read the documentation and get started: https://quartz.jzhao.xyz/
 
-[Join the Discord Community](https://discord.gg/cRFFHYye7t)
 
-## Sponsors
 
-<p align="center">
-  <a href="https://github.com/sponsors/jackyzha0">
-    <img src="https://cdn.jsdelivr.net/gh/jackyzha0/jackyzha0/sponsorkit/sponsors.svg" />
-  </a>
-</p>
+# MKT Sample Quartz 运行手册
 
-## 运行
+本仓库是基于 Quartz v5 的知识库前端，运行目标是 DGX Spark / Linux ARM64。Windows 侧主要用于代码编辑和提交；DGX 侧负责安装依赖、恢复插件状态、读取真实 wiki 内容目录并启动服务。
+
+本文只记录当前项目的运行和维护流程，不覆盖 Quartz 官方教程、静态托管流程或单独生成 `public/` 的纯构建流程。
+
+## 当前启动方式
+
+在 DGX 上进入 Quartz 仓库根目录后，服务按下面的方式启动：
+
 ```bash
-npx quartz build --serve
+CHAT_PROXY_URL=http://192.168.8.8:8081 npx quartz build --serve \
+  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki \
+  --port 8080 \
+  --wsPort 3001
 ```
 
-## Chats Backend Config
+关键约定：
 
-使用 `CHAT_PROXY_URL` 控制 chats 插件的后端基础地址。
+- `CHAT_PROXY_URL=http://192.168.8.8:8081`：让 Chats 插件通过API `http://192.168.8.8:8081` 访问 `wiki-backend`。
+- `-d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki`：显式指定真实 wiki 内容目录；DGX 仓库内不依赖 `content/`。
+- `--port 8080`：Quartz HTTP 页面服务端口。
+- `--wsPort 3001`：Quartz 热更新 WebSocket 端口。
+- `build --serve` 会先生成当前站点输出，再启动本地预览服务并监听内容变化。
 
-- 本地开发：设置为 `http://127.0.0.1:8081`
-- 线上部署：不设置，默认回退到 `/api`
+如果 `8080` 或 `3001` 已被占用，先停止旧 Quartz 进程，或者显式换端口。
 
-Git Bash 示例：
+## 项目事实
 
-```bash
-export CHAT_PROXY_URL="http://127.0.0.1:8081"
-npx quartz build --serve
-```
+- Node.js 版本要求来自 `package.json`：`node >=22`，`npm >=10.9.2`。
+- 主配置文件是 `quartz.config.yaml`。
+- Chats 插件来源是 `./.local-plugins/chats`。
+- Chats 后端地址由 `quartz.config.yaml` 中的 `${CHAT_PROXY_URL:-http://192.168.8.8:8081}` 注入；没有设置环境变量时默认回退到 `http://192.168.8.8:8081`。
+- `quartz.lock.json` 记录社区插件来源和提交，DGX 初始化时按它恢复插件状态。
+- `public/`、`.quartz/plugins/`、`node_modules/`、`.local-plugins/chats/node_modules/` 都是 DGX 本机生成状态，不应从 Windows 复制过去。
+- `.local-plugins/chats/dist/` 是当前本地插件的导出产物，已纳入仓库契约；改 Chats 源码后需要同步更新它。
 
-如果未来本地后端端口或地址变更，只需要修改 `CHAT_PROXY_URL`，不要再改 chats 插件源码或 `proxyUrl` 默认值。
+## DGX 首次初始化
 
-## DGX Spark 插件开发与启动流程
-
-本仓库在 Windows 上修改代码，通过 Git 同步到 DGX Spark。DGX Spark 上不要复用 Windows 的
-`node_modules/`、`public/`、`content` symlink 或 `.quartz/plugins/` 缓存；这些都应该在
-DGX 上重新生成。
-
-以下示例假设：
-
-- Quartz 仓库路径：`/home/xxx/quartz`
-- wiki 内容仓库路径：`/home/xxx/llm-wiki-agent/wiki`
-- Quartz 页面端口：`8080`
-- Quartz 热更新 WebSocket 端口：`3001`
-- 后端 API 通过同源反代暴露为：`/api`
-
-### 首次在 DGX 初始化
-
-新 clone 或清理过依赖后执行：
+新 clone、清理过依赖，或换到一台新的 DGX 主机后执行：
 
 ```bash
-cd /home/xxx/quartz
-git pull
 npm ci
 
 cd .local-plugins/chats
@@ -69,62 +61,50 @@ npx quartz plugin install --clean
 npx quartz plugin install --from-config
 ```
 
-命令说明：
+然后使用“当前启动方式”里的命令启动服务。
 
-- `npm ci`：按 `package-lock.json` 精确安装依赖，适合部署和验证环境。
-- `.local-plugins/chats/npm ci`：安装 Chats 插件自己的构建依赖。
-- `.local-plugins/chats/npm run build`：把 Chats 插件源码编译到 `dist/`。
-- `npx quartz plugin install --clean`：按 `quartz.lock.json` 恢复社区插件。
-- `npx quartz plugin install --from-config`：按 `quartz.config.yaml` 链接本地插件，例如 `chats`。
+命令边界：
 
-### 修改 Chats 插件后刷新 UI
+- `npm ci` 安装 Quartz 主项目依赖。
+- `.local-plugins/chats/npm ci` 安装 Chats 插件自己的构建依赖。
+- `.local-plugins/chats/npm run build` 生成 `dist/`，Quartz 运行时优先加载这里的入口。
+- `npx quartz plugin install --clean` 按 `quartz.lock.json` 恢复社区插件。
+- `npx quartz plugin install --from-config` 按 `quartz.config.yaml` 链接本地插件。
 
-如果只改了 `.local-plugins/chats/src/**`、样式或 Chats 插件配置，执行：
+## 日常更新流程
+
+只更新 wiki 内容时，不需要重新安装插件。确认 `llm-wiki-agent/wiki` 已经是最新内容后，重新执行当前启动命令即可。
+
+只更新 Quartz 配置、主题、布局或核心代码时：
 
 ```bash
-cd /home/xxx/quartz
+git pull
+CHAT_PROXY_URL=http://192.168.8.8:8081 npx quartz build --serve \
+  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki \
+  --port 8080 \
+  --wsPort 3001
+```
+
+更新 Chats 插件源码时，先刷新插件产物，再启动 Quartz：
+
+```bash
 git pull
 
 cd .local-plugins/chats
 npm run build
 cd ../..
 
-CHAT_PROXY_URL=/api npx quartz build --serve \
-  -d /home/xxx/llm-wiki-agent/wiki \
+CHAT_PROXY_URL=http://192.168.8.8:8081 npx quartz build --serve \
+  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki \
   --port 8080 \
   --wsPort 3001
 ```
 
-注意：Chats 页面不会直接加载 `src/`，Quartz 使用的是 `.local-plugins/chats/dist/`。所以改
-Chats 源码后必须先执行 `npm run build`，再重新执行 Quartz build/serve，浏览器 UI 才会是最新版本。
+原因是 Chats 页面不会直接加载 `.local-plugins/chats/src/`，Quartz 使用的是 `.local-plugins/chats/dist/` 和最终生成的 `public/chats.html`。
 
-如果 8080 已经有旧服务在运行，先停止旧进程，再执行上面的 `build --serve` 命令。
+## 什么时候重新安装插件
 
-### 修改其他本地插件后刷新 UI
-
-未来如果新增了其他本地插件，例如 `.local-plugins/example`，流程和 Chats 一样：
-
-```bash
-cd /home/xxx/quartz/.local-plugins/example
-npm ci
-npm run build
-
-cd /home/xxx/quartz
-npx quartz plugin install --from-config
-
-CHAT_PROXY_URL=/api npx quartz build --serve \
-  -d /home/xxx/llm-wiki-agent/wiki \
-  --port 8080 \
-  --wsPort 3001
-```
-
-如果只是改已有本地插件源码，通常只需要该插件的 `npm run build`，然后重新跑 Quartz
-`build --serve`。只有新增、删除、改名插件，或者修改 `quartz.config.yaml` 的插件来源时，才需要再跑
-`npx quartz plugin install --from-config`。
-
-### 什么时候需要重新安装插件
-
-平时改 Chats 源码不需要反复安装插件。只有下面几种情况需要：
+平时改 wiki 内容、Quartz 配置或 Chats 源码，不需要反复执行插件安装命令。只有以下情况才需要重新安装插件：
 
 - 新 clone 到 DGX 后首次初始化。
 - 删除过 `.quartz/plugins/`。
@@ -132,20 +112,67 @@ CHAT_PROXY_URL=/api npx quartz build --serve \
 - 修改了 `quartz.lock.json`。
 - 新增、删除、改名 `.local-plugins/*` 插件。
 
-### 只构建不启动服务
-
-如果只想生成 `public/`，不启动 8080 服务：
+对应命令：
 
 ```bash
-cd /home/xxx/quartz
-CHAT_PROXY_URL=/api npx quartz build \
-  -d /home/xxx/llm-wiki-agent/wiki
+npx quartz plugin install --clean
+npx quartz plugin install --from-config
 ```
 
-生成后检查关键文件：
+## 后端与页面检查
+
+启动后先检查 Quartz 页面：
 
 ```bash
-test -s public/index.html
-test -s public/chats.html
-test -s public/static/contentIndex.json
+curl --fail --silent --show-error http://127.0.0.1:8080/
+curl --fail --silent --show-error http://127.0.0.1:8080/chats
+curl --fail --silent --show-error http://127.0.0.1:8080/static/contentIndex.json
 ```
+
+再检查 `http://192.168.8.8:8081` 后端API是否可用。Chats 插件会访问这些后端路径：
+
+- `GET http://192.168.8.8:8081/chats`
+- `POST http://192.168.8.8:8081/chats`
+- `GET http://192.168.8.8:8081/chats/{chat_id}/messages`
+- `POST http://192.168.8.8:8081/chats/{chat_id}/messages`
+- `PATCH http://192.168.8.8:8081/chats/{chat_id}`
+- `POST http://192.168.8.8:8081/synthesis`
+- `GET http://192.168.8.8:8081/ingest/jobs`
+- `POST http://192.168.8.8:8081/ingest/jobs`
+
+如果页面能打开但 Chats 功能失败，优先检查 `http://192.168.8.8:8081` 后端API和 `wiki-backend`，不要先改 Quartz 插件源码。
+
+## 仓库清洁边界
+
+这些目录是本机状态或生成物，不作为迁移依据：
+
+- `node_modules/`
+- `.local-plugins/chats/node_modules/`
+- `public/`
+- `.quartz/plugins/`
+- `.quartz-cache/`
+- `content`
+- `.agents/`
+- `.codex/`
+- `.sisyphus/`
+- `*.log`
+
+迁移到 DGX 时不要复制 Windows 的这些目录。正确做法是提交源码、锁文件和必要的插件 `dist/`，然后在 DGX 上用 `npm ci`、插件安装命令和当前启动命令重新生成运行状态。
+
+## 常见定位顺序
+
+Chats UI 不是最新：
+
+1. 确认 `.local-plugins/chats/src/**` 的改动已经提交或同步到 DGX。
+2. 在 `.local-plugins/chats` 执行 `npm run build`。
+3. 回到 Quartz 根目录重新执行当前启动命令。
+4. 检查 `public/chats.html` 和其引用的 `public/static/scripts/*` 是否已更新。
+
+页面正常但聊天接口失败：
+
+1. 检查 `CHAT_PROXY_URL` 是否为 `http://192.168.8.8:8081`。
+2. 检查 Quartz 前面是否有反代把 `http://192.168.8.8:8081` 转到 `wiki-backend`。
+3. 通过浏览器实际访问入口请求 `<site-origin>http://192.168.8.8:8081/chats`，或直接请求反代后的真实后端地址。
+4. 再看 `wiki-backend` 日志。
+
+DGX 迁移验证不要只看 Windows 构建结果。最终停止条件应是 DGX 本机完成依赖安装、插件恢复、服务启动，并且 `/`、`/chats`、`/static/contentIndex.json`、`http://192.168.8.8:8081/chats` 都能按预期返回。
