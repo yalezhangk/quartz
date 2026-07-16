@@ -1,75 +1,64 @@
-# Quartz v5
+# Quartz 知识库前端
 
-> “[One] who works with the door open gets all kinds of interruptions, but [they] also occasionally gets clues as to what the world is and what might be important.” — Richard Hamming
+本项目基于 Quartz v5，将 `llm-wiki-agent/wiki` 中的 Markdown 构建为静态知识库，并通过本地 Chats 插件调用 `wiki-backend`。最终运行环境是 NVIDIA DGX Spark（Ubuntu ARM64），Windows 主要用于开发和 Git 管理。
 
-Quartz is a set of tools that helps you publish your [digital garden](https://jzhao.xyz/posts/networked-thought) and notes as a website for free.
+## 项目职责
 
-🔗 Read the documentation and get started: https://quartz.jzhao.xyz/
+- 读取 `llm-wiki-agent/wiki` 中的真实知识库内容。
+- 生成可由 Nginx 直接提供的 `public/` 静态站点。
+- 通过 `.local-plugins/chats` 提供 Chats、ingest 和 synthesis 前端界面。
+- 使用同源 `/api` 调用 `wiki-backend`，浏览器不直接访问后端端口。
 
+`public/` 是构建产物，不是内容源，也不要手工修改。文档入库完成后，`llm-wiki-agent/wiki` 会发生变化；当前发布流程仍需要重新构建 Quartz 才能让页面和搜索索引反映最新内容。
 
+## 当前部署拓扑
 
-# MKT Sample Quartz 运行手册
+```text
+局域网浏览器
+  -> http://192.168.8.8:8080
+  -> DGX Nginx
+     |- /api/* -> 127.0.0.1:8081 (wiki-backend)
+     `- 其他路径 -> quartz/public
 
-本仓库是基于 Quartz v5 的知识库前端，运行目标是 DGX Spark / Linux ARM64。Windows 侧主要用于代码编辑和提交；DGX 侧负责安装依赖、恢复插件状态、读取真实 wiki 内容目录并启动服务。
-
-本文只记录当前项目的运行和维护流程，不覆盖 Quartz 官方教程或云托管流程。
-
-## 开发/预览启动方式
-
-在 DGX 上进入 Quartz 仓库根目录后，可按下面的方式启动 Quartz 自带的本地预览服务：
-
-```bash
-CHAT_PROXY_URL=http://192.168.8.8:8081/api npx quartz build --serve \
-  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki \
-  --port 8080 \
-  --wsPort 3001
+公网浏览器
+  -> ECS Nginx :8080
+  -> ECS 127.0.0.1:18080 (frps)
+  -> DGX frpc
+  -> DGX 127.0.0.1:8080 (同一个 DGX Nginx)
 ```
 
-关键约定：
+只保留一条业务隧道：ECS `18080` 到 DGX `8080`。不要恢复 ECS `18081` 到 DGX `8081` 的后端直通。
 
-- `CHAT_PROXY_URL=http://192.168.8.8:8081/api`：让 Chats 插件直接通过 `http://192.168.8.8:8081/api` 访问 `wiki-backend`。
-- `-d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki`：显式指定真实 wiki 内容目录；DGX 仓库内不依赖 `content/`。
-- `--port 8080`：Quartz HTTP 页面服务端口。
-- `--wsPort 3001`：Quartz 热更新 WebSocket 端口。
-- `build --serve` 会先生成当前站点输出，再启动本地预览服务并监听内容变化。
+两个入口都从站点根路径 `/` 访问 Quartz，不使用 `/quartz/` 子路径：
 
-`build --serve` 适合开发、调试和临时预览，不是推荐的生产环境长期服务方式。生产环境建议只用 Quartz 生成 `public/`，再由 Nginx 服务静态文件并反向代理后端 API。
+- DGX 局域网：`http://192.168.8.8:8080/`
+- ECS 公网：`http://<ECS_PUBLIC_HOST>:8080/`
 
-如果 `8080` 或 `3001` 已被占用，先停止旧 Quartz 进程，或者显式换端口。
+`quartz.config.yaml` 当前使用：
 
-## `public/` 目录是什么
-
-`public/` 是 Quartz 的构建产物目录。Quartz 会把 `llm-wiki-agent/wiki` 中的 Markdown、图片和资源处理成浏览器可直接访问的静态网站文件，例如：
-
-- `index.html`、`chats.html`：最终页面。
-- `*.css`、`*.js`：页面样式和交互脚本。
-- `static/contentIndex.json`：搜索、索引等功能使用的数据。
-- 图片、RSS、站点图和其他静态资源。
-
-`public/` 不是源码目录，不要手工修改。它可以删除后重新生成，正确来源是：
-
-```bash
-CHAT_PROXY_URL=/api npx quartz build \
-  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
+```yaml
+configuration:
+  baseUrl: "192.168.8.8:8080"
 ```
 
-生产环境中，Nginx 读取的就是这个 `public/` 目录。
+这样不会把 ECS 公网地址写入构建产物。`baseUrl` 不是浏览器允许访问的地址白名单，也不妨碍用户从 ECS 入口访问。若以后启用正式域名、HTTPS，或发现 sitemap、RSS、OG URL 必须统一为公网域名，再单独调整它。
 
-## 项目事实
+## 环境要求
 
-- Node.js 版本要求来自 `package.json`：`node >=22`，`npm >=10.9.2`。
-- 主配置文件是 `quartz.config.yaml`。
-- Chats 插件来源是 `./.local-plugins/chats`。
-- Chats 后端地址由 `quartz.config.yaml` 中的 `${CHAT_PROXY_URL:-/api}` 注入；生产构建时应显式使用 `CHAT_PROXY_URL=/api`，开发/预览模式如果绕过 Nginx 直接访问后端，应使用 `CHAT_PROXY_URL=http://192.168.8.8:8081/api`。
-- `quartz.lock.json` 记录社区插件来源和提交，DGX 初始化时按它恢复插件状态。
-- `public/`、`.quartz/plugins/`、`node_modules/`、`.local-plugins/chats/node_modules/` 都是 DGX 本机生成状态，不应从 Windows 复制过去。
-- `.local-plugins/chats/dist/` 是当前本地插件的导出产物，已纳入仓库契约；改 Chats 源码后需要同步更新它。
+- Node.js `>=22`
+- npm `>=10.9.2`
+- 最终构建验证环境：DGX Ubuntu ARM64
+- 内容目录：`/home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki`
+- Quartz 目录：`/home/dgx/Projects/knowledge_base_mkt/quartz`
 
-## DGX 首次初始化
+版本要求以 `package.json` 为准。
 
-新 clone、清理过依赖，或换到一台新的 DGX 主机后执行：
+## 首次初始化
+
+在 DGX 上执行：
 
 ```bash
+cd /home/dgx/Projects/knowledge_base_mkt/quartz
 npm ci
 
 cd .local-plugins/chats
@@ -81,58 +70,11 @@ npx quartz plugin install --clean
 npx quartz plugin install --from-config
 ```
 
-然后按“开发/预览启动方式”临时预览，或按“生产环境：Nginx 托管 `public/`”启动长期服务。
+这些命令分别恢复 Quartz 依赖、Chats 插件依赖与 `dist/`、社区插件及本地插件链接。不要把 Windows 的 `node_modules/`、`.quartz/plugins/` 或 `public/` 复制到 DGX。
 
-命令边界：
+## 生产构建
 
-- `npm ci` 安装 Quartz 主项目依赖。
-- `.local-plugins/chats/npm ci` 安装 Chats 插件自己的构建依赖。
-- `.local-plugins/chats/npm run build` 生成 `dist/`，Quartz 运行时优先加载这里的入口。
-- `npx quartz plugin install --clean` 按 `quartz.lock.json` 恢复社区插件。
-- `npx quartz plugin install --from-config` 按 `quartz.config.yaml` 链接本地插件。
-
-## 日常更新流程
-
-只更新 wiki 内容时，不需要重新安装插件。确认 `llm-wiki-agent/wiki` 已经是最新内容后，重新构建 `public/` 即可。
-
-只更新 Quartz 配置、主题、布局或核心代码时，开发/预览模式可执行：
-
-```bash
-git pull
-CHAT_PROXY_URL=http://192.168.8.8:8081/api npx quartz build --serve \
-  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki \
-  --port 8080 \
-  --wsPort 3001
-```
-
-生产环境应执行：
-
-```bash
-git pull
-CHAT_PROXY_URL=/api npx quartz build \
-  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
-```
-
-更新 Chats 插件源码时，先刷新插件产物，再重新构建 Quartz：
-
-```bash
-git pull
-
-cd .local-plugins/chats
-npm run build
-cd ../..
-
-CHAT_PROXY_URL=/api npx quartz build \
-  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
-```
-
-原因是 Chats 页面不会直接加载 `.local-plugins/chats/src/`，Quartz 使用的是 `.local-plugins/chats/dist/` 和最终生成的 `public/chats.html`。
-
-## 生产环境：Nginx 托管 `public/`
-
-生产环境推荐让长期运行的进程只包括 Nginx 和 `wiki-backend`。Quartz 只负责构建静态文件，不使用 `build --serve` 长期驻留。
-
-### 1. 构建静态站点
+正常内容或配置更新：
 
 ```bash
 cd /home/dgx/Projects/knowledge_base_mkt/quartz
@@ -141,7 +83,9 @@ CHAT_PROXY_URL=/api npx quartz build \
   -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
 ```
 
-如果本次改动包含 Chats 插件源码，先构建插件：
+`CHAT_PROXY_URL=/api` 必须保持同源。无论浏览器从局域网还是 ECS 访问，Chats 都先请求当前站点的 `/api/*`，再由 DGX Nginx 转发到 `wiki-backend`。
+
+如果修改了 `.local-plugins/chats/src/`，必须先构建插件：
 
 ```bash
 cd /home/dgx/Projects/knowledge_base_mkt/quartz/.local-plugins/chats
@@ -152,45 +96,21 @@ CHAT_PROXY_URL=/api npx quartz build \
   -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
 ```
 
-### 2. 给 Nginx 访问权限
+资源链路是：
 
-如果 Nginx 直接读取 `/home/dgx/Projects/knowledge_base_mkt/quartz/public`，需要让 Nginx worker 用户能进入父目录并读取 `public/`。先确认 Nginx 用户：
-
-```bash
-ps -o user,group,comm -C nginx
-grep -n '^user' /etc/nginx/nginx.conf
+```text
+.local-plugins/chats/src
+  -> npm run build
+  -> .local-plugins/chats/dist
+  -> npx quartz build
+  -> public/chats.html 和 public/static/*
 ```
 
-Ubuntu 常见用户是 `www-data`。如果实际用户不同，把下面命令中的 `www-data` 替换成真实用户：
+只改 Wiki 内容时不需要重装插件，但仍需重新执行 Quartz 构建。`ingest` 成功只代表文档处理和入库成功，不代表 `public/` 已自动发布。
 
-```bash
-sudo setfacl -m u:www-data:x /home/dgx
-sudo setfacl -m u:www-data:x /home/dgx/Projects
-sudo setfacl -m u:www-data:x /home/dgx/Projects/knowledge_base_mkt
-sudo setfacl -m u:www-data:x /home/dgx/Projects/knowledge_base_mkt/quartz
+## DGX Nginx
 
-sudo find /home/dgx/Projects/knowledge_base_mkt/quartz/public -type d -exec setfacl -m u:www-data:rx {} \;
-sudo find /home/dgx/Projects/knowledge_base_mkt/quartz/public -type f -exec setfacl -m u:www-data:r {} \;
-```
-
-不要把目录改成 `777`，也不建议让 Nginx 以 `dgx` 用户运行。
-
-每次重新构建 `public/` 后，如果 Nginx 又出现 `Permission denied`，重新执行：
-
-```bash
-sudo find /home/dgx/Projects/knowledge_base_mkt/quartz/public -type d -exec setfacl -m u:www-data:rx {} \;
-sudo find /home/dgx/Projects/knowledge_base_mkt/quartz/public -type f -exec setfacl -m u:www-data:r {} \;
-```
-
-### 3. Nginx 配置
-
-本项目后端真实接口路径本身带 `/api/`，例如：
-
-```bash
-curl -i "http://192.168.8.8:8081/api/ingest/jobs?limit=20"
-```
-
-因此 Nginx 反代时不要剥掉 `/api/` 前缀，`proxy_pass` 后面不要带结尾斜杠：
+DGX Nginx 是局域网入口，也是 FRP 唯一回源入口：
 
 ```nginx
 server {
@@ -202,7 +122,7 @@ server {
     error_page 404 /404.html;
 
     location /api/ {
-        proxy_pass http://192.168.8.8:8081;
+        proxy_pass http://127.0.0.1:8081;
         proxy_http_version 1.1;
 
         proxy_set_header Host $host;
@@ -211,6 +131,13 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
 
         client_max_body_size 100m;
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
+
+        proxy_buffering off;
+        proxy_cache off;
+        add_header X-Accel-Buffering no;
     }
 
     location / {
@@ -219,143 +146,89 @@ server {
 }
 ```
 
-配置检查和重载：
+`proxy_pass` 后面不要加 `/`。后端路由本身带 `/api/`，正确写法会把 `/api/chats` 原样转发为 `/api/chats`。
+
+DGX Nginx 不需要额外配置反向代理缓存：静态文件本来就从 DGX 本地磁盘读取，Linux 页缓存已经能减少磁盘开销。公网延迟优化放在 ECS Nginx，由 ECS 缓存 Quartz 静态响应；`/api/` 在任何一层都不得缓存。
+
+检查并重载：
 
 ```bash
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### 4. 生产更新命令
+如果 Nginx 无权读取 `public/`，应给实际 worker 用户补充父目录执行权限和文件读取权限，不要使用 `chmod -R 777`。
 
-普通 wiki 内容、Quartz 配置或主题更新：
+## ECS 缓存边界
+
+ECS Nginx 继续保留现有 `/research_report_library/` 等本地路由。Quartz 相关请求通过 `127.0.0.1:18080` 回源 DGX，并按以下边界处理：
+
+- `/api/`：不缓存，关闭响应缓冲，支持上传和流式回答。
+- `/static/contentIndex.json`：短缓存，例如 1 分钟。
+- `/static/`：较长缓存，例如 1 天。
+- 其他 Quartz 页面：短缓存，例如 1 分钟。
+
+当前构建文件名可能带内容哈希，但不能假定所有文件都永久不可变。除非确认文件名随内容变化，否则不要统一加 `immutable` 或一年缓存。内容更新后若要立即生效，可清理 ECS 对应缓存，或等待短 TTL 到期。
+
+## 构建后验证
+
+先确认产物：
 
 ```bash
 cd /home/dgx/Projects/knowledge_base_mkt/quartz
-git pull
 
-CHAT_PROXY_URL=/api npx quartz build \
-  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
-
-sudo find public -type d -exec setfacl -m u:www-data:rx {} \;
-sudo find public -type f -exec setfacl -m u:www-data:r {} \;
-
-sudo nginx -t
-sudo systemctl reload nginx
+test -f public/index.html
+test -f public/chats.html
+test -f public/static/contentIndex.json
+grep -R '/quartz/' public/index.html public/chats.html && exit 1 || true
+grep -n 'data-proxy-url="/api"' public/chats.html
 ```
 
-Chats 插件源码更新：
+再验证 DGX 入口：
 
 ```bash
-cd /home/dgx/Projects/knowledge_base_mkt/quartz
-git pull
-
-cd .local-plugins/chats
-npm run build
-cd ../..
-
-CHAT_PROXY_URL=/api npx quartz build \
-  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
-
-sudo find public -type d -exec setfacl -m u:www-data:rx {} \;
-sudo find public -type f -exec setfacl -m u:www-data:r {} \;
-
-sudo nginx -t
-sudo systemctl reload nginx
+curl --fail --silent --show-error http://127.0.0.1:8080/ > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/chats > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/static/contentIndex.json > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/api/health
+curl --fail --silent --show-error http://127.0.0.1:8080/api/chats > /dev/null
 ```
 
-### 5. 生产验证
+最后分别用浏览器验证局域网和 ECS 入口。重点检查页面、搜索、Chats、上传和流式回答。
 
-```bash
-curl --fail --silent --show-error http://127.0.0.1:8080/
-curl --fail --silent --show-error http://127.0.0.1:8080/chats
-curl --fail --silent --show-error http://127.0.0.1:8080/static/contentIndex.json
-curl --fail --silent --show-error "http://127.0.0.1:8080/api/ingest/jobs?limit=20"
-```
+## 常见问题
 
-如果 `/`、`/chats`、`/static/contentIndex.json` 正常但 `/api/ingest/jobs` 返回 404，优先检查 Nginx 的 `location /api/` 和 `proxy_pass` 写法。对本项目，正确写法是：
+### 请求 `/quartz/static/*` 返回 404
 
-```nginx
-proxy_pass http://192.168.8.8:8081;
-```
+站点实际部署在根路径 `/`，但构建产物仍带 `/quartz/` 前缀。检查 `baseUrl` 是否误写了 `/quartz`，重新构建 `public/`，再清理浏览器和 ECS 缓存。不要通过 Nginx 为错误路径长期增加兼容 alias。
 
-不是：
+### 页面能打开，但 Chats 调用失败
 
-```nginx
-proxy_pass http://192.168.8.8:8081/;
-```
+按顺序检查：
 
-## 什么时候重新安装插件
+1. `public/chats.html` 中的代理地址是否为 `/api`。
+2. DGX Nginx 的 `location /api/` 是否使用 `proxy_pass http://127.0.0.1:8081;`。
+3. `curl http://127.0.0.1:8081/api/health` 是否成功。
+4. `wiki-backend` 和 Nginx 错误日志是否有异常。
 
-平时改 wiki 内容、Quartz 配置或 Chats 源码，不需要反复执行插件安装命令。只有以下情况才需要重新安装插件：
+不要把生产构建改回浏览器直连 `http://192.168.8.8:8081/api`。
 
-- 新 clone 到 DGX 后首次初始化。
-- 删除过 `.quartz/plugins/`。
-- 修改了 `quartz.config.yaml` 中的插件列表或插件来源。
-- 修改了 `quartz.lock.json`。
-- 新增、删除、改名 `.local-plugins/*` 插件。
+### ingest 成功但页面没有新文档
 
-对应命令：
+确认 `llm-wiki-agent/wiki` 已更新，然后重新构建 Quartz。当前没有把 ingest 完成和 Quartz 发布强绑定为一个自动事务。
 
-```bash
-npx quartz plugin install --clean
-npx quartz plugin install --from-config
-```
+### Chats 源码更新但 UI 仍是旧版本
 
-## 后端与页面检查
+先在 `.local-plugins/chats` 执行 `npm run build`，再重建 Quartz，并检查 ECS 缓存与浏览器缓存。
 
-开发/预览模式启动后先检查 Quartz 页面：
+## 仓库边界
 
-```bash
-curl --fail --silent --show-error http://127.0.0.1:8080/
-curl --fail --silent --show-error http://127.0.0.1:8080/chats
-curl --fail --silent --show-error http://127.0.0.1:8080/static/contentIndex.json
-```
-
-再检查 `http://192.168.8.8:8081` 后端API是否可用。生产环境下浏览器会访问 Nginx 的 `/api/...`，Nginx 再原样转发到 `wiki-backend` 的 `/api/...`。Chats 插件会访问这些后端路径：
-
-- `GET http://192.168.8.8:8081/api/chats`
-- `POST http://192.168.8.8:8081/api/chats`
-- `GET http://192.168.8.8:8081/api/chats/{chat_id}/messages`
-- `POST http://192.168.8.8:8081/api/chats/{chat_id}/messages`
-- `PATCH http://192.168.8.8:8081/api/chats/{chat_id}`
-- `POST http://192.168.8.8:8081/api/synthesis`
-- `GET http://192.168.8.8:8081/api/ingest/jobs`
-- `POST http://192.168.8.8:8081/api/ingest/jobs`
-
-如果页面能打开但 Chats 功能失败，优先检查 `http://192.168.8.8:8081` 后端API和 `wiki-backend`，不要先改 Quartz 插件源码。
-
-## 仓库清洁边界
-
-这些目录是本机状态或生成物，不作为迁移依据：
+下列内容是依赖、缓存或生成状态，不是跨机器同步依据：
 
 - `node_modules/`
 - `.local-plugins/chats/node_modules/`
-- `public/`
 - `.quartz/plugins/`
 - `.quartz-cache/`
-- `content`
-- `.agents/`
-- `.codex/`
-- `.sisyphus/`
-- `*.log`
+- `public/`
 
-迁移到 DGX 时不要复制 Windows 的这些目录。正确做法是提交源码、锁文件和必要的插件 `dist/`，然后在 DGX 上用 `npm ci`、插件安装命令和当前启动命令重新生成运行状态。
-
-## 常见定位顺序
-
-Chats UI 不是最新：
-
-1. 确认 `.local-plugins/chats/src/**` 的改动已经提交或同步到 DGX。
-2. 在 `.local-plugins/chats` 执行 `npm run build`。
-3. 回到 Quartz 根目录重新执行当前启动命令。
-4. 检查 `public/chats.html` 和其引用的 `public/static/scripts/*` 是否已更新。
-
-页面正常但聊天接口失败：
-
-1. 生产构建时检查 `CHAT_PROXY_URL` 是否为 `/api`。
-2. 检查 Nginx 是否把 `/api/` 原样反代到 `http://192.168.8.8:8081/api/`。
-3. 通过浏览器实际访问入口请求 `<site-origin>/api/chats`，或直接请求 `http://192.168.8.8:8081/api/chats`。
-4. 再看 `wiki-backend` 日志。
-
-DGX 迁移验证不要只看 Windows 构建结果。最终停止条件应是 DGX 本机完成依赖安装、插件恢复、站点构建、Nginx 重载，并且 `/`、`/chats`、`/static/contentIndex.json`、`/api/ingest/jobs?limit=20` 都能按预期返回。
+Windows 修改源码并提交；DGX 拉取后安装依赖、构建和验证。所有文本、脚本与配置最终以 Linux Ubuntu ARM64、LF 换行和 Linux 权限语义为准。
