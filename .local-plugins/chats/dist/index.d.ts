@@ -1,5 +1,5 @@
 import { QuartzPageTypePlugin } from '@quartz-community/types';
-export { ChatPage, Chats } from './components/index.js';
+export { ChatPage, Chats, IngestPage } from './components/index.js';
 
 interface ChatPageTypeOptions {
     title?: string;

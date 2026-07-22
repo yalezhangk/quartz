@@ -19,13 +19,13 @@ const localeStrings: Record<string, ChatsStrings> = {
     newChatGreeting: "Start a new conversation!",
   },
   "zh-CN": {
-    title: "聊天",
-    newChat: "新对话",
-    placeholder: "输入消息...",
+    title: "知识问答",
+    newChat: "新建问题",
+    placeholder: "继续追问，或输入一个需要基于知识库回答的问题…",
     send: "发送",
-    loading: "AI 正在思考...",
-    emptyHistory: "暂无聊天记录",
-    newChatGreeting: "开始一段新对话！",
+    loading: "正在检索并整理知识库内容…",
+    emptyHistory: "暂无问题记录",
+    newChatGreeting: "建立一个新的问题记录",
   },
 }
 

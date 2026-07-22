@@ -6,7 +6,8 @@ import type {
   GlobalConfiguration,
   QuartzComponentConstructor,
 } from "@quartz-community/types"
-import ChatPageBody, { type ChatPageOptions } from "./components/ChatPage"
+import type { ChatPageOptions } from "./components/ChatPage"
+import WorkspacePage from "./components/WorkspacePage"
 import { i18n } from "./i18n"
 
 export interface ChatPageTypeOptions {
@@ -14,18 +15,18 @@ export interface ChatPageTypeOptions {
   proxyUrl?: string
 }
 
-const chatMatcher: PageMatcher = ({ slug }) => {
-  return slug === "chats" || slug.startsWith("chats/")
+const workspaceMatcher: PageMatcher = ({ slug }) => {
+  return slug === "ingest" || slug === "chats" || slug.startsWith("chats/")
 }
 
-const createChatPageBody = (opts?: Partial<ChatPageOptions>): QuartzComponentConstructor => {
-  return (bodyOpts?: Partial<ChatPageOptions>) => ChatPageBody({ ...opts, ...bodyOpts })
+const createWorkspacePageBody = (opts?: Partial<ChatPageOptions>): QuartzComponentConstructor => {
+  return (bodyOpts?: Partial<ChatPageOptions>) => WorkspacePage({ ...opts, ...bodyOpts })
 }
 
 export const ChatPageType: QuartzPageTypePlugin<ChatPageTypeOptions> = (opts) => ({
   name: "ChatPageType",
   priority: 10,
-  match: chatMatcher,
+  match: workspaceMatcher,
   generate({ cfg }: { cfg: GlobalConfiguration }) {
     const locale = cfg?.locale ?? "en-US"
     const title = opts?.title ?? i18n(locale).title
@@ -37,12 +38,19 @@ export const ChatPageType: QuartzPageTypePlugin<ChatPageTypeOptions> = (opts) =>
           unlisted: true,
         },
       },
+      {
+        slug: "ingest" as unknown as FullSlug,
+        title: "文档入库",
+        data: {
+          unlisted: true,
+        },
+      },
     ]
     return virtualPages
   },
-  layout: "chats",
+  layout: "workspace",
   frame: "default",
-  body: createChatPageBody({
+  body: createWorkspacePageBody({
     proxyUrl: opts?.proxyUrl,
   }),
 })

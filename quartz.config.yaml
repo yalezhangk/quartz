@@ -1,35 +1,35 @@
 # yaml-language-server: $schema=./quartz/plugins/quartz-plugins.schema.json
 configuration:
-  pageTitle: MKT SAMPLE
+  pageTitle: 中压-市场部 样本知识库
   pageTitleSuffix: ""
   enableSPA: true
   enablePopovers: true
   analytics:
     provider: plausible
-  locale: en-US
+  locale: zh-CN
   baseUrl: "192.168.8.8:8080"
   ignorePatterns:
     - private
     - templates
     - .obsidian
   theme:
-    fontOrigin: googleFonts
-    cdnCaching: true
+    fontOrigin: local
+    cdnCaching: false
     typography:
-      header: Schibsted Grotesk
-      body: Source Sans Pro
-      code: IBM Plex Mono
+      header: Songti SC
+      body: Segoe UI
+      code: Consolas
     colors:
       lightMode:
-        light: "#faf8f8"
-        lightgray: "#e5e5e5"
-        gray: "#b8b8b8"
-        darkgray: "#4e4e4e"
-        dark: "#2b2b2b"
-        secondary: "#284b63"
-        tertiary: "#84a59d"
-        highlight: rgba(143, 159, 169, 0.15)
-        textHighlight: "#fff23688"
+        light: "#f4f3ef"
+        lightgray: "#cacbc4"
+        gray: "#858a82"
+        darkgray: "#626760"
+        dark: "#20231f"
+        secondary: "#233e34"
+        tertiary: "#31664f"
+        highlight: rgba(49, 102, 79, 0.12)
+        textHighlight: "#eadca888"
       darkMode:
         light: "#161618"
         lightgray: "#393639"
@@ -129,7 +129,7 @@ plugins:
   - source: github:quartz-community/favicon
     enabled: true
   - source: github:quartz-community/og-image
-    enabled: true
+    enabled: false
   - source: github:quartz-community/cname
     enabled: true
   - source: github:quartz-community/canvas-page
@@ -142,6 +142,8 @@ plugins:
     enabled: true
   - source: github:quartz-community/explorer
     enabled: true
+    options:
+      title: 知识目录
     layout:
       position: left
       priority: 50
@@ -179,16 +181,9 @@ plugins:
       position: beforeBody
       priority: 30
   - source: github:quartz-community/page-title
-    enabled: true
-    layout:
-      position: left
-      priority: 10
+    enabled: false
   - source: github:quartz-community/darkmode
-    enabled: true
-    layout:
-      position: left
-      priority: 30
-      group: toolbar
+    enabled: false
   - source: github:quartz-community/reader-mode
     enabled: true
     layout:
@@ -212,9 +207,7 @@ plugins:
   - source: github:quartz-community/footer
     enabled: true
     options:
-      links:
-        GitHub: https://github.com/jackyzha0/quartz
-        Discord Community: https://discord.gg/cRFFHYye7t
+      links: {}
   - source: github:quartz-community/recent-notes
     enabled: false
   - source: github:quartz-community/spacer
@@ -225,14 +218,17 @@ plugins:
       position: left
       priority: 25
       display: mobile-only
+  - source: ./.local-plugins/knowledge-ui
+    enabled: true
+    order: 5
+    layout:
+      position: left
+      priority: 10
   - source: ./.local-plugins/chats
     enabled: true
     options:
       proxyUrl: "${CHAT_PROXY_URL:-/api}"
-      title: Chats
-    layout:
-      position: left
-      priority: 60
+      title: 知识问答
   - source: github:quartz-community/bases-page
     enabled: true
     options: {}
@@ -279,7 +275,22 @@ layout:
         right: []
     canvas: {}
     bases: {}
-    chats:
+    knowledge:
+      exclude:
+        - article-title
+        - breadcrumbs
+        - content-meta
+        - explorer
+        - graph
+        - note-properties
+        - reader-mode
+        - table-of-contents
+        - backlinks
+      positions:
+        beforeBody: []
+        afterBody: []
+        right: []
+    workspace:
       exclude:
         - graph
         - backlinks
@@ -289,3 +300,4 @@ layout:
         - note-properties
         - reader-mode
         - table-of-contents
+        - explorer

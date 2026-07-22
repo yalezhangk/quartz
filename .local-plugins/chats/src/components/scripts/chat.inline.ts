@@ -132,6 +132,131 @@ async function resolveWikiHref(target: string): Promise<string> {
     .join("/")}`
 }
 
+interface EvidenceItem {
+  target: string
+  origin: "source" | "related"
+}
+
+interface ResolvedEvidenceItem extends EvidenceItem {
+  href: string
+  title: string
+  code: "SRC" | "ENT" | "CON" | "SYN" | "PAGE"
+  typeLabel: string
+}
+
+function getEvidenceType(slug: string, origin: EvidenceItem["origin"]) {
+  const root = slug.replace(/^\/+/, "").split("/", 1)[0].toLowerCase()
+  if (root === "sources" || origin === "source") return { code: "SRC", label: "Source" } as const
+  if (root === "entities") return { code: "ENT", label: "Entity" } as const
+  if (root === "concepts") return { code: "CON", label: "Concept" } as const
+  if (root === "syntheses") return { code: "SYN", label: "Synthesis" } as const
+  return { code: "PAGE", label: "相关页面" } as const
+}
+
+async function resolveEvidenceItem(item: EvidenceItem): Promise<ResolvedEvidenceItem> {
+  const target = item.target.trim()
+  const normalizedTarget = target.replace(/^\/+|\/+$/g, "")
+  const lookup = normalizeWikiKey(normalizedTarget)
+  const contentIndex = await loadContentIndex()
+
+  if (contentIndex) {
+    for (const [slug, entry] of Object.entries(contentIndex)) {
+      const basename = slug.split("/").pop() || slug
+      const title = typeof entry?.title === "string" ? entry.title : ""
+      const filePath = typeof entry?.filePath === "string" ? entry.filePath : ""
+      const fileBase = filePath.split("/").pop()?.replace(/\.md$/i, "") || ""
+      const candidates = [slug, basename, title, fileBase].map(normalizeWikiKey)
+
+      if (candidates.includes(lookup)) {
+        const type = getEvidenceType(slug, item.origin)
+        return {
+          ...item,
+          href: `/${slug
+            .split("/")
+            .map((segment) => encodeURIComponent(segment))
+            .join("/")}`,
+          title: title || basename,
+          code: type.code,
+          typeLabel: type.label,
+        }
+      }
+    }
+  }
+
+  const type = getEvidenceType(normalizedTarget, item.origin)
+  return {
+    ...item,
+    href: await resolveWikiHref(target),
+    title: normalizedTarget.split("/").pop()?.replace(/\.md$/i, "") || target,
+    code: type.code,
+    typeLabel: type.label,
+  }
+}
+
+async function renderEvidencePanel(
+  contextEl: HTMLElement,
+  message?: ChatMessage,
+  emptyText = "提交问题后，这里会列出回答返回的来源与相关知识页面。",
+) {
+  const shell = contextEl.closest(".chat-shell")
+  const panel = shell?.querySelector("[data-chat-evidence]") as HTMLElement | null
+  const list = panel?.querySelector("[data-evidence-list]") as HTMLElement | null
+  const count = panel?.querySelector("[data-evidence-count]") as HTMLElement | null
+  if (!list || !count) return
+
+  const seen = new Set<string>()
+  const evidence: EvidenceItem[] = []
+  for (const target of message?.sources ?? []) {
+    const key = normalizeWikiKey(target)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    evidence.push({ target, origin: "source" })
+  }
+  for (const target of message?.relevant_pages ?? []) {
+    const key = normalizeWikiKey(target)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    evidence.push({ target, origin: "related" })
+  }
+
+  const renderKey = evidence.map((item) => `${item.origin}:${item.target}`).join("|")
+  list.dataset.evidenceKey = renderKey
+  removeAllChildren(list)
+  count.textContent = String(evidence.length)
+
+  if (evidence.length === 0) {
+    const empty = document.createElement("div")
+    empty.className = "chat-evidence-empty"
+    empty.textContent = emptyText
+    list.appendChild(empty)
+    return
+  }
+
+  const resolved = await Promise.all(evidence.map(resolveEvidenceItem))
+  if (!list.isConnected || list.dataset.evidenceKey !== renderKey) return
+
+  resolved.forEach((item, index) => {
+    const link = document.createElement("a")
+    link.className = "chat-evidence-item"
+    link.href = item.href
+
+    const meta = document.createElement("span")
+    meta.className = "chat-evidence-meta"
+    const number = document.createElement("b")
+    number.textContent = String(index + 1).padStart(2, "0")
+    const type = document.createElement("em")
+    type.textContent = `${item.code} · ${item.typeLabel}`
+    meta.append(number, type)
+
+    const title = document.createElement("strong")
+    title.textContent = item.title
+    const path = document.createElement("small")
+    path.textContent = item.target
+    link.append(meta, title, path)
+    list.appendChild(link)
+  })
+}
+
 function removeAllChildren(el: HTMLElement) {
   while (el.firstChild) {
     el.removeChild(el.firstChild)
@@ -190,16 +315,25 @@ function bindCopyButton(button: HTMLButtonElement | null, markdown: string) {
 
   button.dataset.copyMarkdown = markdown
   button.onclick = async () => {
+    const label = button.querySelector(".message-action-label")
     // Clipboard API 在非安全上下文或权限受限时可能不可用，copyText 会尝试兼容回退。
     const text = button.dataset.copyMarkdown || ""
     try {
       await copyText(text)
       button.classList.add("copied")
-      window.setTimeout(() => button.classList.remove("copied"), 1200)
+      if (label) label.textContent = "已复制"
+      window.setTimeout(() => {
+        button.classList.remove("copied")
+        if (label) label.textContent = "复制回答"
+      }, 1200)
     } catch (error) {
       console.error("[Chats] Failed to copy answer:", error)
       button.classList.add("copy-failed")
-      window.setTimeout(() => button.classList.remove("copy-failed"), 1200)
+      if (label) label.textContent = "复制失败"
+      window.setTimeout(() => {
+        button.classList.remove("copy-failed")
+        if (label) label.textContent = "复制回答"
+      }, 1200)
     }
   }
 }
@@ -211,6 +345,8 @@ function syncSynthesisButtonState(button: HTMLButtonElement, message: ChatMessag
   button.classList.remove("saving", "save-failed")
   button.title = isSaved ? "Saved as Synthesis" : "Save as Synthesis"
   button.setAttribute("aria-label", button.title)
+  const label = button.querySelector(".message-action-label")
+  if (label) label.textContent = isSaved ? "已保存为 Synthesis" : "保存为 Synthesis"
 }
 
 function bindSynthesisButton(
@@ -330,11 +466,13 @@ function renderNewChat(messagesEl: HTMLElement) {
   greeting.className = "message-greeting"
   greeting.innerHTML = `
     <div class="greeting-content">
-      <h2>AI Chat</h2>
-      <p>Start a conversation by typing a message below.</p>
+      <span>新问题</span>
+      <h2>建立一条可追溯的问题记录</h2>
+      <p>输入需要核对、比较或归纳的问题；答复将保留知识页面与来源资料线索。</p>
     </div>
   `
   messagesEl.appendChild(greeting)
+  void renderEvidencePanel(messagesEl)
 }
 
 function renderMessages(messagesEl: HTMLElement, messages: ChatMessage[], proxyUrl: string) {
@@ -370,6 +508,10 @@ function renderMessages(messagesEl: HTMLElement, messages: ChatMessage[], proxyU
   }
 
   void hydrateWikiLinks(messagesEl)
+  const lastAssistantMessage = [...messages]
+    .reverse()
+    .find((message) => message.role === "assistant")
+  void renderEvidencePanel(messagesEl, lastAssistantMessage)
 }
 
 function appendUserMessage(messagesEl: HTMLElement, text: string) {
@@ -419,10 +561,13 @@ function renderRequestError(messagesEl: HTMLElement, error: unknown) {
 
   const { contentEl, copyButton, synthesisButton, loadingEl } = appendAssistantMessage(messagesEl)
   const message = error instanceof Error ? error.message : String(error)
-  if (contentEl) contentEl.textContent = `Error: ${message}`
+  if (contentEl) {
+    contentEl.textContent = `知识问答请求失败：${message}。请检查后端连接后重试。`
+  }
   if (copyButton) copyButton.style.display = "none"
   if (synthesisButton) synthesisButton.style.display = "none"
   if (loadingEl) loadingEl.style.display = "none"
+  void renderEvidencePanel(messagesEl, undefined, "本轮请求没有返回可核对的引用依据。")
 }
 
 function scrollToBottom(el: HTMLElement) {
@@ -490,10 +635,10 @@ function sortIngestJobs(items: IngestJobResponse[]): IngestJobResponse[] {
 
 function upsertIngestJob(job: IngestJobResponse) {
   ingestLoadError = null
-  ingestJobs = sortIngestJobs([job, ...ingestJobs.filter((item) => item.job_id !== job.job_id)]).slice(
-    0,
-    20,
-  )
+  ingestJobs = sortIngestJobs([
+    job,
+    ...ingestJobs.filter((item) => item.job_id !== job.job_id),
+  ]).slice(0, 20)
 }
 
 function isIngestPending(job: IngestJobResponse): boolean {
@@ -522,7 +667,7 @@ function renderIngestJobs(listEl: HTMLElement, jobs: IngestJobResponse[], errorM
     const status = document.createElement("div")
     status.className = "ingest-item-status"
     if (job.status === "succeeded") {
-      status.textContent = "已导入，可以开始提问"
+      status.textContent = "知识已写入，等待 Quartz 发布"
     } else if (job.status === "failed") {
       status.textContent = job.error ? `failed: ${job.error}` : "failed"
     } else {
@@ -649,6 +794,7 @@ async function setupChatPage(pageEl: HTMLElement) {
 
     const { loadingEl } = appendAssistantMessage(messagesEl)
     if (loadingEl) loadingEl.style.display = "block"
+    void renderEvidencePanel(messagesEl, undefined, "正在等待本轮回答与引用依据。")
     scrollToBottom(messagesEl)
 
     try {
@@ -692,7 +838,8 @@ async function setupChatPage(pageEl: HTMLElement) {
     const fileInput = document.createElement("input")
     fileInput.type = "file"
     fileInput.style.display = "none"
-    fileInput.accept = ".md,.pdf,.docx,.pptx,.xlsx,.xls,.html,.htm,.txt,.csv,.json,.xml,.rst,.rtf,.epub,.ipynb,.yaml,.yml,.tsv,.wav,.mp3"
+    fileInput.accept =
+      ".md,.pdf,.docx,.pptx,.xlsx,.xls,.html,.htm,.txt,.csv,.json,.xml,.rst,.rtf,.epub,.ipynb,.yaml,.yml,.tsv,.wav,.mp3"
     document.body.appendChild(fileInput)
     attachButton.disabled = false
 
@@ -809,8 +956,8 @@ async function handleNav() {
       chats = []
       chatsLoadError =
         error instanceof Error
-          ? `Unable to load conversations: ${error.message}`
-          : "Unable to load conversations"
+          ? `问题记录加载失败：${error.message}。请检查后端连接后刷新。`
+          : "问题记录加载失败。请检查后端连接后刷新。"
     }
 
     try {
@@ -819,7 +966,9 @@ async function handleNav() {
     } catch (error) {
       ingestJobs = []
       ingestLoadError =
-        error instanceof Error ? `Unable to load ingests: ${error.message}` : "Unable to load ingests"
+        error instanceof Error
+          ? `上传状态加载失败：${error.message}`
+          : "上传状态加载失败。请检查后端连接。"
     }
   }
 

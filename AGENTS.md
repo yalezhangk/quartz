@@ -4,7 +4,7 @@
 
 ## 项目定位
 
-Quartz 负责把 `llm-wiki-agent/wiki` 构建为静态网站，并通过 Chats 插件调用 `wiki-backend`。它不是文档解析服务，也不负责保存聊天数据。
+Quartz 负责把 `llm-wiki-agent/wiki` 构建为静态网站，并通过本地插件提供知识浏览、知识问答和文档入库界面。它不是文档解析服务，也不负责保存聊天数据。
 
 当前运行架构：
 
@@ -28,12 +28,16 @@ ECS Nginx -> ECS 127.0.0.1:18080 -> FRP -> DGX Nginx :8080
 6. `public/` 是生成物，禁止手工修补。
 7. 内容源是实际的 `../llm-wiki-agent/wiki`，不要假设仓库内存在可用的 `content/`。
 8. `baseUrl` 当前使用 `192.168.8.8:8080`，用于避免把 ECS 公网地址写入构建产物；修改它前必须同时验证局域网、公网、sitemap、RSS 和资源路径。
+9. `public/graph` 是由 Wiki 中的 `graph.html` 发射出的无扩展名 HTML；生产 Nginx 必须为 `/graph` 返回 `text/html`，不能让浏览器下载文件。
 
 ## 目录职责
 
 - `quartz.config.yaml`：站点和插件配置。
+- `.local-plugins/knowledge-ui/src/`：全局应用壳、首页 `/`、知识库 `/library` 与知识质量 `/quality`。
+- `.local-plugins/knowledge-ui/dist/`：Knowledge UI 插件运行入口和类型声明；与源码一起由 Git 追踪，源码变化后必须同步更新。
 - `.local-plugins/chats/src/`：Chats 插件源码。
-- `.local-plugins/chats/dist/`：Chats 插件构建产物；源码变化后必须同步更新。
+- `.local-plugins/chats/dist/`：Chats/Ingest 插件运行入口和类型声明；与源码一起由 Git 追踪，源码变化后必须同步更新。
+- `scripts/serve-with-api.mjs`：仅 Windows 本地验证使用的回环静态服务器和同源 `/api` 代理，不参与 DGX 生产服务。
 - `quartz.lock.json`：社区插件来源和版本状态。
 - `public/`：Quartz 最终静态产物。
 - `.quartz/plugins/`、`node_modules/`：本机依赖状态，不作为迁移产物。
@@ -41,7 +45,8 @@ ECS Nginx -> ECS 127.0.0.1:18080 -> FRP -> DGX Nginx :8080
 ## 修改原则
 
 - 只修改任务直接涉及的文件，不顺手重构 Quartz 上游代码。
-- 优先在 `.local-plugins/chats` 内完成本项目定制，避免无必要修改 Quartz 核心。
+- 优先在 `.local-plugins/knowledge-ui` 或 `.local-plugins/chats` 内完成本项目定制，避免无必要修改 Quartz 核心。
+- `dist/` 是本地插件的实际包入口，不是可忽略的临时目录：提交源码改动时必须一并提交对应的 `dist/`、`package.json` 与 lockfile；绝不提交 `node_modules/` 或 `public/`。
 - 不把真实 FRP token、密码、ECS 公网 IP、域名或服务器私有配置提交到仓库。
 - 不在文档或默认配置中新增 Windows 绝对路径。
 - 所有脚本和文本以 Linux Ubuntu ARM64、LF 换行及 Linux 权限为最终标准。
@@ -59,28 +64,42 @@ CHAT_PROXY_URL=/api npx quartz build \
   -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
 ```
 
-Chats 插件源码变化：
+任一本地插件源码变化：
 
 ```bash
-cd /home/dgx/Projects/knowledge_base_mkt/quartz/.local-plugins/chats
+cd /home/dgx/Projects/knowledge_base_mkt/quartz/.local-plugins/knowledge-ui
 npm run build
 
-cd /home/dgx/Projects/knowledge_base_mkt/quartz
+cd ../chats
+npm run build
+
+cd ../..
 CHAT_PROXY_URL=/api npx quartz build \
   -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
 ```
+
+只改其中一个插件时，只构建该插件；修改 `src` 后不得跳过对应 `dist/` 的同步。
 
 验证至少包括：
 
 ```bash
 test -f public/index.html
+test -f public/library.html
 test -f public/chats.html
+test -f public/ingest.html
+test -f public/quality.html
+test -f public/graph
 test -f public/static/contentIndex.json
-grep -R '/quartz/' public/index.html public/chats.html && exit 1 || true
+grep -R '/quartz/' public/index.html public/chats.html public/ingest.html && exit 1 || true
 grep -n 'data-proxy-url="/api"' public/chats.html
+grep -n 'data-proxy-url="/api"' public/ingest.html
 
 curl --fail --silent --show-error http://127.0.0.1:8080/ > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/library > /dev/null
 curl --fail --silent --show-error http://127.0.0.1:8080/chats > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/ingest > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/quality > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/graph > /dev/null
 curl --fail --silent --show-error http://127.0.0.1:8080/static/contentIndex.json > /dev/null
 curl --fail --silent --show-error http://127.0.0.1:8080/api/health
 ```
@@ -91,6 +110,7 @@ curl --fail --silent --show-error http://127.0.0.1:8080/api/health
 
 - `ingest` 成功表示文档处理流程完成，并可能更新 `llm-wiki-agent/wiki`。
 - Quartz 页面和 `static/contentIndex.json` 只有重新构建 `public/` 后才更新。
+- `/quality` 只检查构建期可确认的标题、摘要、标签和更新时间缺口；不得把它扩展为虚假的实时健康分数、断链结论或发布状态。
 - 未经明确需求，不要擅自把 ingest、Quartz build、Nginx reload 和 ECS 缓存清理耦合成一个自动流程。
 - 如果实现自动发布，必须处理并发构建、失败回滚、旧 `public/` 可用性、Nginx 读取权限和缓存失效。
 
@@ -121,18 +141,24 @@ Chats 失败：
 
 UI 没有反映插件源码变化：
 
-1. 构建 `.local-plugins/chats/dist/`。
+1. 确认变更属于 `knowledge-ui` 还是 `chats`，构建对应 `dist/`。
 2. 重建 `public/`。
 3. 检查实际服务的产物和缓存。
+
+Graph 下载而不是渲染：
+
+1. 确认 `public/graph` 存在且内容是 HTML。
+2. 检查 DGX Nginx 是否为精确路径 `/graph` 设定 `default_type text/html`。
+3. 再检查 ECS 代理和浏览器缓存；不要手工改 `public/graph` 或重做 Graph 算法。
 
 ## 完成标准
 
 Quartz 变更只有在以下条件满足后才算完成：
 
 - 变更范围与任务一致，未覆盖用户已有修改。
-- 必要的插件构建和 Quartz 构建已完成。
+- 必要的 `knowledge-ui`、`chats` 插件构建和 Quartz 构建已完成，且相应 `dist/` 已同步。
 - `public/` 不含错误的 `/quartz/` 资源前缀。
 - Chats 使用同源 `/api`。
-- DGX 根页面、Chats、内容索引和 `/api/health` 验证通过。
+- DGX 根页面、知识库、Chats、Ingest、质量页、Graph、内容索引和 `/api/health` 按任务风险验证通过。
 - 局域网与 ECS 入口均按任务风险完成验证。
 - 未提交依赖目录、缓存、密钥或服务器私有配置。

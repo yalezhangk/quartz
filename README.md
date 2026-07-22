@@ -1,12 +1,14 @@
 # Quartz 知识库前端
 
-本项目基于 Quartz v5，将 `llm-wiki-agent/wiki` 中的 Markdown 构建为静态知识库，并通过本地 Chats 插件调用 `wiki-backend`。最终运行环境是 NVIDIA DGX Spark（Ubuntu ARM64），Windows 主要用于开发和 Git 管理。
+本项目基于 Quartz v5，将 `llm-wiki-agent/wiki` 中的 Markdown 构建为静态知识库。`knowledge-ui` 本地插件提供产品级知识浏览界面，`chats` 本地插件通过同源 `/api` 调用 `wiki-backend` 提供知识问答和文档入库。最终运行环境是 NVIDIA DGX Spark（Ubuntu ARM64），Windows 主要用于开发和 Git 管理。
 
 ## 项目职责
 
 - 读取 `llm-wiki-agent/wiki` 中的真实知识库内容。
 - 生成可由 Nginx 直接提供的 `public/` 静态站点。
-- 通过 `.local-plugins/chats` 提供 Chats、ingest 和 synthesis 前端界面。
+- 通过 `.local-plugins/knowledge-ui` 提供唯一主导航、首页 `/`、知识库 `/library` 与知识质量 `/quality`。
+- 通过 `.local-plugins/chats` 提供知识问答 `/chats`、文档入库 `/ingest` 和 Synthesis 前端界面。
+- 保留 Quartz 原生正文、Search、Explorer、TOC、Backlinks 与 Graph；`/graph` 使用 Wiki 生成的图谱 HTML。
 - 使用同源 `/api` 调用 `wiki-backend`，浏览器不直接访问后端端口。
 
 `public/` 是构建产物，不是内容源，也不要手工修改。文档入库完成后，`llm-wiki-agent/wiki` 会发生变化；当前发布流程仍需要重新构建 Quartz 才能让页面和搜索索引反映最新内容。
@@ -61,7 +63,11 @@ configuration:
 cd /home/dgx/Projects/knowledge_base_mkt/quartz
 npm ci
 
-cd .local-plugins/chats
+cd .local-plugins/knowledge-ui
+npm ci
+npm run build
+
+cd ../chats
 npm ci
 npm run build
 cd ../..
@@ -70,7 +76,26 @@ npx quartz plugin install --clean
 npx quartz plugin install --from-config
 ```
 
-这些命令分别恢复 Quartz 依赖、Chats 插件依赖与 `dist/`、社区插件及本地插件链接。不要把 Windows 的 `node_modules/`、`.quartz/plugins/` 或 `public/` 复制到 DGX。
+这些命令分别恢复 Quartz、Knowledge UI、Chats 插件依赖与 `dist/`，再恢复社区插件及本地插件链接。两个插件的 `dist/` 是实际包入口，和 `src/` 一起由 Git 追踪；DGX 仍须重新构建以验证 Linux ARM64 环境。不要把 Windows 的 `node_modules/`、`.quartz/plugins/` 或 `public/` 复制到 DGX。
+
+## Windows 本地同源预览
+
+先在一个 PowerShell 窗口启动后端，必须使用后端项目自己的虚拟环境：
+
+```powershell
+cd ..\wiki-backend
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8081
+```
+
+再在 Quartz 目录构建并启动带 `/api` 转发的静态预览：
+
+```powershell
+$env:CHAT_PROXY_URL="/api"
+npx.cmd quartz build -d ..\llm-wiki-agent\wiki
+npm.cmd run serve:integrated
+```
+
+浏览器打开 `http://127.0.0.1:8080/`。该预览只监听回环地址，并将 `/api/*` 转发到 `127.0.0.1:8081`；它还会为无扩展名的 `/graph` 返回正确的 HTML 类型。如果 `8080` 已占用，可先设置 `$env:QUARTZ_PREVIEW_PORT="8090"`；如后端端口不同，可设置 `$env:QUARTZ_API_TARGET="http://127.0.0.1:<port>"`。这只用于 Windows 验证，不改变生产环境的 Nginx 同源代理。
 
 ## 生产构建
 
@@ -85,28 +110,33 @@ CHAT_PROXY_URL=/api npx quartz build \
 
 `CHAT_PROXY_URL=/api` 必须保持同源。无论浏览器从局域网还是 ECS 访问，Chats 都先请求当前站点的 `/api/*`，再由 DGX Nginx 转发到 `wiki-backend`。
 
-如果修改了 `.local-plugins/chats/src/`，必须先构建插件：
+如果修改了任一本地插件的 `src/`，必须先构建对应插件。两个插件都变更时可按以下顺序执行：
 
 ```bash
-cd /home/dgx/Projects/knowledge_base_mkt/quartz/.local-plugins/chats
+cd /home/dgx/Projects/knowledge_base_mkt/quartz/.local-plugins/knowledge-ui
 npm run build
 
-cd /home/dgx/Projects/knowledge_base_mkt/quartz
+cd ../chats
+npm run build
+
+cd ../..
 CHAT_PROXY_URL=/api npx quartz build \
   -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
 ```
 
+只改其中一个插件时，只构建它即可；提交前必须同步提交该插件的 `src/` 与 `dist/`。
+
 资源链路是：
 
 ```text
-.local-plugins/chats/src
-  -> npm run build
-  -> .local-plugins/chats/dist
+.local-plugins/knowledge-ui/src 或 .local-plugins/chats/src
+  -> 对应目录 npm run build
+  -> 对应 dist/
   -> npx quartz build
-  -> public/chats.html 和 public/static/*
+  -> public/index.html、library.html、chats.html、ingest.html、quality.html、static/*
 ```
 
-只改 Wiki 内容时不需要重装插件，但仍需重新执行 Quartz 构建。`ingest` 成功只代表文档处理和入库成功，不代表 `public/` 已自动发布。
+只改 Wiki 内容时不需要重装插件，但仍需重新执行 Quartz 构建。`ingest` 成功只代表文档处理和入库成功，不代表 `public/` 已自动发布。`/quality` 只报告构建期可以确认的元数据缺口，不伪造断链、矛盾或发布结论。
 
 ## DGX Nginx
 
@@ -138,6 +168,12 @@ server {
         proxy_buffering off;
         proxy_cache off;
         add_header X-Accel-Buffering no;
+    }
+
+    # Wiki 中的 graph.html 被 Quartz 发射为无扩展名的 public/graph。
+    location = /graph {
+        default_type text/html;
+        try_files /graph =404;
     }
 
     location / {
@@ -178,23 +214,32 @@ ECS Nginx 继续保留现有 `/research_report_library/` 等本地路由。Quart
 cd /home/dgx/Projects/knowledge_base_mkt/quartz
 
 test -f public/index.html
+test -f public/library.html
 test -f public/chats.html
+test -f public/ingest.html
+test -f public/quality.html
+test -f public/graph
 test -f public/static/contentIndex.json
-grep -R '/quartz/' public/index.html public/chats.html && exit 1 || true
+grep -R '/quartz/' public/index.html public/chats.html public/ingest.html && exit 1 || true
 grep -n 'data-proxy-url="/api"' public/chats.html
+grep -n 'data-proxy-url="/api"' public/ingest.html
 ```
 
 再验证 DGX 入口：
 
 ```bash
 curl --fail --silent --show-error http://127.0.0.1:8080/ > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/library > /dev/null
 curl --fail --silent --show-error http://127.0.0.1:8080/chats > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/ingest > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/quality > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/graph > /dev/null
 curl --fail --silent --show-error http://127.0.0.1:8080/static/contentIndex.json > /dev/null
 curl --fail --silent --show-error http://127.0.0.1:8080/api/health
 curl --fail --silent --show-error http://127.0.0.1:8080/api/chats > /dev/null
 ```
 
-最后分别用浏览器验证局域网和 ECS 入口。重点检查页面、搜索、Chats、上传和流式回答。
+最后分别用浏览器验证局域网和 ECS 入口。重点检查首页、知识库筛选、知识正文、Search、Graph、Chats、上传、任务详情和流式回答。
 
 ## 常见问题
 
@@ -219,16 +264,27 @@ curl --fail --silent --show-error http://127.0.0.1:8080/api/chats > /dev/null
 
 ### Chats 源码更新但 UI 仍是旧版本
 
-先在 `.local-plugins/chats` 执行 `npm run build`，再重建 Quartz，并检查 ECS 缓存与浏览器缓存。
+先确认变更属于 `.local-plugins/knowledge-ui` 还是 `.local-plugins/chats`，在对应目录执行 `npm run build`，再重建 Quartz，并检查 ECS 缓存与浏览器缓存。
+
+### 点击 Graph 后浏览器下载文件
+
+先确认 `public/graph` 存在且内容是 HTML。由于它没有扩展名，DGX Nginx 必须为精确路径 `/graph` 返回 `text/html`；采用上文 `location = /graph` 配置后重载 Nginx。不要手工改 `public/graph`。
 
 ## 仓库边界
 
 下列内容是依赖、缓存或生成状态，不是跨机器同步依据：
 
 - `node_modules/`
+- `.local-plugins/knowledge-ui/node_modules/`
 - `.local-plugins/chats/node_modules/`
 - `.quartz/plugins/`
 - `.quartz-cache/`
 - `public/`
 
-Windows 修改源码并提交；DGX 拉取后安装依赖、构建和验证。所有文本、脚本与配置最终以 Linux Ubuntu ARM64、LF 换行和 Linux 权限语义为准。
+以下内容是跨机器需要同步和审查的本地插件交付物：
+
+- `.local-plugins/knowledge-ui/src/` 与 `.local-plugins/knowledge-ui/dist/`
+- `.local-plugins/chats/src/` 与 `.local-plugins/chats/dist/`
+- 两个插件各自的 `package.json`、`package-lock.json` 和构建配置
+
+Windows 修改源码并提交；DGX 拉取后安装依赖、重建插件、构建 `public/` 并验证。所有文本、脚本与配置最终以 Linux Ubuntu ARM64、LF 换行和 Linux 权限语义为准。

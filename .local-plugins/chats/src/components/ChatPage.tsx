@@ -71,8 +71,9 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
           data-chats-path={chatsHref}
         >
           <div class="chats-sidebar-top">
-            <div class="chats-brand">
-              <span class="chats-brand-title">MKT WIKI</span>
+            <div class="chats-record-heading">
+              <span>研究记录</span>
+              <h2>问题记录</h2>
             </div>
             <button
               type="button"
@@ -94,25 +95,25 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              <span>{strings.newChat}</span>
+              <span>新建问题</span>
             </button>
           </div>
           <div class="chats-history-panel">
-            <details class="ingests-panel" open>
-              <summary class="ingests-summary">
-                <span>Ingests</span>
-              </summary>
-              <div class="ingests-list">
-                <div class="ingests-empty-state">No ingests yet</div>
-              </div>
-            </details>
             <div class="chats-header">
-              <h2>{strings.title}</h2>
+              <span>按最近活动排序</span>
             </div>
             <div class="chats-history">
               <div class="chats-empty-state">{strings.emptyHistory}</div>
             </div>
           </div>
+          <details class="ingests-panel">
+            <summary class="ingests-summary">
+              <span>临时上传状态</span>
+            </summary>
+            <div class="ingests-list">
+              <div class="ingests-empty-state">暂无上传任务</div>
+            </div>
+          </details>
           <template id="template-chat-item">
             <a class="chat-history-item" href="#" data-chat-id="">
               <div class="chat-item-title"></div>
@@ -121,13 +122,14 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
           </template>
         </aside>
         <div class="chat-page" data-proxy-url={opts.proxyUrl}>
-          <div class="chat-stage">
-            <div class="chat-hero">
-              <h1 class="chat-hero-title">Welcome, how can I help?</h1>
-              <p class="chat-hero-subtitle">
-                Ask about your wiki knowledge base, sources, entities, and relationships.
-              </p>
+          <header class="chat-workbench-header">
+            <div>
+              <span>知识研究工作区</span>
+              <h1>知识问答</h1>
             </div>
+            <p>范围：全部已发布知识</p>
+          </header>
+          <div class="chat-stage">
             <div class="chat-messages" id="chat-messages">
               {/* Messages rendered dynamically by chat.inline.ts */}
             </div>
@@ -135,14 +137,14 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
           <div class="chat-input-wrap">
             <div class="chat-input-card">
               <label class="chat-input-label" for="chat-input-box">
-                Message Wiki Copilot
+                继续追问
               </label>
               <div class="chat-input-area">
                 <button
                   type="button"
                   class="chat-attach-button"
-                  aria-label="Add attachment"
-                  title="Upload document"
+                  aria-label="临时上传资料"
+                  title="临时上传资料；完整任务请在后续入库中心查看"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -184,33 +186,22 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                 </button>
               </div>
             </div>
+            <p class="chat-input-note">回答基于已发布知识生成，请通过引用依据核对关键结论。</p>
           </div>
           <template id="template-message-user">
             <div class="message message-user">
+              <div class="message-document-label">问题</div>
               <div class="message-content"></div>
             </div>
           </template>
           <template id="template-message-assistant">
             <div class="message message-assistant">
-              <div class="message-avatar">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M12 2a4 4 0 0 1 4 4v1a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" />
-                  <path d="M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0z" />
-                  <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
-                  <path d="M17 17a4 4 0 0 1-4 4h-2a4 4 0 0 1-4-4" />
-                </svg>
-              </div>
+              <div class="message-document-label">答复</div>
               <div class="message-body">
+                <div class="message-document-meta">
+                  <span>研究备忘录</span>
+                  <small>基于已发布知识</small>
+                </div>
                 <div class="message-content"></div>
                 <div class="message-actions">
                   <button
@@ -233,6 +224,7 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                       <rect x="9" y="9" width="13" height="13" rx="3" ry="3" />
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                     </svg>
+                    <span class="message-action-label">复制回答</span>
                   </button>
                   <button
                     type="button"
@@ -256,6 +248,7 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                       <path d="M12 11v6" />
                       <path d="M9 14h6" />
                     </svg>
+                    <span class="message-action-label">保存为 Synthesis</span>
                   </button>
                 </div>
                 <div class="message-loading">{strings.loading}</div>
@@ -263,6 +256,21 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
             </div>
           </template>
         </div>
+        <aside class="chat-evidence" aria-labelledby="chat-evidence-title" data-chat-evidence>
+          <header>
+            <div>
+              <span>出处</span>
+              <h2 id="chat-evidence-title">引用依据</h2>
+            </div>
+            <strong data-evidence-count>0</strong>
+          </header>
+          <div class="chat-evidence-list" data-evidence-list>
+            <div class="chat-evidence-empty">
+              提交问题后，这里会列出回答返回的来源与相关知识页面。
+            </div>
+          </div>
+          <p class="chat-evidence-scope">当前范围：全部已发布 Wiki 页面</p>
+        </aside>
       </div>
     )
   }
