@@ -9,9 +9,8 @@ import { getKnowledgeObjects } from "../knowledge"
 
 interface NavigationItem {
   label: string
-  code: string
-  target?: string
-  phase?: string
+  icon: "home" | "library" | "chat" | "ingest" | "graph" | "quality" | "settings"
+  target: string
   active: (slug: string) => boolean
 }
 
@@ -21,8 +20,43 @@ function getAreaLabel(slug: string): string {
   if (slug === "chats" || slug.startsWith("chats/")) return "知识问答"
   if (slug === "ingest") return "文档入库"
   if (slug === "quality") return "知识质量"
+  if (slug === "settings") return "系统设置"
   if (slug === "graph" || slug.startsWith("graph/")) return "知识图谱"
   return "知识正文"
+}
+
+function NavigationIcon({ name }: { name: NavigationItem["icon"] }) {
+  const common = {
+    width: "18",
+    height: "18",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "1.55",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  }
+
+  if (name === "home") {
+    return <svg {...common}><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" /><path d="M9 21v-7h6v7" /></svg>
+  }
+  if (name === "library") {
+    return <svg {...common}><path d="M5 4h14v16H5z" /><path d="M8 8h8M8 12h8M8 16h5" /></svg>
+  }
+  if (name === "chat") {
+    return <span class="app-question-mark">?</span>
+  }
+  if (name === "ingest") {
+    return <svg {...common}><path d="M12 3v12" /><path d="m8 7 4-4 4 4" /><path d="M5 13v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7" /></svg>
+  }
+  if (name === "graph") {
+    return <svg {...common}><circle cx="6" cy="6" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><circle cx="18" cy="18" r="2.5" /><path d="m8.2 7.2 7.6 3.6M8.2 16.8l7.6-3.6M6 8.5v7" /></svg>
+  }
+  if (name === "quality") {
+    return <svg {...common}><path d="m5 12 4 4L19 5" /></svg>
+  }
+  return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.3 2.3-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-3v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2.3-2.3.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5v-3h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.3-2.3.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3.5h3v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.3 2.3-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v3h-.2a1.7 1.7 0 0 0-1.5 1Z" /></svg>
 }
 
 const navigationScript = `
@@ -56,48 +90,65 @@ document.addEventListener("nav", () => {
   }
 
   const health = topbar.querySelector("[data-platform-health]")
+  const healthCard = document.querySelector("[data-platform-health-card]")
+  const healthCardDetail = document.querySelector("[data-platform-health-detail]")
   if (health instanceof HTMLElement) {
     fetch("/api/health", { headers: { Accept: "application/json" } })
       .then((response) => {
         if (!response.ok) throw new Error(String(response.status))
         health.textContent = "后端可用"
         health.classList.add("is-healthy")
+        if (healthCard instanceof HTMLElement) {
+          healthCard.textContent = "系统运行正常"
+          healthCard.classList.add("is-healthy")
+        }
+        if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "后端健康检查已通过"
       })
       .catch(() => {
         health.textContent = "后端不可用"
         health.classList.add("is-unavailable")
+        if (healthCard instanceof HTMLElement) {
+          healthCard.textContent = "需要检查系统"
+          healthCard.classList.add("is-unavailable")
+        }
+        if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "无法连接 /api/health"
       })
   }
 })
 `
 
 const navigationItems: NavigationItem[] = [
-  { label: "首页", code: "01", target: "index", active: (slug) => slug === "index" },
+  { label: "首页", icon: "home", target: "index", active: (slug) => slug === "index" },
   {
     label: "知识库",
-    code: "02",
+    icon: "library",
     target: "library",
     active: (slug) =>
       slug === "library" || /^(sources|entities|concepts|syntheses)(\/|$)/.test(slug),
   },
   {
     label: "知识问答",
-    code: "03",
+    icon: "chat",
     target: "chats",
     active: (slug) => slug === "chats" || slug.startsWith("chats/"),
   },
   {
     label: "文档入库",
-    code: "04",
+    icon: "ingest",
     target: "ingest",
     active: (slug) => slug === "ingest",
   },
   {
     label: "知识图谱",
-    code: "05",
+    icon: "graph",
     target: "graph",
     active: (slug) => slug === "graph" || slug.startsWith("graph/"),
   },
+  { label: "知识质量", icon: "quality", target: "quality", active: (slug) => slug === "quality" },
+]
+
+const managementItems: NavigationItem[] = [
+  { label: "系统设置", icon: "settings", target: "settings", active: (slug) => slug === "settings" },
 ]
 
 export default (() => {
@@ -146,7 +197,7 @@ export default (() => {
         </header>
         <a class="app-brand" href={homeHref} aria-label="中压-市场部 样本知识库首页">
           <span class="app-brand-mark" aria-hidden="true">
-            MK
+            MKT
           </span>
           <span class="app-brand-copy">
             <strong>
@@ -161,16 +212,6 @@ export default (() => {
         <nav class="app-navigation-items" aria-label="产品主导航">
           {navigationItems.map((item) => {
             const active = item.active(currentSlug)
-            if (!item.target) {
-              return (
-                <span class="app-navigation-item is-disabled" aria-disabled="true">
-                  <span class="app-navigation-code">{item.code}</span>
-                  <span>{item.label}</span>
-                  <small>{item.phase}</small>
-                </span>
-              )
-            }
-
             const href = resolveRelative(currentSlug as FullSlug, item.target as FullSlug)
             return (
               <a
@@ -178,16 +219,33 @@ export default (() => {
                 href={href}
                 aria-current={active ? "page" : undefined}
               >
-                <span class="app-navigation-code">{item.code}</span>
+                <span class="app-navigation-icon"><NavigationIcon name={item.icon} /></span>
                 <span>{item.label}</span>
               </a>
             )
           })}
         </nav>
-        <div class="app-index-status">
-          <span>STATIC INDEX</span>
-          <strong>{objectCount.toLocaleString("zh-CN")} 个知识对象</strong>
-          <small>运行状态需通过后端检查</small>
+        <div class="app-sidebar-footer">
+          <div class="app-management">
+            <p class="app-navigation-label">管理</p>
+            <nav class="app-navigation-items" aria-label="系统管理">
+              {managementItems.map((item) => {
+                const active = item.active(currentSlug)
+                const href = resolveRelative(currentSlug as FullSlug, item.target as FullSlug)
+                return (
+                  <a class={`app-navigation-item${active ? " is-active" : ""}`} href={href} aria-current={active ? "page" : undefined}>
+                    <span class="app-navigation-icon"><NavigationIcon name={item.icon} /></span>
+                    <span>{item.label}</span>
+                  </a>
+                )
+              })}
+            </nav>
+          </div>
+          <div class="app-index-status" aria-live="polite">
+            <span class="app-index-status-title" data-platform-health-card>系统检查中</span>
+            <strong>{objectCount.toLocaleString("zh-CN")} 个知识对象</strong>
+            <small data-platform-health-detail>正在连接后端健康检查</small>
+          </div>
         </div>
       </div>
     )

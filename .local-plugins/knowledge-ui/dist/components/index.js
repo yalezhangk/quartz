@@ -175,8 +175,60 @@ function getAreaLabel(slug2) {
   if (slug2 === "chats" || slug2.startsWith("chats/")) return "\u77E5\u8BC6\u95EE\u7B54";
   if (slug2 === "ingest") return "\u6587\u6863\u5165\u5E93";
   if (slug2 === "quality") return "\u77E5\u8BC6\u8D28\u91CF";
+  if (slug2 === "settings") return "\u7CFB\u7EDF\u8BBE\u7F6E";
   if (slug2 === "graph" || slug2.startsWith("graph/")) return "\u77E5\u8BC6\u56FE\u8C31";
   return "\u77E5\u8BC6\u6B63\u6587";
+}
+function NavigationIcon({ name }) {
+  const common = {
+    width: "18",
+    height: "18",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "1.55",
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true
+  };
+  if (name === "home") {
+    return /* @__PURE__ */ u2("svg", { ...common, children: [
+      /* @__PURE__ */ u2("path", { d: "m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" }),
+      /* @__PURE__ */ u2("path", { d: "M9 21v-7h6v7" })
+    ] });
+  }
+  if (name === "library") {
+    return /* @__PURE__ */ u2("svg", { ...common, children: [
+      /* @__PURE__ */ u2("path", { d: "M5 4h14v16H5z" }),
+      /* @__PURE__ */ u2("path", { d: "M8 8h8M8 12h8M8 16h5" })
+    ] });
+  }
+  if (name === "chat") {
+    return /* @__PURE__ */ u2("span", { class: "app-question-mark", children: "?" });
+  }
+  if (name === "ingest") {
+    return /* @__PURE__ */ u2("svg", { ...common, children: [
+      /* @__PURE__ */ u2("path", { d: "M12 3v12" }),
+      /* @__PURE__ */ u2("path", { d: "m8 7 4-4 4 4" }),
+      /* @__PURE__ */ u2("path", { d: "M5 13v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7" })
+    ] });
+  }
+  if (name === "graph") {
+    return /* @__PURE__ */ u2("svg", { ...common, children: [
+      /* @__PURE__ */ u2("circle", { cx: "6", cy: "6", r: "2.5" }),
+      /* @__PURE__ */ u2("circle", { cx: "18", cy: "6", r: "2.5" }),
+      /* @__PURE__ */ u2("circle", { cx: "6", cy: "18", r: "2.5" }),
+      /* @__PURE__ */ u2("circle", { cx: "18", cy: "18", r: "2.5" }),
+      /* @__PURE__ */ u2("path", { d: "m8.2 7.2 7.6 3.6M8.2 16.8l7.6-3.6M6 8.5v7" })
+    ] });
+  }
+  if (name === "quality") {
+    return /* @__PURE__ */ u2("svg", { ...common, children: /* @__PURE__ */ u2("path", { d: "m5 12 4 4L19 5" }) });
+  }
+  return /* @__PURE__ */ u2("svg", { ...common, children: [
+    /* @__PURE__ */ u2("circle", { cx: "12", cy: "12", r: "3" }),
+    /* @__PURE__ */ u2("path", { d: "M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.3 2.3-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-3v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2.3-2.3.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5v-3h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.3-2.3.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3.5h3v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.3 2.3-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v3h-.2a1.7 1.7 0 0 0-1.5 1Z" })
+  ] });
 }
 var navigationScript = `
 document.addEventListener("nav", () => {
@@ -209,46 +261,62 @@ document.addEventListener("nav", () => {
   }
 
   const health = topbar.querySelector("[data-platform-health]")
+  const healthCard = document.querySelector("[data-platform-health-card]")
+  const healthCardDetail = document.querySelector("[data-platform-health-detail]")
   if (health instanceof HTMLElement) {
     fetch("/api/health", { headers: { Accept: "application/json" } })
       .then((response) => {
         if (!response.ok) throw new Error(String(response.status))
         health.textContent = "\u540E\u7AEF\u53EF\u7528"
         health.classList.add("is-healthy")
+        if (healthCard instanceof HTMLElement) {
+          healthCard.textContent = "\u7CFB\u7EDF\u8FD0\u884C\u6B63\u5E38"
+          healthCard.classList.add("is-healthy")
+        }
+        if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "\u540E\u7AEF\u5065\u5EB7\u68C0\u67E5\u5DF2\u901A\u8FC7"
       })
       .catch(() => {
         health.textContent = "\u540E\u7AEF\u4E0D\u53EF\u7528"
         health.classList.add("is-unavailable")
+        if (healthCard instanceof HTMLElement) {
+          healthCard.textContent = "\u9700\u8981\u68C0\u67E5\u7CFB\u7EDF"
+          healthCard.classList.add("is-unavailable")
+        }
+        if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "\u65E0\u6CD5\u8FDE\u63A5 /api/health"
       })
   }
 })
 `;
 var navigationItems = [
-  { label: "\u9996\u9875", code: "01", target: "index", active: (slug2) => slug2 === "index" },
+  { label: "\u9996\u9875", icon: "home", target: "index", active: (slug2) => slug2 === "index" },
   {
     label: "\u77E5\u8BC6\u5E93",
-    code: "02",
+    icon: "library",
     target: "library",
     active: (slug2) => slug2 === "library" || /^(sources|entities|concepts|syntheses)(\/|$)/.test(slug2)
   },
   {
     label: "\u77E5\u8BC6\u95EE\u7B54",
-    code: "03",
+    icon: "chat",
     target: "chats",
     active: (slug2) => slug2 === "chats" || slug2.startsWith("chats/")
   },
   {
     label: "\u6587\u6863\u5165\u5E93",
-    code: "04",
+    icon: "ingest",
     target: "ingest",
     active: (slug2) => slug2 === "ingest"
   },
   {
     label: "\u77E5\u8BC6\u56FE\u8C31",
-    code: "05",
+    icon: "graph",
     target: "graph",
     active: (slug2) => slug2 === "graph" || slug2.startsWith("graph/")
-  }
+  },
+  { label: "\u77E5\u8BC6\u8D28\u91CF", icon: "quality", target: "quality", active: (slug2) => slug2 === "quality" }
+];
+var managementItems = [
+  { label: "\u7CFB\u7EDF\u8BBE\u7F6E", icon: "settings", target: "settings", active: (slug2) => slug2 === "settings" }
 ];
 var AppNavigation_default = (() => {
   const AppNavigation = (props) => {
@@ -281,7 +349,7 @@ var AppNavigation_default = (() => {
         /* @__PURE__ */ u2("span", { class: "app-health-status", "data-platform-health": true, "aria-live": "polite", children: "\u540E\u7AEF\u68C0\u67E5\u4E2D" })
       ] }),
       /* @__PURE__ */ u2("a", { class: "app-brand", href: homeHref, "aria-label": "\u4E2D\u538B-\u5E02\u573A\u90E8 \u6837\u672C\u77E5\u8BC6\u5E93\u9996\u9875", children: [
-        /* @__PURE__ */ u2("span", { class: "app-brand-mark", "aria-hidden": "true", children: "MK" }),
+        /* @__PURE__ */ u2("span", { class: "app-brand-mark", "aria-hidden": "true", children: "MKT" }),
         /* @__PURE__ */ u2("span", { class: "app-brand-copy", children: [
           /* @__PURE__ */ u2("strong", { children: [
             "\u4E2D\u538B-\u5E02\u573A\u90E8",
@@ -294,13 +362,6 @@ var AppNavigation_default = (() => {
       /* @__PURE__ */ u2("p", { class: "app-navigation-label", children: "\u4E3B\u8981\u529F\u80FD" }),
       /* @__PURE__ */ u2("nav", { class: "app-navigation-items", "aria-label": "\u4EA7\u54C1\u4E3B\u5BFC\u822A", children: navigationItems.map((item) => {
         const active = item.active(currentSlug);
-        if (!item.target) {
-          return /* @__PURE__ */ u2("span", { class: "app-navigation-item is-disabled", "aria-disabled": "true", children: [
-            /* @__PURE__ */ u2("span", { class: "app-navigation-code", children: item.code }),
-            /* @__PURE__ */ u2("span", { children: item.label }),
-            /* @__PURE__ */ u2("small", { children: item.phase })
-          ] });
-        }
         const href = resolveRelative(currentSlug, item.target);
         return /* @__PURE__ */ u2(
           "a",
@@ -309,19 +370,32 @@ var AppNavigation_default = (() => {
             href,
             "aria-current": active ? "page" : void 0,
             children: [
-              /* @__PURE__ */ u2("span", { class: "app-navigation-code", children: item.code }),
+              /* @__PURE__ */ u2("span", { class: "app-navigation-icon", children: /* @__PURE__ */ u2(NavigationIcon, { name: item.icon }) }),
               /* @__PURE__ */ u2("span", { children: item.label })
             ]
           }
         );
       }) }),
-      /* @__PURE__ */ u2("div", { class: "app-index-status", children: [
-        /* @__PURE__ */ u2("span", { children: "STATIC INDEX" }),
-        /* @__PURE__ */ u2("strong", { children: [
-          objectCount.toLocaleString("zh-CN"),
-          " \u4E2A\u77E5\u8BC6\u5BF9\u8C61"
+      /* @__PURE__ */ u2("div", { class: "app-sidebar-footer", children: [
+        /* @__PURE__ */ u2("div", { class: "app-management", children: [
+          /* @__PURE__ */ u2("p", { class: "app-navigation-label", children: "\u7BA1\u7406" }),
+          /* @__PURE__ */ u2("nav", { class: "app-navigation-items", "aria-label": "\u7CFB\u7EDF\u7BA1\u7406", children: managementItems.map((item) => {
+            const active = item.active(currentSlug);
+            const href = resolveRelative(currentSlug, item.target);
+            return /* @__PURE__ */ u2("a", { class: `app-navigation-item${active ? " is-active" : ""}`, href, "aria-current": active ? "page" : void 0, children: [
+              /* @__PURE__ */ u2("span", { class: "app-navigation-icon", children: /* @__PURE__ */ u2(NavigationIcon, { name: item.icon }) }),
+              /* @__PURE__ */ u2("span", { children: item.label })
+            ] });
+          }) })
         ] }),
-        /* @__PURE__ */ u2("small", { children: "\u8FD0\u884C\u72B6\u6001\u9700\u901A\u8FC7\u540E\u7AEF\u68C0\u67E5" })
+        /* @__PURE__ */ u2("div", { class: "app-index-status", "aria-live": "polite", children: [
+          /* @__PURE__ */ u2("span", { class: "app-index-status-title", "data-platform-health-card": true, children: "\u7CFB\u7EDF\u68C0\u67E5\u4E2D" }),
+          /* @__PURE__ */ u2("strong", { children: [
+            objectCount.toLocaleString("zh-CN"),
+            " \u4E2A\u77E5\u8BC6\u5BF9\u8C61"
+          ] }),
+          /* @__PURE__ */ u2("small", { "data-platform-health-detail": true, children: "\u6B63\u5728\u8FDE\u63A5\u540E\u7AEF\u5065\u5EB7\u68C0\u67E5" })
+        ] })
       ] })
     ] });
   };
