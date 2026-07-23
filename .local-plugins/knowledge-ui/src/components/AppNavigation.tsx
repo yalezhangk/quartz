@@ -195,16 +195,12 @@ export default (() => {
             后端检查中
           </span>
         </header>
-        <a class="app-brand" href={homeHref} aria-label="中压-市场部 样本知识库首页">
+        <a class="app-brand" href={homeHref} aria-label="中压市场部知识库首页">
           <span class="app-brand-mark" aria-hidden="true">
             MKT
           </span>
           <span class="app-brand-copy">
-            <strong>
-              中压-市场部
-              <br />
-              样本知识库
-            </strong>
+            <strong>中压市场部知识库</strong>
             <small>MKT / TECHNICAL ARCHIVE</small>
           </span>
         </a>

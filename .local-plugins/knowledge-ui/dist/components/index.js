@@ -348,14 +348,10 @@ var AppNavigation_default = (() => {
         ] }),
         /* @__PURE__ */ u2("span", { class: "app-health-status", "data-platform-health": true, "aria-live": "polite", children: "\u540E\u7AEF\u68C0\u67E5\u4E2D" })
       ] }),
-      /* @__PURE__ */ u2("a", { class: "app-brand", href: homeHref, "aria-label": "\u4E2D\u538B-\u5E02\u573A\u90E8 \u6837\u672C\u77E5\u8BC6\u5E93\u9996\u9875", children: [
+      /* @__PURE__ */ u2("a", { class: "app-brand", href: homeHref, "aria-label": "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93\u9996\u9875", children: [
         /* @__PURE__ */ u2("span", { class: "app-brand-mark", "aria-hidden": "true", children: "MKT" }),
         /* @__PURE__ */ u2("span", { class: "app-brand-copy", children: [
-          /* @__PURE__ */ u2("strong", { children: [
-            "\u4E2D\u538B-\u5E02\u573A\u90E8",
-            /* @__PURE__ */ u2("br", {}),
-            "\u6837\u672C\u77E5\u8BC6\u5E93"
-          ] }),
+          /* @__PURE__ */ u2("strong", { children: "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93" }),
           /* @__PURE__ */ u2("small", { children: "MKT / TECHNICAL ARCHIVE" })
         ] })
       ] }),

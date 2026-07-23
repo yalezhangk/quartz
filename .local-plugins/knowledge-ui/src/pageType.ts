@@ -42,7 +42,7 @@ export const KnowledgePageType: QuartzPageTypePlugin = () => ({
       if (slug !== "index") return
       componentData.fileData.frontmatter = {
         ...componentData.fileData.frontmatter,
-        title: "中压-市场部 样本知识库",
+        title: "中压市场部知识库",
         description: "检索产品、技术参数、标准与设备关系，并基于已发布资料开展知识问答。",
       }
       componentData.fileData.description =

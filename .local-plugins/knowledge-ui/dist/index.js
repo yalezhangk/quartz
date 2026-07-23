@@ -260,7 +260,7 @@ var HomePage_default = (() => {
           "\u8D44\u6599\u7D22\u5F15\u66F4\u65B0\u81F3 ",
           formatDate(latestDate)
         ] }),
-        /* @__PURE__ */ u2("h1", { children: "\u4E2D\u538B-\u5E02\u573A\u90E8 \u6837\u672C\u77E5\u8BC6\u5E93" }),
+        /* @__PURE__ */ u2("h1", { children: "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93" }),
         /* @__PURE__ */ u2("p", { class: "knowledge-home-intro", children: "\u68C0\u7D22\u4EA7\u54C1\u3001\u6280\u672F\u53C2\u6570\u3001\u6807\u51C6\u4E0E\u8BBE\u5907\u5173\u7CFB\uFF1B\u590D\u6742\u95EE\u9898\u53EF\u57FA\u4E8E\u5DF2\u53D1\u5E03\u8D44\u6599\u5F62\u6210\u5E26\u51FA\u5904\u7684\u7814\u7A76\u7B54\u590D\u3002" }),
         /* @__PURE__ */ u2("div", { class: "knowledge-home-actions", children: [
           /* @__PURE__ */ u2("form", { class: "knowledge-search", "data-knowledge-search": true, role: "search", children: [
@@ -919,7 +919,7 @@ var KnowledgePageType = () => ({
       if (slug2 !== "index") return;
       componentData.fileData.frontmatter = {
         ...componentData.fileData.frontmatter,
-        title: "\u4E2D\u538B-\u5E02\u573A\u90E8 \u6837\u672C\u77E5\u8BC6\u5E93",
+        title: "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93",
         description: "\u68C0\u7D22\u4EA7\u54C1\u3001\u6280\u672F\u53C2\u6570\u3001\u6807\u51C6\u4E0E\u8BBE\u5907\u5173\u7CFB\uFF0C\u5E76\u57FA\u4E8E\u5DF2\u53D1\u5E03\u8D44\u6599\u5F00\u5C55\u77E5\u8BC6\u95EE\u7B54\u3002"
       };
       componentData.fileData.description = "\u68C0\u7D22\u4EA7\u54C1\u3001\u6280\u672F\u53C2\u6570\u3001\u6807\u51C6\u4E0E\u8BBE\u5907\u5173\u7CFB\uFF0C\u5E76\u57FA\u4E8E\u5DF2\u53D1\u5E03\u8D44\u6599\u5F00\u5C55\u77E5\u8BC6\u95EE\u7B54\u3002";

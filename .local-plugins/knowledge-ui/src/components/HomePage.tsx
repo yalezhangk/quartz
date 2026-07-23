@@ -102,7 +102,7 @@ export default (() => {
       <main class="knowledge-home">
         <header class="knowledge-home-header">
           <p class="knowledge-home-updated">资料索引更新至 {formatDate(latestDate)}</p>
-          <h1>中压-市场部 样本知识库</h1>
+          <h1>中压市场部知识库</h1>
           <p class="knowledge-home-intro">
             检索产品、技术参数、标准与设备关系；复杂问题可基于已发布资料形成带出处的研究答复。
           </p>

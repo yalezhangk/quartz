@@ -1,6 +1,6 @@
 # Knowledge UI Plugin
 
-该插件承载“中压-市场部 样本知识库”的产品级应用外壳和专用 Quartz 页面。
+该插件承载“中压市场部知识库”的产品级应用外壳和专用 Quartz 页面。
 
 - `AppNavigation`：唯一的产品主导航；Quartz Explorer 继续作为知识正文二级目录。
 - `KnowledgePageType`：统一分派首页和 `/library`，并在构建期生成知识库虚拟页面。
