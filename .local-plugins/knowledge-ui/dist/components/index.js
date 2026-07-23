@@ -311,6 +311,7 @@ var navigationItems = [
     label: "\u77E5\u8BC6\u56FE\u8C31",
     icon: "graph",
     target: "graph",
+    openInNewTab: true,
     active: (slug2) => slug2 === "graph" || slug2.startsWith("graph/")
   },
   { label: "\u77E5\u8BC6\u8D28\u91CF", icon: "quality", target: "quality", active: (slug2) => slug2 === "quality" }
@@ -364,6 +365,9 @@ var AppNavigation_default = (() => {
           {
             class: `app-navigation-item${active ? " is-active" : ""}`,
             href,
+            target: item.openInNewTab ? "_blank" : void 0,
+            rel: item.openInNewTab ? "noopener noreferrer" : void 0,
+            "data-router-ignore": item.openInNewTab ? "" : void 0,
             "aria-current": active ? "page" : void 0,
             children: [
               /* @__PURE__ */ u2("span", { class: "app-navigation-icon", children: /* @__PURE__ */ u2(NavigationIcon, { name: item.icon }) }),

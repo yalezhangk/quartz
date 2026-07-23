@@ -11,6 +11,7 @@ interface NavigationItem {
   label: string
   icon: "home" | "library" | "chat" | "ingest" | "graph" | "quality" | "settings"
   target: string
+  openInNewTab?: boolean
   active: (slug: string) => boolean
 }
 
@@ -142,6 +143,7 @@ const navigationItems: NavigationItem[] = [
     label: "知识图谱",
     icon: "graph",
     target: "graph",
+    openInNewTab: true,
     active: (slug) => slug === "graph" || slug.startsWith("graph/"),
   },
   { label: "知识质量", icon: "quality", target: "quality", active: (slug) => slug === "quality" },
@@ -213,6 +215,9 @@ export default (() => {
               <a
                 class={`app-navigation-item${active ? " is-active" : ""}`}
                 href={href}
+                target={item.openInNewTab ? "_blank" : undefined}
+                rel={item.openInNewTab ? "noopener noreferrer" : undefined}
+                data-router-ignore={item.openInNewTab ? "" : undefined}
                 aria-current={active ? "page" : undefined}
               >
                 <span class="app-navigation-icon"><NavigationIcon name={item.icon} /></span>

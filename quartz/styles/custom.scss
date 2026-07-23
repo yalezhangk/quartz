@@ -417,8 +417,15 @@ a.app-navigation-item:hover {
   font-size: 9px;
 }
 
-.sidebar.left > .search,
+.sidebar.left > .search {
+  display: none;
+}
+
 .sidebar.left > .flex-component {
+  display: contents;
+}
+
+.sidebar.left > .flex-component .search > .search-button {
   display: none;
 }
 
