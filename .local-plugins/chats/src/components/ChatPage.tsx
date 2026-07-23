@@ -35,7 +35,21 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
     const chatsHref = resolveRelative(props.fileData.slug!, "chats" as FullSlug)
 
     return (
-      <div class="chat-shell" data-proxy-url={opts.proxyUrl} data-chats-path={chatsHref}>
+      <div
+        class="chat-shell"
+        data-proxy-url={opts.proxyUrl}
+        data-chats-path={chatsHref}
+        data-empty-history={strings.emptyHistory}
+        data-untitled-chat={strings.untitledChat}
+        data-history-load-failed={strings.historyLoadFailed}
+        data-new-chat-placeholder={strings.newChatPlaceholder}
+        data-follow-up-placeholder={strings.followUpPlaceholder}
+        data-new-chat-input-label={strings.newChatInputLabel}
+        data-follow-up-input-label={strings.followUpInputLabel}
+        data-new-chat-greeting-title={strings.newChatGreetingTitle}
+        data-new-chat-greeting-description={strings.newChatGreetingDescription}
+        data-reference-description={strings.referenceDescription}
+      >
         <button
           type="button"
           class="chat-sidebar-toggle"
@@ -72,8 +86,8 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
         >
           <div class="chats-sidebar-top">
             <div class="chats-record-heading">
-              <span>研究记录</span>
-              <h2>问题记录</h2>
+              <span>{strings.historyEyebrow}</span>
+              <h2>{strings.historyTitle}</h2>
             </div>
             <button
               type="button"
@@ -95,12 +109,12 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              <span>新建问题</span>
+              <span>{strings.newChat}</span>
             </button>
           </div>
           <div class="chats-history-panel">
             <div class="chats-header">
-              <span>按最近活动排序</span>
+              <span>{strings.historySort}</span>
             </div>
             <div class="chats-history">
               <div class="chats-empty-state">{strings.emptyHistory}</div>
@@ -121,11 +135,15 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
             </a>
           </template>
         </aside>
-        <div class="chat-page" data-proxy-url={opts.proxyUrl}>
+        <div
+          class="chat-page"
+          data-proxy-url={opts.proxyUrl}
+        >
           <header class="chat-workbench-header">
             <div>
-              <span>知识研究工作区</span>
-              <h1>知识问答</h1>
+              <span>{strings.workbenchEyebrow}</span>
+              <h1>{strings.title}</h1>
+              <p>{strings.workbenchDescription}</p>
             </div>
             <p>范围：全部已发布知识</p>
           </header>
@@ -137,7 +155,7 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
           <div class="chat-input-wrap">
             <div class="chat-input-card">
               <label class="chat-input-label" for="chat-input-box">
-                继续追问
+                {strings.newChatInputLabel}
               </label>
               <div class="chat-input-area">
                 <button
@@ -164,9 +182,9 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                 <textarea
                   id="chat-input-box"
                   class="chat-input"
-                  placeholder={strings.placeholder}
+                  placeholder={strings.newChatPlaceholder}
                   rows={1}
-                  aria-label={strings.placeholder}
+                  aria-label={strings.newChatPlaceholder}
                 />
                 <button class="chat-send-button" disabled aria-label={strings.send}>
                   <svg
@@ -186,7 +204,7 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                 </button>
               </div>
             </div>
-            <p class="chat-input-note">回答基于已发布知识生成，请通过引用依据核对关键结论。</p>
+            <p class="chat-input-note">{strings.inputNote}</p>
           </div>
           <template id="template-message-user">
             <div class="message message-user">
@@ -196,10 +214,10 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
           </template>
           <template id="template-message-assistant">
             <div class="message message-assistant">
-              <div class="message-document-label">答复</div>
+              <div class="message-document-label">回答</div>
               <div class="message-body">
                 <div class="message-document-meta">
-                  <span>研究备忘录</span>
+                  <span>知识回答</span>
                   <small>基于已发布知识</small>
                 </div>
                 <div class="message-content"></div>
@@ -259,14 +277,14 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
         <aside class="chat-evidence" aria-labelledby="chat-evidence-title" data-chat-evidence>
           <header>
             <div>
-              <span>出处</span>
-              <h2 id="chat-evidence-title">引用依据</h2>
+              <span>{strings.referenceEyebrow}</span>
+              <h2 id="chat-evidence-title">{strings.referenceTitle}</h2>
             </div>
             <strong data-evidence-count>0</strong>
           </header>
           <div class="chat-evidence-list" data-evidence-list>
             <div class="chat-evidence-empty">
-              提交问题后，这里会列出回答返回的来源与相关知识页面。
+              {strings.referenceDescription}
             </div>
           </div>
           <p class="chat-evidence-scope">当前范围：全部已发布 Wiki 页面</p>

@@ -5,7 +5,7 @@
 ## 目录重点
 
 - `src/api/chatApi.ts`：集中处理 Chat API URL、请求和错误信息。
-- `src/components/ChatPage.tsx`：问题记录、研究备忘录、引用依据和输入区模板。
+- `src/components/ChatPage.tsx`：问答历史、知识回答、引用来源和输入区模板。
 - `src/components/scripts/chat.inline.ts`：会话交互、消息渲染、引用映射、wiki-link、Copy 和 Synthesis 状态。
 - `src/components/styles/chat.scss`：Chats 页面布局和样式。
 - `src/types.ts`：与 `wiki-backend` 响应一致的前端类型。
@@ -49,15 +49,15 @@ Chats 页面使用以下接口：
 - 会话列表和消息以 `wiki-backend` 的 MySQL 数据为准。
 - 页面刷新后重新请求后端，不使用 `localStorage` 保存会话或消息。
 - `sessionStorage` 只保存当前选中的服务端 `chat_id` 和 SPA 跳转意图。
-- 点击“新建问题”只清空当前页面；首次发送时才创建后端会话。
+- 点击“发起问答”只清空当前页面；首次发送时才创建后端问答会话。
 - 发送成功后使用服务端返回的会话和消息更新页面。
 - 发送失败时移除临时消息、显示错误并恢复输入内容。
 
 ## 前端渲染约定
 
 - `assistant_message.content` 作为 Markdown 正文渲染。
-- 回答正文继续按 `content` 的 Markdown 渲染；右侧“引用依据”使用 `sources` 和 `relevant_pages`。
-- 引用依据通过 `/static/contentIndex.json` 映射真实标题、知识类型和 Quartz 页面链接；当前接口没有片段和相关度时不伪造这些字段。
+- 回答正文继续按 `content` 的 Markdown 渲染；右侧“引用来源”使用 `sources` 和 `relevant_pages`。
+- 引用来源通过 `/static/contentIndex.json` 映射真实标题、知识类型和 Quartz 页面链接；当前接口没有片段和相关度时不伪造这些字段。
 - Copy 按钮直接复制 `content` 的 Markdown 原文，不额外追加来源。
 - wiki-link 通过 `/static/contentIndex.json` 映射到 Quartz 页面。
 - Synthesis 保存继续只提交助手消息 ID，刷新后根据 `synthesis_path` 恢复状态。

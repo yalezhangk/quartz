@@ -36,6 +36,11 @@ function getChatConfig(el: HTMLElement): ChatConfig {
   }
 }
 
+function getChatCopy(contextEl: HTMLElement, key: string, fallback: string): string {
+  const shell = contextEl.closest(".chat-shell") as HTMLElement | null
+  return shell?.dataset[key] || fallback
+}
+
 function readStoredIntent(remove: boolean): string | StoredChatIntent | null {
   const storedIntent = sessionStorage.getItem(CHAT_INTENT_KEY)
   if (!storedIntent) return null
@@ -196,7 +201,7 @@ async function resolveEvidenceItem(item: EvidenceItem): Promise<ResolvedEvidence
 async function renderEvidencePanel(
   contextEl: HTMLElement,
   message?: ChatMessage,
-  emptyText = "提交问题后，这里会列出回答返回的来源与相关知识页面。",
+  emptyText?: string,
 ) {
   const shell = contextEl.closest(".chat-shell")
   const panel = shell?.querySelector("[data-chat-evidence]") as HTMLElement | null
@@ -227,7 +232,13 @@ async function renderEvidencePanel(
   if (evidence.length === 0) {
     const empty = document.createElement("div")
     empty.className = "chat-evidence-empty"
-    empty.textContent = emptyText
+    empty.textContent =
+      emptyText ||
+      getChatCopy(
+        contextEl,
+        "referenceDescription",
+        "Submit a question to view related sources and knowledge pages.",
+      )
     list.appendChild(empty)
     return
   }
@@ -419,7 +430,8 @@ function renderChatHistory(
   if (errorMessage || chats.length === 0) {
     const empty = document.createElement("div")
     empty.className = "chats-empty-state"
-    empty.textContent = errorMessage || "No conversations yet"
+    empty.textContent =
+      errorMessage || getChatCopy(sidebarEl, "emptyHistory", "No conversations yet")
     historyEl.appendChild(empty)
     return
   }
@@ -448,7 +460,7 @@ function renderChatHistory(
     }
 
     if (titleEl) {
-      titleEl.textContent = chat.title || "Untitled"
+      titleEl.textContent = chat.title || getChatCopy(sidebarEl, "untitledChat", "Untitled")
     }
 
     if (previewEl) {
@@ -466,13 +478,39 @@ function renderNewChat(messagesEl: HTMLElement) {
   greeting.className = "message-greeting"
   greeting.innerHTML = `
     <div class="greeting-content">
-      <span>新问题</span>
-      <h2>建立一条可追溯的问题记录</h2>
-      <p>输入需要核对、比较或归纳的问题；答复将保留知识页面与来源资料线索。</p>
+      <h2>${getChatCopy(messagesEl, "newChatGreetingTitle", "Start a knowledge Q&A")}</h2>
+      <p>${getChatCopy(
+        messagesEl,
+        "newChatGreetingDescription",
+        "Enter a question you want to look up or analyze.",
+      )}</p>
     </div>
   `
   messagesEl.appendChild(greeting)
   void renderEvidencePanel(messagesEl)
+}
+
+function setChatInputState(pageEl: HTMLElement, hasChat: boolean) {
+  const inputEl = pageEl.querySelector(".chat-input") as HTMLTextAreaElement | null
+  const labelEl = pageEl.querySelector(".chat-input-label") as HTMLLabelElement | null
+  const placeholder = getChatCopy(
+    pageEl,
+    hasChat ? "followUpPlaceholder" : "newChatPlaceholder",
+    hasChat
+      ? "Continue the conversation or ask a related question"
+      : "Ask a question to get an answer from the enterprise knowledge base",
+  )
+  const label = getChatCopy(
+    pageEl,
+    hasChat ? "followUpInputLabel" : "newChatInputLabel",
+    hasChat ? "Continue the conversation" : "Start a conversation",
+  )
+
+  if (inputEl) {
+    inputEl.placeholder = placeholder
+    inputEl.setAttribute("aria-label", placeholder)
+  }
+  if (labelEl) labelEl.textContent = label
 }
 
 function renderMessages(messagesEl: HTMLElement, messages: ChatMessage[], proxyUrl: string) {
@@ -567,7 +605,7 @@ function renderRequestError(messagesEl: HTMLElement, error: unknown) {
   if (copyButton) copyButton.style.display = "none"
   if (synthesisButton) synthesisButton.style.display = "none"
   if (loadingEl) loadingEl.style.display = "none"
-  void renderEvidencePanel(messagesEl, undefined, "本轮请求没有返回可核对的引用依据。")
+  void renderEvidencePanel(messagesEl, undefined, "本轮请求没有返回可核对的引用来源。")
 }
 
 function scrollToBottom(el: HTMLElement) {
@@ -744,6 +782,8 @@ async function setupChatPage(pageEl: HTMLElement) {
   let currentMessages: ChatMessage[] = []
   let isSending = false
 
+  setChatInputState(pageEl, Boolean(currentChatId))
+
   if (!currentChatId) {
     renderNewChat(messagesEl)
   } else {
@@ -761,6 +801,7 @@ async function setupChatPage(pageEl: HTMLElement) {
         chats = chats.filter((chat) => chat.id !== currentChatId)
         currentChatId = null
         setCurrentChatId(null)
+        setChatInputState(pageEl, false)
         refreshSidebars()
       }
     }
@@ -794,7 +835,7 @@ async function setupChatPage(pageEl: HTMLElement) {
 
     const { loadingEl } = appendAssistantMessage(messagesEl)
     if (loadingEl) loadingEl.style.display = "block"
-    void renderEvidencePanel(messagesEl, undefined, "正在等待本轮回答与引用依据。")
+    void renderEvidencePanel(messagesEl, undefined, "正在等待本轮回答与引用来源。")
     scrollToBottom(messagesEl)
 
     try {
@@ -802,6 +843,7 @@ async function setupChatPage(pageEl: HTMLElement) {
         const createdChat = await createChat(config.proxyUrl)
         currentChatId = createdChat.id
         setCurrentChatId(createdChat.id)
+        setChatInputState(pageEl, true)
         upsertChat(createdChat)
         refreshSidebars()
       }
@@ -956,8 +998,8 @@ async function handleNav() {
       chats = []
       chatsLoadError =
         error instanceof Error
-          ? `问题记录加载失败：${error.message}。请检查后端连接后刷新。`
-          : "问题记录加载失败。请检查后端连接后刷新。"
+          ? `${getChatCopy(configEl, "historyLoadFailed", "Could not load Q&A history")}：${error.message}。请检查后端连接后刷新。`
+          : `${getChatCopy(configEl, "historyLoadFailed", "Could not load Q&A history")}。请检查后端连接后刷新。`
     }
 
     try {

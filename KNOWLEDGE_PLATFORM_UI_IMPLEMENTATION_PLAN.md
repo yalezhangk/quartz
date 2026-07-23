@@ -176,9 +176,9 @@ quartz/styles/custom.scss
 
 - 保留 `chatApi.ts`、会话生命周期、消息渲染、复制和 Synthesis 状态。
 - 移除 `MKT WIKI`、Welcome Hero、Wiki Copilot、机器人头像和内部品牌侧栏。
-- 会话栏只承担“问题记录”，不重复产品一级导航。
+- 会话栏只承担“问答历史”，不重复产品一级导航。
 - 用户消息改为带“问题”标签的检索条件。
-- 助手回答采用研究备忘录排版。
+- 助手回答采用知识回答排版。
 - 右侧引用栏第一阶段使用 `sources` 和 `relevant_pages`，通过 `contentIndex.json` 映射页面。
 - 后端增加 `citations` 后再增强标题、对象类型、片段和相关度。
 - 保持 `synthesis_path`、`synthesized_at` 刷新恢复能力。
@@ -214,7 +214,7 @@ quartz/styles/custom.scss
 | 功能 | 接口 |
 |---|---|
 | 会话列表/创建 | `GET/POST /api/chats` |
-| 会话历史/发送 | `GET/POST /api/chats/{id}/messages` |
+| 问答历史/发送 | `GET/POST /api/chats/{id}/messages` |
 | 会话重命名 | `PATCH /api/chats/{id}` |
 | 保存 Synthesis | `POST /api/synthesis` |
 | 上传和创建任务 | `POST /api/ingest/jobs` |
