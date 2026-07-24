@@ -205,7 +205,7 @@ plugins:
       position: afterBody
       priority: 10
   - source: github:quartz-community/footer
-    enabled: true
+    enabled: false
     options:
       links: {}
   - source: github:quartz-community/recent-notes
@@ -224,6 +224,8 @@ plugins:
     layout:
       position: left
       priority: 10
+  - source: ./.local-plugins/footer
+    enabled: true
   - source: ./.local-plugins/chats
     enabled: true
     options:
