@@ -13,9 +13,11 @@ import {
 } from "../../api/chatApi"
 import type { Chat, ChatMessage, IngestJobResponse } from "../../types"
 import { renderMarkdown } from "./markdown"
+import { normalizeWikiPath } from "./wiki-path"
 
 interface ChatConfig {
   proxyUrl: string
+  ingestPollIntervalMs: number
 }
 
 interface StoredChatIntent {
@@ -30,9 +32,12 @@ const CHAT_INTENT_KEY = "chats:intent"
 let contentIndexPromise: Promise<Record<string, any> | null> | null = null
 
 function getChatConfig(el: HTMLElement): ChatConfig {
+  const ingestPollIntervalMs = Number(el.dataset.ingestPollIntervalMs)
   return {
     // 页面模板通过 CHAT_PROXY_URL 注入后端地址，默认回退到 Quartz 的 /api 反代。
     proxyUrl: el.getAttribute("data-proxy-url") || "/api",
+    ingestPollIntervalMs:
+      Number.isFinite(ingestPollIntervalMs) && ingestPollIntervalMs > 0 ? ingestPollIntervalMs : 30_000,
   }
 }
 
@@ -98,7 +103,7 @@ async function loadContentIndex(): Promise<Record<string, any> | null> {
 }
 
 async function resolveWikiHref(target: string): Promise<string> {
-  const normalizedTarget = target.trim().replace(/^\/+|\/+$/g, "")
+  const normalizedTarget = normalizeWikiPath(target)
   if (!normalizedTarget) return "#"
 
   const lookup = normalizeWikiKey(normalizedTarget)
@@ -160,7 +165,7 @@ function getEvidenceType(slug: string, origin: EvidenceItem["origin"]) {
 
 async function resolveEvidenceItem(item: EvidenceItem): Promise<ResolvedEvidenceItem> {
   const target = item.target.trim()
-  const normalizedTarget = target.replace(/^\/+|\/+$/g, "")
+  const normalizedTarget = normalizeWikiPath(target)
   const lookup = normalizeWikiKey(normalizedTarget)
   const contentIndex = await loadContentIndex()
 
@@ -246,10 +251,15 @@ async function renderEvidencePanel(
   const resolved = await Promise.all(evidence.map(resolveEvidenceItem))
   if (!list.isConnected || list.dataset.evidenceKey !== renderKey) return
 
+  let sourceIndex = 0
   resolved.forEach((item, index) => {
     const link = document.createElement("a")
     link.className = "chat-evidence-item"
     link.href = item.href
+    if (item.origin === "source") {
+      sourceIndex += 1
+      link.id = `chat-evidence-source-${sourceIndex}`
+    }
 
     const meta = document.createElement("span")
     meta.className = "chat-evidence-meta"
@@ -383,13 +393,19 @@ function bindSynthesisButton(
       message.synthesized_at = response.created_at
       syncSynthesisButtonState(button, message)
     } catch (error) {
-      const detail = error instanceof ChatApiError ? error.message : ""
-      if (error instanceof ChatApiError && error.status === 409 && detail.includes("path")) {
-        const existingPath = detail.match(/syntheses\/[^:\s]+\.md/)?.[0] || "syntheses/unknown.md"
-        message.synthesis_path = message.synthesis_path || existingPath
-        message.synthesized_at = message.synthesized_at || new Date().toISOString()
-        syncSynthesisButtonState(button, message)
-        return
+      if (error instanceof ChatApiError && error.status === 409) {
+        try {
+          const latest = await getChatMessages(proxyUrl, message.chat_id)
+          const persistedMessage = latest.messages.find((item) => item.id === message.id)
+          if (persistedMessage?.synthesis_path) {
+            message.synthesis_path = persistedMessage.synthesis_path
+            message.synthesized_at = persistedMessage.synthesized_at
+            syncSynthesisButtonState(button, message)
+            return
+          }
+        } catch (refreshError) {
+          console.error("[Chats] Failed to verify synthesis conflict:", refreshError)
+        }
       }
 
       console.error("[Chats] Failed to save synthesis:", error)
@@ -642,6 +658,7 @@ function detectChatMode(): ChatMode {
 }
 
 const cleanupFns: Array<() => void> = []
+let navigationGeneration = 0
 
 function addCleanup(fn: () => void) {
   cleanupFns.push(fn)
@@ -650,6 +667,10 @@ function addCleanup(fn: () => void) {
 function runCleanups() {
   cleanupFns.forEach((fn) => fn())
   cleanupFns.length = 0
+}
+
+function isActiveNavigation(generation: number): boolean {
+  return generation === navigationGeneration
 }
 
 let chats: Chat[] = []
@@ -746,12 +767,21 @@ function stopIngestPolling(jobId: string) {
   }
 }
 
-function pollIngestJob(proxyUrl: string, jobId: string) {
-  if (ingestPollTimers.has(jobId)) return
+function pollIngestJob(
+  proxyUrl: string,
+  jobId: string,
+  generation: number,
+  ingestPollIntervalMs: number,
+) {
+  if (!isActiveNavigation(generation) || ingestPollTimers.has(jobId)) return
 
   const poll = async () => {
+    if (!isActiveNavigation(generation)) return
+
     try {
       const job = await getIngestJob(proxyUrl, jobId)
+      if (!isActiveNavigation(generation)) return
+
       upsertIngestJob(job)
       refreshSidebars()
       if (!isIngestPending(job)) {
@@ -759,16 +789,18 @@ function pollIngestJob(proxyUrl: string, jobId: string) {
         return
       }
     } catch (error) {
+      if (!isActiveNavigation(generation)) return
       console.error("[Chats] Failed to poll ingest job:", error)
     }
 
-    ingestPollTimers.set(jobId, window.setTimeout(poll, 2000))
+    if (!isActiveNavigation(generation)) return
+    ingestPollTimers.set(jobId, window.setTimeout(poll, ingestPollIntervalMs))
   }
 
-  ingestPollTimers.set(jobId, window.setTimeout(poll, 800))
+  ingestPollTimers.set(jobId, window.setTimeout(poll, ingestPollIntervalMs))
 }
 
-async function setupChatPage(pageEl: HTMLElement) {
+async function setupChatPage(pageEl: HTMLElement, generation: number) {
   const config = getChatConfig(pageEl)
   const messagesEl = pageEl.querySelector(".chat-messages") as HTMLElement
   const inputEl = pageEl.querySelector(".chat-input") as HTMLTextAreaElement
@@ -776,6 +808,9 @@ async function setupChatPage(pageEl: HTMLElement) {
   const attachButton = pageEl.querySelector(".chat-attach-button") as HTMLButtonElement
 
   if (!messagesEl || !inputEl || !sendButton) return
+
+  const isPageActive = () => isActiveNavigation(generation) && pageEl.isConnected
+  if (!isPageActive()) return
 
   const mode = detectChatMode()
   let currentChatId = mode.type === "chat" ? mode.id : null
@@ -789,12 +824,16 @@ async function setupChatPage(pageEl: HTMLElement) {
   } else {
     try {
       const response = await getChatMessages(config.proxyUrl, currentChatId)
+      if (!isPageActive()) return
+
       currentMessages = response.messages
       upsertChat(response.chat)
       setCurrentChatId(response.chat.id)
       renderMessages(messagesEl, currentMessages, config.proxyUrl)
       refreshSidebars()
     } catch (error) {
+      if (!isPageActive()) return
+
       renderNewChat(messagesEl)
       renderRequestError(messagesEl, error)
       if (error instanceof ChatApiError && error.status === 404) {
@@ -807,6 +846,7 @@ async function setupChatPage(pageEl: HTMLElement) {
     }
   }
 
+  if (!isPageActive()) return
   scrollToBottom(messagesEl)
 
   const onInput = () => {
@@ -819,7 +859,7 @@ async function setupChatPage(pageEl: HTMLElement) {
 
   const doSend = async () => {
     const text = inputEl.value.trim()
-    if (!text || isSending) return
+    if (!text || isSending || !isPageActive()) return
 
     isSending = true
     sendButton.disabled = true
@@ -841,6 +881,8 @@ async function setupChatPage(pageEl: HTMLElement) {
     try {
       if (!currentChatId) {
         const createdChat = await createChat(config.proxyUrl)
+        if (!isPageActive()) return
+
         currentChatId = createdChat.id
         setCurrentChatId(createdChat.id)
         setChatInputState(pageEl, true)
@@ -849,12 +891,16 @@ async function setupChatPage(pageEl: HTMLElement) {
       }
 
       const response = await sendChatMessage(config.proxyUrl, currentChatId, text)
+      if (!isPageActive()) return
+
       currentMessages = [...currentMessages, response.user_message, response.assistant_message]
       upsertChat(response.chat)
       renderMessages(messagesEl, currentMessages, config.proxyUrl)
       refreshSidebars()
       scrollToBottom(messagesEl)
     } catch (error) {
+      if (!isPageActive()) return
+
       if (currentMessages.length > 0) {
         renderMessages(messagesEl, currentMessages, config.proxyUrl)
       } else {
@@ -866,6 +912,8 @@ async function setupChatPage(pageEl: HTMLElement) {
       scrollToBottom(messagesEl)
     } finally {
       isSending = false
+      if (!isPageActive()) return
+
       inputEl.disabled = false
       inputEl.focus()
       updateSendButton(inputEl, sendButton)
@@ -892,22 +940,28 @@ async function setupChatPage(pageEl: HTMLElement) {
 
     const onFileChange = async () => {
       const file = fileInput.files?.[0]
-      if (!file) return
+      if (!file || !isPageActive()) return
 
       attachButton.disabled = true
       attachButton.classList.add("uploading")
       try {
         const job = await uploadIngestDocument(config.proxyUrl, file)
+        if (!isPageActive()) return
+
         upsertIngestJob(job)
         refreshSidebars()
         if (isIngestPending(job)) {
-          pollIngestJob(config.proxyUrl, job.job_id)
+          pollIngestJob(config.proxyUrl, job.job_id, generation, config.ingestPollIntervalMs)
         }
       } catch (error) {
+        if (!isPageActive()) return
+
         const message = error instanceof Error ? error.message : "Upload failed"
         ingestLoadError = `Upload failed: ${message}`
         refreshSidebars()
       } finally {
+        if (!isPageActive()) return
+
         attachButton.disabled = false
         attachButton.classList.remove("uploading")
       }
@@ -981,6 +1035,7 @@ function setupSidebarToggle(shellEl: HTMLElement) {
 }
 
 async function handleNav() {
+  const generation = ++navigationGeneration
   runCleanups()
   for (const jobId of Array.from(ingestPollTimers.keys())) {
     stopIngestPolling(jobId)
@@ -993,8 +1048,12 @@ async function handleNav() {
     const proxyUrl = getChatConfig(configEl).proxyUrl
     try {
       chats = sortChats(await listChats(proxyUrl))
+      if (!isActiveNavigation(generation)) return
+
       chatsLoadError = null
     } catch (error) {
+      if (!isActiveNavigation(generation)) return
+
       chats = []
       chatsLoadError =
         error instanceof Error
@@ -1004,8 +1063,12 @@ async function handleNav() {
 
     try {
       ingestJobs = sortIngestJobs(await listIngestJobs(proxyUrl, 20))
+      if (!isActiveNavigation(generation)) return
+
       ingestLoadError = null
     } catch (error) {
+      if (!isActiveNavigation(generation)) return
+
       ingestJobs = []
       ingestLoadError =
         error instanceof Error
@@ -1016,24 +1079,27 @@ async function handleNav() {
 
   const sidebars = document.querySelectorAll(".chats-sidebar")
   for (const el of Array.from(sidebars)) {
+    if (!isActiveNavigation(generation)) return
     setupSidebar(el as HTMLElement)
   }
 
   const shells = document.querySelectorAll(".chat-shell")
   for (const el of Array.from(shells)) {
+    if (!isActiveNavigation(generation)) return
     setupSidebarToggle(el as HTMLElement)
   }
 
   const pages = document.querySelectorAll(".chat-page")
   for (const el of Array.from(pages)) {
-    await setupChatPage(el as HTMLElement)
+    await setupChatPage(el as HTMLElement, generation)
+    if (!isActiveNavigation(generation)) return
   }
 
   if (configEl) {
     const proxyUrl = getChatConfig(configEl).proxyUrl
     for (const job of ingestJobs) {
       if (isIngestPending(job)) {
-        pollIngestJob(proxyUrl, job.job_id)
+        pollIngestJob(proxyUrl, job.job_id, generation, getChatConfig(configEl).ingestPollIntervalMs)
       }
     }
   }

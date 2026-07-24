@@ -5,15 +5,24 @@ import style from "./styles/ingest.scss"
 
 export interface IngestPageOptions {
   proxyUrl: string
+  ingestPollIntervalMs: number
 }
 
-const defaultOptions: IngestPageOptions = { proxyUrl: "/api" }
+const defaultOptions: IngestPageOptions = {
+  proxyUrl: "/api",
+  ingestPollIntervalMs: 30_000,
+}
 
 export default ((userOpts?: Partial<IngestPageOptions>) => {
   const opts = { ...defaultOptions, ...userOpts }
 
   const IngestPage: QuartzComponent = () => (
-    <main class="ingest-page" data-ingest-page data-proxy-url={opts.proxyUrl}>
+    <main
+      class="ingest-page"
+      data-ingest-page
+      data-proxy-url={opts.proxyUrl}
+      data-ingest-poll-interval-ms={opts.ingestPollIntervalMs}
+    >
       <header class="ingest-header">
         <div>
           <p class="ingest-eyebrow">资料处理与发布</p>

@@ -83,6 +83,9 @@
       "proxyUrl": {
         "type": "string"
       },
+      "ingestPollIntervalMs": {
+        "type": "number"
+      },
       "title": {
         "type": "string"
       }

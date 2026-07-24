@@ -7,11 +7,13 @@ declare const _default$2: (userOpts?: Partial<ChatsSidebarOptions>) => QuartzCom
 
 interface ChatPageOptions {
     proxyUrl: string;
+    ingestPollIntervalMs: number;
 }
 declare const _default$1: (userOpts?: Partial<ChatPageOptions>) => QuartzComponent;
 
 interface IngestPageOptions {
     proxyUrl: string;
+    ingestPollIntervalMs: number;
 }
 declare const _default: (userOpts?: Partial<IngestPageOptions>) => QuartzComponent;
 

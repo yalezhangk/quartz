@@ -21,6 +21,8 @@
 $env:CHAT_PROXY_URL="http://127.0.0.1:8081"
 ```
 
+任务详情轮询间隔由 Quartz 的 Chats 插件 `ingestPollIntervalMs` 配置，单位为毫秒，当前值为 `30000`。该值同时适用于 `/chats` 和 `/ingest` 中处于 `queued` 或 `running` 状态的任务。
+
 `chatApi.ts` 支持以下基础地址：
 
 - `http://127.0.0.1:8081` -> `http://127.0.0.1:8081/api/chats`

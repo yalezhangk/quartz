@@ -4,11 +4,16 @@ import type {
   QuartzComponentProps,
 } from "@quartz-community/types"
 import ChatPageBody, { type ChatPageOptions } from "./ChatPage"
-import IngestPage from "./IngestPage"
+import IngestPage, { type IngestPageOptions } from "./IngestPage"
 
-export default ((opts?: Partial<ChatPageOptions>) => {
+type WorkspacePageOptions = Partial<Pick<ChatPageOptions, "proxyUrl" | "ingestPollIntervalMs">>
+
+export default ((opts?: WorkspacePageOptions) => {
   const ChatPage = ChatPageBody(opts)
-  const IngestPageBody = IngestPage({ proxyUrl: opts?.proxyUrl })
+  const IngestPageBody = IngestPage({
+    proxyUrl: opts?.proxyUrl,
+    ingestPollIntervalMs: opts?.ingestPollIntervalMs,
+  } satisfies Partial<IngestPageOptions>)
 
   const WorkspacePage: QuartzComponent = (props: QuartzComponentProps) => {
     const slug = String(props.fileData.slug ?? "")

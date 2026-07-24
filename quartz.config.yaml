@@ -228,6 +228,7 @@ plugins:
     enabled: true
     options:
       proxyUrl: "${CHAT_PROXY_URL:-/api}"
+      ingestPollIntervalMs: 30000
       title: 知识问答
   - source: github:quartz-community/bases-page
     enabled: true

@@ -422,7 +422,10 @@ a.app-navigation-item:hover {
 }
 
 .sidebar.left > .flex-component {
-  display: contents;
+  display: block;
+  flex: 0 0 0;
+  height: 0;
+  overflow: visible;
 }
 
 .sidebar.left > .flex-component .search > .search-button {
@@ -495,7 +498,7 @@ a.app-navigation-item:hover {
 
 .page:has(.knowledge-home) > #quartz-body > .center {
   max-width: 1440px;
-  padding: 42px 48px 56px;
+  padding: 68px 48px 56px;
 }
 
 .page:has(.knowledge-home) .page-header,
@@ -854,7 +857,7 @@ a.app-navigation-item:hover {
 
 .page:has(.knowledge-library) > #quartz-body > .center {
   max-width: 1440px;
-  padding: 42px 48px 56px;
+  padding: 68px 48px 56px;
 }
 
 .page:has(.knowledge-library) .page-header,

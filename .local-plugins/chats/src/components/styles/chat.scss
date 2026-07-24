@@ -697,6 +697,25 @@
   text-decoration: none;
 }
 
+.message-content .chat-citation {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 2px;
+  border: 1px solid var(--kp-border, var(--lightgray));
+  border-radius: 2px;
+  padding: 0 4px;
+  color: var(--kp-brand, var(--secondary));
+  font-family: var(--kp-mono, var(--codeFont));
+  font-size: 0.8em;
+  line-height: 1.45;
+  text-decoration: none;
+}
+
+.message-content .chat-citation:hover {
+  border-color: var(--kp-brand, var(--secondary));
+  background: color-mix(in srgb, var(--kp-brand, var(--secondary)) 8%, transparent);
+}
+
 .message-loading {
   display: none;
   padding: 8px 0;

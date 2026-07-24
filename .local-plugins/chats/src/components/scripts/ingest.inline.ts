@@ -9,6 +9,12 @@ import {
 } from "./ingest-model"
 
 let cleanupIngestPage: (() => void) | undefined
+const DEFAULT_INGEST_POLL_INTERVAL_MS = 30_000
+
+function getIngestPollIntervalMs(page: HTMLElement): number {
+  const value = Number(page.dataset.ingestPollIntervalMs)
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_INGEST_POLL_INTERVAL_MS
+}
 
 function formatDate(value: string | null): string {
   if (!value) return "—"
@@ -47,6 +53,7 @@ function getValidation(job: IngestJobResponse) {
 
 function setupIngestPage(page: HTMLElement): () => void {
   const proxyUrl = page.dataset.proxyUrl || "/api"
+  const pollIntervalMs = getIngestPollIntervalMs(page)
   const list = page.querySelector<HTMLElement>("[data-ingest-list]")
   const detail = page.querySelector<HTMLElement>("[data-ingest-detail]")
   const fileInput = page.querySelector<HTMLInputElement>("[data-ingest-file-input]")
@@ -176,7 +183,7 @@ function setupIngestPage(page: HTMLElement): () => void {
       } catch {
         if (!disposed) schedulePoll(job)
       }
-    }, 2500)
+    }, pollIntervalMs)
     pollTimers.set(job.job_id, timer)
   }
 

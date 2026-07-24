@@ -8,6 +8,15 @@ interface WikiLinkToken {
   label: string
 }
 
+interface CitationToken {
+  type: "citation"
+  raw: string
+  marker: string
+}
+
+const trailingSourcesSectionPattern =
+  /(?:^|\n)#{1,6}\s+(?:sources?|引用来源)\s*:?\s*(?:\n[\s\S]*)?$/i
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -44,6 +53,31 @@ const wikiLinkExtension: TokenizerAndRendererExtension = {
   },
 }
 
+const citationExtension: TokenizerAndRendererExtension = {
+  name: "citation",
+  level: "inline",
+  start(source: string): number | undefined {
+    const index = source.search(/\[[1-9]\d*\]/)
+    return index >= 0 ? index : undefined
+  },
+  tokenizer(source: string): CitationToken | undefined {
+    const match = /^\[([1-9]\d*)\](?!\()/.exec(source)
+    if (!match) return undefined
+
+    return {
+      type: "citation",
+      raw: match[0],
+      marker: match[1],
+    }
+  },
+  renderer(token): string {
+    const citation = token as unknown as CitationToken
+    return '<a class="chat-citation" href="#chat-evidence-source-' + citation.marker +
+      '" data-citation-index="' + citation.marker + '" aria-label="查看引用 ' +
+      citation.marker + '">[' + citation.marker + ']</a>'
+  },
+}
+
 const markdownParser = new Marked({
   async: false,
   breaks: false,
@@ -51,7 +85,7 @@ const markdownParser = new Marked({
 })
 
 markdownParser.use({
-  extensions: [wikiLinkExtension],
+  extensions: [wikiLinkExtension, citationExtension],
   renderer: {
     link({ href, title, tokens }): string {
       const titleAttribute = title ? ` title="${escapeHtml(title)}"` : ""
@@ -78,6 +112,10 @@ export function parseMarkdown(markdown: string): string {
   return html
 }
 
+export function stripTrailingSourcesSection(markdown: string): string {
+  return markdown.replace(trailingSourcesSectionPattern, "").trimEnd()
+}
+
 export function renderMarkdown(markdown: string): string {
   const purifier = createDOMPurify(window)
   purifier.addHook("afterSanitizeAttributes", (node) => {
@@ -96,7 +134,7 @@ export function renderMarkdown(markdown: string): string {
 
     anchor.removeAttribute("target")
   })
-  return purifier.sanitize(parseMarkdown(markdown), {
+  return purifier.sanitize(parseMarkdown(stripTrailingSourcesSection(markdown)), {
     ADD_ATTR: ["data-wiki-target", "target"],
     ALLOW_DATA_ATTR: true,
     ALLOW_UNKNOWN_PROTOCOLS: false,

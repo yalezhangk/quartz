@@ -12,6 +12,7 @@ import style from "./styles/chat.scss"
 
 export interface ChatPageOptions {
   proxyUrl: string
+  ingestPollIntervalMs: number
 }
 
 const defaultOptions: ChatPageOptions = {
@@ -19,6 +20,7 @@ const defaultOptions: ChatPageOptions = {
   // 后续若接入正式 wiki-backend、反向代理或多环境配置，优先把它改成可配置项，
   // 不要继续依赖这里的硬编码默认值。
   proxyUrl: "/api",
+  ingestPollIntervalMs: 30_000,
 }
 
 export default ((userOpts?: Partial<ChatPageOptions>) => {
@@ -38,6 +40,7 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
       <div
         class="chat-shell"
         data-proxy-url={opts.proxyUrl}
+        data-ingest-poll-interval-ms={opts.ingestPollIntervalMs}
         data-chats-path={chatsHref}
         data-empty-history={strings.emptyHistory}
         data-untitled-chat={strings.untitledChat}
@@ -82,6 +85,7 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
           id="chat-page-sidebar"
           class="chats-sidebar chat-page-sidebar"
           data-proxy-url={opts.proxyUrl}
+          data-ingest-poll-interval-ms={opts.ingestPollIntervalMs}
           data-chats-path={chatsHref}
         >
           <div class="chats-sidebar-top">
@@ -138,6 +142,7 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
         <div
           class="chat-page"
           data-proxy-url={opts.proxyUrl}
+          data-ingest-poll-interval-ms={opts.ingestPollIntervalMs}
         >
           <header class="chat-workbench-header">
             <div>

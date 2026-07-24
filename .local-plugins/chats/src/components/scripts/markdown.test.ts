@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { parseMarkdown } from "./markdown"
+import { parseMarkdown, stripTrailingSourcesSection } from "./markdown"
 
 test("renders paragraphs and all heading levels without forcing line breaks", () => {
   const markdown = [
@@ -76,6 +76,23 @@ test("renders Quartz wiki-links with labels, spaces, Chinese, and escaped attrib
   assert.match(html, /class="chat-wikilink unresolved" data-wiki-target="Page" href="#">Page<\/a>/)
   assert.match(html, /data-wiki-target="中文 路径" href="#">显示文字<\/a>/)
   assert.match(html, /data-wiki-target="R&amp;D &lt;指南&gt;" href="#">安全 &amp; 标签<\/a>/)
+})
+
+test("renders numbered citations as links to the source list", () => {
+  const html = parseMarkdown("结论可由资料核对。[1]")
+
+  assert.match(
+    html,
+    /class="chat-citation" href="#chat-evidence-source-1" data-citation-index="1"/,
+  )
+})
+
+test("removes a trailing Sources section from the assistant answer", () => {
+  const markdown = "结论可由资料核对。[1]\n\n## Sources\n\n- 施耐德电气\n- PIX"
+  const answer = stripTrailingSourcesSection(markdown)
+
+  assert.equal(answer, "结论可由资料核对。[1]")
+  assert.doesNotMatch(parseMarkdown(answer), /Sources|施耐德电气|PIX/)
 })
 
 test("keeps valid multiline Markdown unchanged before parsing", () => {

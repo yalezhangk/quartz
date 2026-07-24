@@ -4,6 +4,7 @@ export { ChatPage, Chats, IngestPage } from './components/index.js';
 interface ChatPageTypeOptions {
     title?: string;
     proxyUrl?: string;
+    ingestPollIntervalMs?: number;
 }
 declare const ChatPageType: QuartzPageTypePlugin<ChatPageTypeOptions>;
 

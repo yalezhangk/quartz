@@ -13,14 +13,15 @@ import { i18n } from "./i18n"
 export interface ChatPageTypeOptions {
   title?: string
   proxyUrl?: string
+  ingestPollIntervalMs?: number
 }
 
 const workspaceMatcher: PageMatcher = ({ slug }) => {
   return slug === "ingest" || slug === "chats" || slug.startsWith("chats/")
 }
 
-const createWorkspacePageBody = (opts?: Partial<ChatPageOptions>): QuartzComponentConstructor => {
-  return (bodyOpts?: Partial<ChatPageOptions>) => WorkspacePage({ ...opts, ...bodyOpts })
+const createWorkspacePageBody = (opts?: ChatPageTypeOptions): QuartzComponentConstructor => {
+  return (bodyOpts?: ChatPageTypeOptions) => WorkspacePage({ ...opts, ...bodyOpts })
 }
 
 export const ChatPageType: QuartzPageTypePlugin<ChatPageTypeOptions> = (opts) => ({
@@ -52,5 +53,6 @@ export const ChatPageType: QuartzPageTypePlugin<ChatPageTypeOptions> = (opts) =>
   frame: "default",
   body: createWorkspacePageBody({
     proxyUrl: opts?.proxyUrl,
+    ingestPollIntervalMs: opts?.ingestPollIntervalMs,
   }),
 })
