@@ -70,6 +70,7 @@
 .ingest-upload-copy .ingest-upload-note { font-size: 0.75rem; }
 .ingest-upload input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
 .ingest-upload-status { grid-column: 2 / -1; color: var(--ingest-muted); font: 0.76rem/1.5 var(--codeFont); }
+.ingest-upload-status.is-error { padding: 12px 14px; border: 2px solid #b42318; color: #b42318; background: #fff1f0; font-weight: 650; }
 
 .ingest-metrics {
   display: grid;

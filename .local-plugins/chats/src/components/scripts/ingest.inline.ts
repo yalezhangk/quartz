@@ -306,6 +306,7 @@ function setupIngestPage(page: HTMLElement): () => void {
   const uploadFiles = async (files: File[]) => {
     if (files.length === 0) return
     fileInput.disabled = true
+    uploadStatus.classList.remove("is-error")
     try {
       for (const [index, file] of files.entries()) {
         uploadStatus.textContent = `正在提交 ${index + 1}/${files.length}：${file.name}`
@@ -320,6 +321,7 @@ function setupIngestPage(page: HTMLElement): () => void {
       uploadStatus.textContent = `${files.length} 个文件已创建任务，可在台账中继续跟踪。`
     } catch (error) {
       uploadStatus.textContent = `提交失败：${getErrorMessage(error)}`
+      uploadStatus.classList.add("is-error")
     } finally {
       fileInput.disabled = false
       fileInput.value = ""
