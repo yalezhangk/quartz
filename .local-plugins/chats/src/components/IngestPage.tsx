@@ -93,13 +93,10 @@ export default ((userOpts?: Partial<IngestPageOptions>) => {
         <div class="ingest-publish-code" aria-hidden="true">PUB</div>
         <div>
           <p>静态站点发布</p>
-          <h2 id="ingest-publish-title">Quartz 构建尚未接入安全发布 API</h2>
-          <span>
-            入库成功只表示知识文件已写入。页面与 <code>static/contentIndex.json</code>
-            需要由运维人员重新执行 Quartz build 后更新。
-          </span>
+          <h2 id="ingest-publish-title" data-publish-title>正在读取发布状态…</h2>
+          <span data-publish-summary>入库成功只表示知识文件已写入，站点会在合并窗口后自动构建。</span>
         </div>
-        <button type="button" disabled title="当前没有可用的安全发布 API">
+        <button type="button" data-publish-now title="立即构建并发布当前 Wiki">
           构建并发布
         </button>
       </section>

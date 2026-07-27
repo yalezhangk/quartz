@@ -3,6 +3,8 @@ import type {
   ChatMessagesResponse,
   ChatTurnResponse,
   IngestJobResponse,
+  PublishJobResponse,
+  PublishStatusResponse,
   SynthesisResponse,
 } from "../types"
 
@@ -36,6 +38,10 @@ function getSynthesisEndpoint(proxyUrl: string): string {
 
 function getIngestJobsEndpoint(proxyUrl: string): string {
   return `${getApiBaseUrl(proxyUrl)}/ingest/jobs`
+}
+
+function getPublishEndpoint(proxyUrl: string): string {
+  return `${getApiBaseUrl(proxyUrl)}/publish`
 }
 
 function getErrorDetail(payload: unknown): string | null {
@@ -164,4 +170,12 @@ export function listIngestJobs(
   return request<IngestJobResponse[]>(
     `${getIngestJobsEndpoint(proxyUrl)}?limit=${encodeURIComponent(String(limit))}`,
   )
+}
+
+export function getPublishStatus(proxyUrl: string): Promise<PublishStatusResponse> {
+  return request<PublishStatusResponse>(`${getPublishEndpoint(proxyUrl)}/status`)
+}
+
+export function requestPublish(proxyUrl: string): Promise<PublishJobResponse> {
+  return request<PublishJobResponse>(`${getPublishEndpoint(proxyUrl)}/jobs`, jsonRequest("POST"))
 }

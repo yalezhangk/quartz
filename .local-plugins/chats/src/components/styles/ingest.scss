@@ -142,7 +142,8 @@
 .ingest-publish { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; align-items: center; gap: 22px; margin-top: 38px; padding: 22px; border: 1px solid var(--ingest-border); }
 .ingest-publish-code { font: 700 1.1rem/1 var(--codeFont); }
 .ingest-publish span { display: block; max-width: 760px; margin-top: 7px; color: var(--ingest-muted); font-size: 0.82rem; }
-.ingest-publish button { min-height: 40px; padding: 8px 16px; border: 1px solid var(--ingest-border); color: var(--ingest-muted); background: transparent; cursor: not-allowed; }
+.ingest-publish button { min-height: 40px; padding: 8px 16px; border: 1px solid var(--ingest-ink); color: var(--ingest-ink); background: transparent; cursor: pointer; }
+.ingest-publish button:disabled { color: var(--ingest-muted); border-color: var(--ingest-border); cursor: wait; }
 
 @media all and (max-width: 1180px) {
   .ingest-workspace { grid-template-columns: 1fr; }

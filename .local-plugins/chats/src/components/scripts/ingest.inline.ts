@@ -1,5 +1,11 @@
-import type { IngestJobResponse, IngestJobStatus } from "../../types"
-import { getIngestJob, listIngestJobs, uploadIngestDocument } from "../../api/chatApi"
+import type { IngestJobResponse, IngestJobStatus, PublishStatusResponse } from "../../types"
+import {
+  getIngestJob,
+  getPublishStatus,
+  listIngestJobs,
+  requestPublish,
+  uploadIngestDocument,
+} from "../../api/chatApi"
 import {
   getIngestMetrics,
   getIngestResultSummary,
@@ -61,6 +67,9 @@ function setupIngestPage(page: HTMLElement): () => void {
   const uploadStatus = page.querySelector<HTMLElement>("[data-ingest-upload-status]")
   const filter = page.querySelector<HTMLSelectElement>("[data-ingest-filter]")
   const refreshButtons = page.querySelectorAll<HTMLButtonElement>("[data-ingest-refresh]")
+  const publishTitle = page.querySelector<HTMLElement>("[data-publish-title]")
+  const publishSummary = page.querySelector<HTMLElement>("[data-publish-summary]")
+  const publishButton = page.querySelector<HTMLButtonElement>("[data-publish-now]")
 
   if (!list || !detail || !fileInput || !dropzone || !uploadStatus || !filter) return () => {}
 
@@ -92,6 +101,31 @@ function setupIngestPage(page: HTMLElement): () => void {
       const node = page.querySelector<HTMLElement>(`[data-ingest-count="${key}"]`)
       if (node) node.textContent = String(value)
     })
+  }
+
+  const renderPublish = (status: PublishStatusResponse) => {
+    if (!publishTitle || !publishSummary || !publishButton) return
+    const active = status.active_job
+    if (active?.status === "running") {
+      publishTitle.textContent = "Quartz 正在构建并发布"
+      publishSummary.textContent = `本批次包含 ${active.change_count} 项变更；完成前继续提供上一版站点。`
+      publishButton.disabled = true
+      return
+    }
+    if (active?.status === "queued") {
+      publishTitle.textContent = "知识已写入，等待 Quartz 发布"
+      publishSummary.textContent = `待发布 ${status.pending_change_count} 项变更；预计 ${formatDate(active.scheduled_at)} 开始构建。`
+      publishButton.disabled = false
+      return
+    }
+    if (status.last_successful_job) {
+      publishTitle.textContent = "Quartz 已发布最新版本"
+      publishSummary.textContent = `最近发布时间：${formatDate(status.last_successful_job.published_at)}。新的入库或 Synthesis 会自动进入下一批。`
+    } else {
+      publishTitle.textContent = "暂无待发布的知识变更"
+      publishSummary.textContent = "可手动重建当前 Wiki，或等待新的入库任务完成。"
+    }
+    publishButton.disabled = false
   }
 
   const appendResultList = (
@@ -133,7 +167,11 @@ function setupIngestPage(page: HTMLElement): () => void {
     detail.append(header, title)
 
     const notice = createElement("p", `ingest-detail-notice is-${job.status}`)
-    notice.textContent = job.status === "failed" && job.error ? job.error : meta.description
+    if (job.status === "failed" && job.error) notice.textContent = job.error
+    else if (job.publication?.status === "published") notice.textContent = "知识已写入并已发布到 Quartz 站点。"
+    else if (job.publication?.status === "running") notice.textContent = "知识已写入，Quartz 正在构建发布版本。"
+    else if (job.publication?.status === "failed") notice.textContent = job.publication.error || "知识已写入，但最近一次 Quartz 发布失败。"
+    else notice.textContent = meta.description
     detail.append(notice)
 
     const facts = createElement("dl", "ingest-detail-facts")
@@ -170,7 +208,8 @@ function setupIngestPage(page: HTMLElement): () => void {
   }
 
   const schedulePoll = (job: IngestJobResponse) => {
-    if (disposed || !["queued", "running"].includes(job.status) || pollTimers.has(job.job_id)) return
+    const publicationPending = ["pending", "running"].includes(job.publication?.status || "")
+    if (disposed || (!["queued", "running"].includes(job.status) && !publicationPending) || pollTimers.has(job.job_id)) return
     const timer = window.setTimeout(async () => {
       pollTimers.delete(job.job_id)
       if (disposed) return
@@ -242,12 +281,25 @@ function setupIngestPage(page: HTMLElement): () => void {
         const selected = jobs.find((job) => job.job_id === selectedJobId)
         if (selected) renderDetail(selected)
       }
+      const publishStatus = await getPublishStatus(proxyUrl)
+      if (!disposed) renderPublish(publishStatus)
     } catch (error) {
       if (!disposed) {
         list.replaceChildren(createElement("p", "ingest-error", `任务读取失败：${getErrorMessage(error)}`))
       }
     } finally {
       refreshButtons.forEach((button) => (button.disabled = false))
+    }
+  }
+
+  const loadPublish = async () => {
+    try {
+      renderPublish(await getPublishStatus(proxyUrl))
+    } catch (error) {
+      if (publishTitle && publishSummary) {
+        publishTitle.textContent = "无法读取发布状态"
+        publishSummary.textContent = getErrorMessage(error)
+      }
     }
   }
 
@@ -276,6 +328,25 @@ function setupIngestPage(page: HTMLElement): () => void {
 
   listen(filter, "change", renderList)
   refreshButtons.forEach((button) => listen(button, "click", () => void loadJobs()))
+  if (publishButton) {
+    listen(publishButton, "click", () => {
+      publishButton.disabled = true
+      void requestPublish(proxyUrl)
+        .then((job) => {
+          if (publishSummary) publishSummary.textContent = `发布任务已提交：${job.job_id}`
+          return loadPublish()
+        })
+        .catch((error) => {
+          if (publishSummary) {
+            const prefix = (error as { status?: number }).status === 401 ? "需要发布权限：" : "发布请求失败："
+            publishSummary.textContent = `${prefix}${getErrorMessage(error)}`
+          }
+        })
+        .finally(() => {
+          if (!disposed) void loadPublish()
+        })
+    })
+  }
   listen(fileInput, "change", () => void uploadFiles(Array.from(fileInput.files ?? [])))
   ;["dragenter", "dragover"].forEach((event) =>
     listen(dropzone, event, (rawEvent) => {
@@ -294,6 +365,7 @@ function setupIngestPage(page: HTMLElement): () => void {
   )
 
   void loadJobs()
+  void loadPublish()
   return () => {
     disposed = true
     pollTimers.forEach((timer) => window.clearTimeout(timer))

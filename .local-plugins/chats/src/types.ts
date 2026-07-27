@@ -38,6 +38,38 @@ export interface SynthesisResponse {
   title: string
   path: string
   created_at: string
+  publication?: Publication | null
+}
+
+export type PublicationStatus = "pending" | "running" | "published" | "failed"
+
+export interface Publication {
+  status: PublicationStatus
+  job_id: string | null
+  published_at: string | null
+  error: string | null
+}
+
+export type PublishJobStatus = "queued" | "running" | "succeeded" | "failed"
+
+export interface PublishJobResponse {
+  job_id: string
+  status: PublishJobStatus
+  trigger: "automatic" | "manual"
+  change_count: number
+  scheduled_at: string
+  created_at: string
+  updated_at: string
+  started_at: string | null
+  finished_at: string | null
+  published_at: string | null
+  error: string | null
+}
+
+export interface PublishStatusResponse {
+  pending_change_count: number
+  active_job: PublishJobResponse | null
+  last_successful_job: PublishJobResponse | null
 }
 
 export type IngestJobStatus = "queued" | "running" | "succeeded" | "failed"
@@ -58,6 +90,7 @@ export interface IngestJobResponse {
   created_at: string
   started_at: string | null
   finished_at: string | null
+  publication?: Publication | null
 }
 
 export interface ChatSessionData {

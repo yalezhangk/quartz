@@ -726,7 +726,10 @@ function renderIngestJobs(listEl: HTMLElement, jobs: IngestJobResponse[], errorM
     const status = document.createElement("div")
     status.className = "ingest-item-status"
     if (job.status === "succeeded") {
-      status.textContent = "知识已写入，等待 Quartz 发布"
+      if (job.publication?.status === "published") status.textContent = "知识已写入，已发布"
+      else if (job.publication?.status === "running") status.textContent = "知识已写入，正在发布"
+      else if (job.publication?.status === "failed") status.textContent = "知识已写入，发布失败"
+      else status.textContent = "知识已写入，等待 Quartz 发布"
     } else if (job.status === "failed") {
       status.textContent = job.error ? `failed: ${job.error}` : "failed"
     } else {

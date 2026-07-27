@@ -38,7 +38,7 @@ export function getIngestMetrics(jobs: IngestJobResponse[]): IngestMetrics {
       if (job.status === "queued") metrics.queued += 1
       if (job.status === "running") metrics.running += 1
       if (job.status === "failed") metrics.failed += 1
-      if (job.status === "succeeded") metrics.waitingPublish += 1
+      if (job.status === "succeeded" && job.publication?.status !== "published") metrics.waitingPublish += 1
       return metrics
     },
     { queued: 0, running: 0, failed: 0, waitingPublish: 0 },
@@ -51,7 +51,11 @@ export function getIngestResultSummary(job: IngestJobResponse): string {
 
   const created = job.created_pages?.length ?? 0
   const updated = job.updated_pages?.length ?? 0
-  return `新增 ${created} 页 · 更新 ${updated} 页`
+  const publication = job.publication
+  if (publication?.status === "published") return `新增 ${created} 页 · 更新 ${updated} 页 · 已发布`
+  if (publication?.status === "running") return `新增 ${created} 页 · 更新 ${updated} 页 · 正在发布`
+  if (publication?.status === "failed") return `新增 ${created} 页 · 更新 ${updated} 页 · 发布失败`
+  return `新增 ${created} 页 · 更新 ${updated} 页 · 等待发布`
 }
 
 export function sortIngestJobs(jobs: IngestJobResponse[]): IngestJobResponse[] {
