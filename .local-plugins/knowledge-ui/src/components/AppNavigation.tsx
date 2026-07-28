@@ -90,28 +90,19 @@ document.addEventListener("nav", () => {
     })
   }
 
-  const health = topbar.querySelector("[data-platform-health]")
   const healthCard = document.querySelector("[data-platform-health-card]")
   const healthCardDetail = document.querySelector("[data-platform-health-detail]")
-  if (health instanceof HTMLElement) {
+  if (healthCard instanceof HTMLElement) {
     fetch("/api/health", { headers: { Accept: "application/json" } })
       .then((response) => {
         if (!response.ok) throw new Error(String(response.status))
-        health.textContent = "后端可用"
-        health.classList.add("is-healthy")
-        if (healthCard instanceof HTMLElement) {
-          healthCard.textContent = "系统运行正常"
-          healthCard.classList.add("is-healthy")
-        }
+        healthCard.textContent = "系统运行正常"
+        healthCard.classList.add("is-healthy")
         if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "后端健康检查已通过"
       })
       .catch(() => {
-        health.textContent = "后端不可用"
-        health.classList.add("is-unavailable")
-        if (healthCard instanceof HTMLElement) {
-          healthCard.textContent = "需要检查系统"
-          healthCard.classList.add("is-unavailable")
-        }
+        healthCard.textContent = "需要检查系统"
+        healthCard.classList.add("is-unavailable")
         if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "无法连接 /api/health"
       })
   }
@@ -180,10 +171,6 @@ export default (() => {
             {pageTitle !== areaLabel && <span aria-hidden="true">/</span>}
             {pageTitle !== areaLabel && <span title={pageTitle}>{pageTitle}</span>}
           </div>
-          <button type="button" class="app-topbar-search" data-app-search>
-            <span>全局搜索</span>
-            <kbd>Ctrl K</kbd>
-          </button>
           {currentObject && (
             <div class="app-page-actions" aria-label="当前知识页面操作">
               <a href={chatsHref}>知识问答</a>
@@ -193,9 +180,10 @@ export default (() => {
               <a href={graphHref}>查看图谱</a>
             </div>
           )}
-          <span class="app-health-status" data-platform-health aria-live="polite">
-            后端检查中
-          </span>
+          <button type="button" class="app-topbar-search" data-app-search>
+            <span>全局搜索</span>
+            <kbd>Ctrl K</kbd>
+          </button>
         </header>
         <a class="app-brand" href={homeHref} aria-label="中压市场部知识库首页">
           <span class="app-brand-mark" aria-hidden="true">

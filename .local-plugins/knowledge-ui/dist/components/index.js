@@ -260,28 +260,19 @@ document.addEventListener("nav", () => {
     })
   }
 
-  const health = topbar.querySelector("[data-platform-health]")
   const healthCard = document.querySelector("[data-platform-health-card]")
   const healthCardDetail = document.querySelector("[data-platform-health-detail]")
-  if (health instanceof HTMLElement) {
+  if (healthCard instanceof HTMLElement) {
     fetch("/api/health", { headers: { Accept: "application/json" } })
       .then((response) => {
         if (!response.ok) throw new Error(String(response.status))
-        health.textContent = "\u540E\u7AEF\u53EF\u7528"
-        health.classList.add("is-healthy")
-        if (healthCard instanceof HTMLElement) {
-          healthCard.textContent = "\u7CFB\u7EDF\u8FD0\u884C\u6B63\u5E38"
-          healthCard.classList.add("is-healthy")
-        }
+        healthCard.textContent = "\u7CFB\u7EDF\u8FD0\u884C\u6B63\u5E38"
+        healthCard.classList.add("is-healthy")
         if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "\u540E\u7AEF\u5065\u5EB7\u68C0\u67E5\u5DF2\u901A\u8FC7"
       })
       .catch(() => {
-        health.textContent = "\u540E\u7AEF\u4E0D\u53EF\u7528"
-        health.classList.add("is-unavailable")
-        if (healthCard instanceof HTMLElement) {
-          healthCard.textContent = "\u9700\u8981\u68C0\u67E5\u7CFB\u7EDF"
-          healthCard.classList.add("is-unavailable")
-        }
+        healthCard.textContent = "\u9700\u8981\u68C0\u67E5\u7CFB\u7EDF"
+        healthCard.classList.add("is-unavailable")
         if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "\u65E0\u6CD5\u8FDE\u63A5 /api/health"
       })
   }
@@ -338,16 +329,15 @@ var AppNavigation_default = (() => {
           pageTitle !== areaLabel && /* @__PURE__ */ u2("span", { "aria-hidden": "true", children: "/" }),
           pageTitle !== areaLabel && /* @__PURE__ */ u2("span", { title: pageTitle, children: pageTitle })
         ] }),
-        /* @__PURE__ */ u2("button", { type: "button", class: "app-topbar-search", "data-app-search": true, children: [
-          /* @__PURE__ */ u2("span", { children: "\u5168\u5C40\u641C\u7D22" }),
-          /* @__PURE__ */ u2("kbd", { children: "Ctrl K" })
-        ] }),
         currentObject && /* @__PURE__ */ u2("div", { class: "app-page-actions", "aria-label": "\u5F53\u524D\u77E5\u8BC6\u9875\u9762\u64CD\u4F5C", children: [
           /* @__PURE__ */ u2("a", { href: chatsHref, children: "\u77E5\u8BC6\u95EE\u7B54" }),
           /* @__PURE__ */ u2("button", { type: "button", "data-copy-page-link": true, children: "\u590D\u5236\u94FE\u63A5" }),
           /* @__PURE__ */ u2("a", { href: graphHref, children: "\u67E5\u770B\u56FE\u8C31" })
         ] }),
-        /* @__PURE__ */ u2("span", { class: "app-health-status", "data-platform-health": true, "aria-live": "polite", children: "\u540E\u7AEF\u68C0\u67E5\u4E2D" })
+        /* @__PURE__ */ u2("button", { type: "button", class: "app-topbar-search", "data-app-search": true, children: [
+          /* @__PURE__ */ u2("span", { children: "\u5168\u5C40\u641C\u7D22" }),
+          /* @__PURE__ */ u2("kbd", { children: "Ctrl K" })
+        ] })
       ] }),
       /* @__PURE__ */ u2("a", { class: "app-brand", href: homeHref, "aria-label": "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93\u9996\u9875", children: [
         /* @__PURE__ */ u2("span", { class: "app-brand-mark", "aria-hidden": "true", children: "MKT" }),
