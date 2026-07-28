@@ -39,15 +39,14 @@ export default ((userOpts?: Partial<IngestPageOptions>) => {
       <section class="ingest-upload" data-ingest-dropzone aria-labelledby="ingest-upload-title">
         <div class="ingest-upload-index" aria-hidden="true">IN</div>
         <div class="ingest-upload-copy">
-          <h2 id="ingest-upload-title">提交资料</h2>
-          <p>将文件拖到此处，或从本机选择。多个文件会依次创建独立任务。</p>
-          <p class="ingest-upload-note">支持格式与大小以 wiki-backend 当前校验规则为准。</p>
+          <h2 id="ingest-upload-title">将文件拖放到这里，或选择本地资料</h2>
+          <p class="ingest-upload-note">
+            支持 Markdown、PDF、DOCX、PPTX、XLSX、HTML、音频等文件格式，Markdown的处理效果最好，单文件最大10MB
+          </p>
         </div>
         <label class="ingest-file-action" for="ingest-file-input">选择文件</label>
         <input id="ingest-file-input" type="file" multiple data-ingest-file-input />
-        <p class="ingest-upload-status" data-ingest-upload-status aria-live="polite">
-          尚未选择文件
-        </p>
+        <p class="ingest-upload-status" data-ingest-upload-status aria-live="polite"></p>
       </section>
 
       <section class="ingest-metrics" aria-label="入库任务概览">

@@ -32,8 +32,8 @@
   text-transform: uppercase;
 }
 
-.ingest-header h1 { font-size: clamp(2rem, 4vw, 3.7rem); line-height: 0.95; letter-spacing: -0.055em; }
-.ingest-intro { max-width: 700px; margin-top: 14px !important; color: var(--ingest-muted); font-size: 0.96rem; }
+.ingest-header h1 { font-size: clamp(1.8rem, 3vw, 2.8rem); line-height: 1; letter-spacing: -0.045em; }
+.ingest-intro { max-width: 620px; margin-top: 10px !important; color: var(--ingest-muted); font-size: 0.9rem; }
 
 .ingest-refresh, .ingest-file-action {
   display: inline-flex;
@@ -53,7 +53,7 @@
 
 .ingest-upload {
   display: grid;
-  grid-template-columns: 74px minmax(0, 1fr) auto;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
   align-items: center;
   gap: 22px;
   margin-top: 22px;
@@ -64,12 +64,13 @@
 }
 
 .ingest-upload.is-dragging { border-color: var(--secondary); background: color-mix(in srgb, var(--secondary) 7%, var(--ingest-paper)); }
-.ingest-upload-index { font: 700 1.55rem/1 var(--codeFont); letter-spacing: -0.08em; }
+.ingest-upload-index { font: 700 1.25rem/1 var(--codeFont); letter-spacing: -0.08em; }
 .ingest-upload h2 { font-size: 1.15rem; }
-.ingest-upload-copy > p { margin-top: 5px; color: var(--ingest-muted); font-size: 0.88rem; }
+.ingest-upload-copy > p { margin-top: 4px; color: var(--ingest-muted); font-size: 0.82rem; }
 .ingest-upload-copy .ingest-upload-note { font-size: 0.75rem; }
 .ingest-upload input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
 .ingest-upload-status { grid-column: 2 / -1; color: var(--ingest-muted); font: 0.76rem/1.5 var(--codeFont); }
+.ingest-upload-status:empty { display: none; }
 .ingest-upload-status.is-error { padding: 12px 14px; border: 2px solid #b42318; color: #b42318; background: #fff1f0; font-weight: 650; }
 
 .ingest-metrics {
