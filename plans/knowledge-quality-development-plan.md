@@ -1,241 +1,307 @@
-# 知识质量页开发计划
+# 知识质量开发计划（以已确认原型为准）
 
-## 1. 目标与完成标准
+## 0. 本计划的唯一前端基线
 
-将 Quartz 的 `/quality` 从“构建期 frontmatter 缺口统计页”升级为**可追溯的知识质量巡检页**。页面仍命名为“知识质量”，但不再用一个不透明的健康分数概括质量，也不在浏览器请求时运行 Agent 工具或改写 Wiki。
+本计划以 [design/ui-prototypes/quality.html](../../design/ui-prototypes/quality.html) 为 `/quality` 的**默认桌面视图、信息层级和交互验收标准**。它不是灵感参考，也不是可选方案。
 
-完成后，用户能在同源 `/quality` 中看到：
-
-1. 最近一次质量快照的生成时间、覆盖范围、`health` / `lint` / `graph` 报告是否存在且是否过期。
-2. 结构完整性：空页/过短页、索引不同步、日志缺失、坏链、孤儿页、稀疏链接。
-3. 内容一致性：`lint.py` 已报告的矛盾或待核对口径；每条明确展示涉及页面、原报告证据、建议核对来源和“需人工确认”状态。
-4. 图谱质量：孤立社群、脆弱桥接、薄弱枢纽、缺失实体候选，以及图谱是否可作为当前结论使用。
-5. 新鲜度与修复：仅展示已确认的来源变更和候选修复建议；不从 UI 自动调用 `refresh.py` 或 `heal.py`。
-
-验收时，任何缺失、不可解析或过期的报告都必须显示为“不可用/过期”，不能显示为 `0` 个问题或“通过”。
-
-## 2. 范围、权威来源与硬边界
-
-### 本次改动范围
-
-- `wiki-backend`：提供只读、结构化、可判定新鲜度的质量快照 API。
-- `quartz`：重做 `/quality` 的服务端骨架、浏览器端质量快照加载与交互展示。
-- `plans/`：保存本计划。
-
-### 不在本次范围
-
-- 不修改 `llm-wiki-agent/tools/health.py`、`lint.py`、`refresh.py`、`heal.py` 或其提示词。
-- 不让 `wiki-backend` 动态导入、执行或以子进程启动 `llm-wiki-agent` 的 Python 工具。
-- 不增加后端直连端口、第二条 FRP 隧道、跨域调用或客户端直连 `8081`。
-- 不在本期实现“页面点击后自动运行 Lint / Refresh / Heal”。这些动作涉及 LLM 成本或 Wiki 写入，需独立的受控任务方案和权限设计。
-- 不把质量报告更新误作知识发布；质量快照 API 是运行时只读数据，不应触发 Quartz build 或 Nginx reload。
-
-### 数据权威链
+后续前端开发完成后，至少应具备原型中的以下可见结构和行为：
 
 ```text
-llm-wiki-agent（质量规则与报告产物的权威来源）
+页头：质量巡检快照 + “查看巡检报告” + 受控的“运行新一轮检查”说明
+四格快照：报告生成时间 / 检查覆盖 / 图谱状态 / 语义巡检
+五个筛选标签：全部 / 内容一致性 / 结构完整性 / 图谱质量 / 新鲜度与修复
+两栏主区域：左侧发现项与表格；右侧选中问题的证据对比与检查边界
+```
+
+原型内的日期、147 个对象、13 个发现项及示例文本只用于展示；上线数据必须来自后端质量快照，缺失或过期时必须如实展示，不得保留示例数字。
+
+## 1. 目标、范围与硬边界
+
+### 目标
+
+将 Quartz `/quality` 从构建期 frontmatter 缺口页升级为“最近一次已确认质量巡检”的控制台。它需要同时呈现：
+
+1. Agent 报告快照的生成时间、覆盖对象、健康状态和图谱新鲜度。
+2. 结构完整性、内容一致性、图谱质量、新鲜度与修复建议。
+3. `lint.py` 中的矛盾项的页面、证据、建议和人工确认状态。
+4. Quartz 自己可以确认的摘要/标签/更新时间缺口，但明确标注其“静态索引”来源。
+
+### 改动范围
+
+- `wiki-backend`：新增只读质量快照服务与 `/api/quality/latest`。
+- `quartz/.local-plugins/knowledge-ui`：重写 `QualityPage`，增加客户端快照加载、标签筛选、证据面板和明确的降级状态。
+- `quartz/quartz/styles/custom.scss`：在既有质量页样式基础上实现原型要求的横向巡检快照、双栏发现项/证据布局、状态样式与小屏响应式布局；不改动无关页面样式。
+- `plans/knowledge-quality-development-plan.md`：本计划。
+
+### 不做的事情
+
+- 不修改 `llm-wiki-agent` 代码、提示词或质量工具。
+- 不让浏览器、Quartz 或 `wiki-backend` 直接执行 `health.py`、`lint.py`、`refresh.py`、`heal.py`。
+- 不让“运行新一轮检查”“修复建议”“标记人工确认”在本期写 Wiki、调用 LLM 或创建后台任务。
+- 不新增后端直连端口、第二条 FRP 隧道或跨域访问；生产请求始终通过同源 `/api`。
+- 不因读取质量报告触发 PublishService、Quartz build、Nginx reload 或 ECS 缓存清理。
+
+## 2. 运行架构与数据权威性
+
+```text
+llm-wiki-agent（质量规则、报告产物的权威来源）
   ├─ wiki/health-report.md
   ├─ wiki/lint-report.md
   ├─ graph/graph-report.md
-  └─ graph/graph.json（built 时间与节点/边元信息）
-          ↓ 只读解析
-wiki-backend /api/quality/latest
-          ↓ 同源、API 不缓存
-Quartz /quality（静态页面骨架 + 浏览器端快照展示）
+  └─ graph/graph.json
+         ↓ 只读、容错解析
+wiki-backend  GET /api/quality/latest
+         ↓ 同源 /api，禁用代理缓存
+Quartz /quality
+  ├─ 服务端静态骨架：导航、五区块、metadata gap fallback
+  └─ 浏览器端动态填充：快照、发现项、证据面板、状态与筛选
 ```
 
-Quartz 的 `props.allFiles` 仍可提供“缺少摘要/标签/更新时间”的构建期补充信息，但不得覆盖或伪造 Agent 报告的结构、语义、图谱与新鲜度结论。
+### 数据边界
 
-## 3. 关键事实与产品决策
+| UI 区块 | 事实来源 | 没有新鲜报告时的行为 |
+|---|---|---|
+| 四格巡检快照 | `QualitySnapshotResponse.snapshot` | 显示“最近质量快照不可用”，不显示示例数值 |
+| 内容一致性 | `wiki/lint-report.md` 的结构化解析结果 | 显示“尚无可用语义巡检报告” |
+| 结构完整性 | health/lint 报告 + Quartz `props.allFiles` metadata gap | Agent 结果不可用；静态 metadata gap 仍可显示为独立来源 |
+| 图谱质量 | `graph-report.md` + `graph.json` | 显示“图谱报告缺失/过期”，不把旧数字当当前结论 |
+| 新鲜度与修复 | 已存在的新鲜度/缺失实体报告信息 | 显示“尚无来源新鲜度快照”；不自行重跑 refresh/heal |
 
-1. `health.py` 是无 LLM 的确定性结构检查，适合高频巡检。
-2. `lint.py` 同时包含确定性链接检查和 LLM 语义检查；现有语义部分只抽取 `pages[:20]`，因此 UI 必须展示其覆盖/方法边界，不能声称“全库已无矛盾”。
-3. `lint.py` 的既有报告是 Markdown，自由文本中的“涉及页面、证据、建议”不一定结构完整。第一期 API 必须保留原始报告定位与“未结构化”状态，不能编造页面或置信度。
-4. 图谱结论只有在 `graph.json` 与 Wiki 当前版本足够接近时才有效。现有历史报告已出现“Wiki 页数与图谱节点数不一致”的情况，必须在 API 中显式标为过期。
-5. `refresh.py` 的真实判断来自原始文件哈希；`heal.py` 会调用 LLM 并写入实体页。若没有相应的已生成报告，UI 应显示“尚无快照”，而不是自行重算或提供自动执行按钮。
-6. 后端已有 PublishService，会在入库或 synthesis 后合并并构建 Quartz。质量页 API 是读报告快照，报告文件变化不应自动触发发布；只有修改 Quartz UI 源码时才需要重新构建站点。
+`lint.py` 的语义检查当前只抽样 `pages[:20]`。因此后端必须在 `semantic_scope` 中返回 `sampled | full | unknown`，前端固定显示其检查范围，不能用“知识库无矛盾”一类绝对表述。
 
-## 4. 后端实施计划：`wiki-backend`
+## 3. 后端线程计划：`wiki-backend`
 
-### 阶段 A：定义稳定的质量快照契约
+后端线程只负责提供稳定的、只读的界面数据契约。完成后，Quartz 可以独立用 fixture 开发，不依赖本地真实 LLM 或 MySQL。
 
-新增 `app/schemas/quality.py`，使用 Pydantic 明确 API 契约。建议的核心模型：
+### 3.1 API 契约（先实现并固定）
 
-```text
-QualitySnapshotResponse
-├─ generated_at: datetime | null
-├─ snapshot_status: available | stale | incomplete | unavailable
-├─ coverage
-│  ├─ current_wiki_page_count
-│  ├─ health_scanned_page_count
-│  ├─ lint_scanned_page_count
-│  └─ semantic_scope: sampled | full | unknown
-├─ checks
-│  ├─ health: QualityCheckStatus
-│  ├─ lint: QualityCheckStatus
-│  ├─ graph: QualityCheckStatus
-│  └─ freshness: QualityCheckStatus
-├─ structural: QualityStructuralSummary
-├─ consistency: list[QualityFinding]
-├─ graph: QualityGraphSummary
-├─ freshness: QualityFreshnessSummary
-└─ metadata_gaps: QualityMetadataSummary | null
-```
-
-`QualityCheckStatus` 至少包含 `state`（`available | stale | missing | parse_failed | not_run`）、`generated_at`、`source_path` 的相对展示名、`message` 与 `report_version`。不得把服务器绝对路径返回给浏览器。
-
-`QualityFinding` 至少包含：
-
-- 稳定 ID（由报告类别、标题和原报告段落位置派生，不作为永久知识 ID）。
-- `category`、`severity`、`status`（默认 `needs_review`）。
-- `title`、`summary`、`pages`（允许为空）。
-- `evidence`（允许为空）与 `recommendation`（允许为空）。
-- `report_section`，让用户能够知道该结论来自报告的哪个章节。
-
-### 阶段 B：实现只读 `QualityReportService`
-
-新增 `app/services/quality_report_service.py`，输入为 `settings.llm_wiki_repo_path`，只读访问以下固定路径：
-
-- `wiki/health-report.md`
-- `wiki/lint-report.md`
-- `graph/graph-report.md`
-- `graph/graph.json`
-- `wiki/` 中当前可发布 Markdown 页，用于计算当前页数和检测报告过期。
-
-服务职责：
-
-1. 为各报告读取文件修改时间与报告标题日期；缺失或标题日期无法解析时返回明确状态。
-2. 解析 `health.py` 的固定 Markdown 标题和计数；空页、索引、日志检查分别返回。
-3. 解析 `lint.py` 已知标题：`Structural Issues`、`Graph-Aware Issues`、`Contradictions`、`Stale Content`、`Data Gaps`、`Concepts Needing More Depth`。未知或手工扩展段落保留为安全的文本摘要，不丢失但不伪造结构字段。
-4. 读取 `graph.json` 的 `built`、节点数、边数；将其与当前 Wiki 修改时间、报告声明页数比较，给出 `fresh | stale | unknown`。
-5. 不执行 LLM、不会修改报告、不会读取 `raw/` 正文、不会调用 MySQL。
-6. 采用基于报告 mtime 的进程内短缓存；任一相关文件 mtime 变化后失效，避免每次页面打开遍历整个 Wiki。
-7. 所有解析失败仅降级为 `parse_failed`，记录脱敏日志，绝不让 `/api/quality/latest` 返回 500。
-
-新鲜度的第一期定义为“已有报告是否可用于当前 Wiki”，不是重新实现 `refresh.py` 的哈希工作流。若没有独立的新鲜度报告，响应为 `not_run`，前端显示“尚无来源新鲜度快照”。
-
-### 阶段 C：只读 API
-
-新增 `app/api/quality.py` 与路由：
+新增：
 
 ```text
 GET /api/quality/latest
 ```
 
-行为：
+成功响应始终为 `200`；报告缺失、解析失败、内容过期属于领域状态，不是 HTTP 500。仅 Wiki 根目录不可访问或质量服务未初始化时返回 `503`。
 
-- 返回 `QualitySnapshotResponse`；报告缺失/过期是 `200` 的领域状态，不是 HTTP 失败。
-- 只有 Wiki 根目录不存在或服务不可用时返回可诊断的 `503`。
-- 路由 description 明确说明：结果来自最近一次 Agent 报告；语义发现需要人工核对；接口不运行检查。
-- 在 `app/main.py` 通过 `app.state.quality_report_service` 注入，并提供与 `main_dependencies.py` 风格一致的 dependency。
-- `/api/quality/*` 沿用现有同源 Nginx 路由，ECS 与 DGX 均 `proxy_cache off`；不新增 CORS 或公开后端监听。
+响应模型建议在 `app/schemas/quality.py` 中定义，字段与原型一一对应：
 
-第一期不提供 `POST /api/quality/runs`、`POST /api/quality/heal`、`POST /api/quality/refresh`，也不提供原始报告文件下载接口。这样不会把具有内部知识上下文的 Markdown 报告无边界暴露，也不会把写操作放进无认证 UI。
-
-### 阶段 D：后端测试与文档
-
-新增 fixture 驱动测试，至少覆盖：
-
-1. 健康、Lint、Graph 三份正常报告可解析为稳定 schema。
-2. 缺少任意报告时为 `missing`，不是零问题。
-3. 报告日期早于当前 Wiki 变更、或 `graph.json` 页数不一致时为 `stale`。
-4. Lint Markdown 出现未知标题、损坏内容或缺失字段时安全降级为 `parse_failed` / `incomplete`。
-5. `/api/quality/latest` 的状态码、Pydantic 响应、相对路径脱敏和无 MySQL依赖行为。
-6. 质量服务不调用 LLM、不写 Wiki、不调用 PublishService。
-
-同步更新 `README.md`、`.env.example`（如新增的质量缓存/过期阈值配置）与 API 文档。建议阈值只增加 `WIKI_BACKEND_QUALITY_STALE_AFTER_HOURS`，默认值必须保守，并在 UI 中展示“过期判定阈值”。
-
-## 5. 前端实施计划：`quartz`
-
-### 阶段 E：替换 `/quality` 的页面骨架
-
-在 `.local-plugins/knowledge-ui/src/components/QualityPage.tsx` 中保留页面 slug、全局导航和原有 `getKnowledgeObjects(props.allFiles)` 的元数据统计，但重组为以下五个区块：
-
-1. **概览**：报告时间、覆盖页数、图谱新鲜度、health/lint/graph 状态。初始状态展示“正在读取最近质量快照”。
-2. **结构完整性**：health 与 lint 的确定性结果；同时保留“缺少摘要/标签/更新时间”的 Quartz 构建期元数据作为独立小项，并标注来源是“静态索引”。
-3. **内容一致性**：矛盾/口径差异列表；选中项在右侧或展开区域展示涉及页面、证据、建议核对来源及 `需人工确认`。
-4. **图谱质量**：孤立社群、脆弱桥接、薄弱枢纽、缺失实体候选；图谱过期时仅显示过期说明和最后已知时间，不显示旧数字为“当前结论”。
-5. **新鲜度与修复**：来源快照状态、refresh/heal 的建议；没有报告时显示“尚无快照”。所有修复 CTA 都是“查看建议/查看操作说明”，不是自动执行。
-
-沿用既有 `knowledge-ui` 视觉系统：浅灰纸张背景、墨绿导航、细分隔线、宋体主标题、无夸张卡片或仪表盘。以 `design/ui-prototypes/quality.html` 为信息层级参考，而不是直接复制其中的展示数据。
-
-### 阶段 F：运行时数据加载与降级
-
-新增本地插件客户端脚本（例如 `src/components/scripts/quality.inline.ts`）与类型/映射模块（例如 `src/quality.ts`）：
-
-1. 页面加载后同源 `fetch("/api/quality/latest", { headers: { Accept: "application/json" } })`。
-2. 所有返回文本使用 DOM `textContent` / 框架安全渲染，不能将 Lint Markdown 直接 `innerHTML` 注入页面。
-3. API 成功后更新快照状态、计数、列表、证据面板与筛选标签。
-4. API 不可用时保留静态元数据区块，并在 Agent 质量区块显示“最近质量快照不可用”；不把网络错误写成“检查通过”。
-5. 报告 `stale`、`incomplete`、`parse_failed` 状态使用同一套明确文案，展示最后时间及原因；不使用红黄绿单色替代文字。
-6. “查看巡检报告”第一期展开页面内的结构化详情与报告章节定位；不调用未知的原始报告 URL。
-7. “运行新一轮检查”第一期不显示为可执行按钮；改为说明性文案或链接至受控运维流程，等待后续权限化任务方案。
-
-质量页必须继续使用生产 `CHAT_PROXY_URL=/api` 的同源边界，不能在 bundle 中写入 `127.0.0.1:8081`。
-
-### 阶段 G：前端测试、构建与发布验证
-
-新增 quality 映射/格式化的单元测试，至少覆盖：
-
-1. `available`、`stale`、`missing`、`parse_failed`、`not_run` 的展示文案。
-2. 矛盾项缺少页面或证据时的安全空状态。
-3. 过期 graph 不能渲染为当前的图谱风险数字。
-4. API 失败时保留原有静态 metadata gap 结果，且不显示虚假的成功状态。
-5. 筛选项、选中证据面板和键盘可达性。
-
-按现有本地插件契约执行：
-
-```powershell
-cd C:\job_docs\knowledge_base\mvc_sample\quartz\.local-plugins\knowledge-ui
-npm.cmd run build
-
-cd ..\..
-CHAT_PROXY_URL=/api npx.cmd quartz build -d ..\llm-wiki-agent\wiki
+```json
+{
+  "snapshot": {
+    "status": "available",
+    "generated_at": "2026-07-29T10:42:00",
+    "current_object_count": 147,
+    "coverage": { "checked_object_count": 142, "scope": "sampled" },
+    "checks": {
+      "health": { "state": "available", "generated_at": "...", "message": "结构检查完成" },
+      "lint": { "state": "stale", "generated_at": "...", "message": "语义检查报告早于当前 Wiki" },
+      "graph": { "state": "available", "generated_at": "...", "message": "图谱与 Wiki 同步" },
+      "freshness": { "state": "not_run", "generated_at": null, "message": "尚无来源新鲜度快照" }
+    }
+  },
+  "tab_counts": {
+    "all": 13,
+    "consistency": 6,
+    "structure": 2,
+    "graph": 3,
+    "freshness": 2
+  },
+  "structural": { "checks": [] },
+  "consistency": { "findings": [] },
+  "graph": { "findings": [] },
+  "freshness": { "recommendations": [] }
+}
 ```
 
-提交时同步提交 `src/`、`dist/`、必要的 package/lockfile；不提交 `public/`、`node_modules/` 或 `.quartz/plugins/`。
+需要为所有可空/无法判定项使用明确枚举：
 
-## 6. 实施顺序与验收闸门
+```text
+available | stale | missing | parse_failed | not_run | incomplete
+```
 
-### 里程碑 1：后端只读快照
+不得以 `0`、空数组或 `null` 隐式表达“报告没跑过”。
 
-- 完成 schema、解析服务、`GET /api/quality/latest`、fixtures 和后端文档。
-- 验证：
+### 3.2 Schema 细节
+
+`QualityFinding` 必须支持原型右侧“证据对比”面板：
+
+```text
+id                 稳定展示 ID（报告类别 + 标题 + 段落定位派生）
+category           consistency | structure | graph | freshness
+severity           critical | warning | info | unknown
+status             needs_review | documented_difference | unavailable
+title              问题标题
+summary            左侧列表中的简短冲突/风险摘要
+pages[]            涉及的相对 Wiki slug；无法可靠提取时为空数组
+evidence[]         最多两个 {label, source_label, location, quote}
+recommendation     建议核对来源或人工后续动作
+report_section     原报告章节定位，例如 Contradictions
+```
+
+`QualityStructuralCheck` 提供 `label`、`state`、`count`、`detail`；Quartz 的 metadata gap 不进入该 API，它由 Quartz 本身在前端显示为“静态索引补充”。
+
+### 3.3 服务实现
+
+新增 `app/services/quality_report_service.py`：
+
+1. 只读固定文件：`wiki/health-report.md`、`wiki/lint-report.md`、`graph/graph-report.md`、`graph/graph.json`。
+2. 读取当前可发布 Markdown 页数和最大修改时间，用于判断报告/图谱是否过期。
+3. 解析 health 的空页、索引同步、日志覆盖；解析 lint 的 `Structural Issues`、`Contradictions`、`Stale Content`、`Data Gaps`、`Graph-Aware Issues`；解析 graph 的 orphan、hub stub、fragile bridge、isolated community、phantom hub。
+4. 对自由 Markdown 使用保守解析：没有可靠页面、证据或建议时，保留标题和摘要并把字段置空；不得从自然语言猜造来源页、严重性或置信度。
+5. 基于相关报告的 mtime 使用短期内存缓存；mtime 改变即失效。
+6. 不调用 LLM、不启动子进程、不写 Wiki、不访问 `raw/` 正文、不调用 PublishService、不要求 MySQL。
+7. 解析失败记录脱敏日志，并返回 `parse_failed` 状态；不能令质量 API 崩溃。
+
+### 3.4 路由与依赖注入
+
+新增：
+
+- `app/api/quality.py`
+- `app/schemas/quality.py`
+- 必要时 `app/main_dependencies.py` 的 `get_quality_report_service()`
+
+修改：
+
+- `app/main.py`：在 lifespan 注入 `app.state.quality_report_service`，并 `include_router(quality_router)`。
+- `app/config.py`：只在需要时增加 `WIKI_BACKEND_QUALITY_STALE_AFTER_HOURS`，使用类型化默认值；同步 `.env.example` 与 README。
+
+接口 description 要明确写出：数据来自最近一次 Agent 报告；语义内容需人工核对；本接口不会运行巡检或修复。
+
+### 3.5 后端测试与完成标准
+
+新增 fixture：正常、缺 health、过期 lint、过期 graph、损坏 Markdown、未知章节、无新鲜度快照。
+
+新增测试：
+
+1. `QualityReportService` 对每个 fixture 返回正确状态和计数。
+2. 过期报告不会在 `tab_counts` 中伪装为当前结果。
+3. 不完整矛盾项能安全返回，不会丢失标题也不会捏造 evidence/pages。
+4. API 响应符合 Pydantic schema，且不泄露 Windows/DGX 绝对路径。
+5. 质量服务在 fake 环境中不依赖 MySQL、LLM、PublishService。
+
+Windows 验证：
 
 ```powershell
 cd C:\job_docs\knowledge_base\mvc_sample\wiki-backend
 .venv\Scripts\python.exe -m unittest discover -s tests
 ```
 
-- 手工验证：`GET /api/quality/latest` 能指出当前历史 `health` / `lint` / `graph` 报告是否过期，不会把旧报告伪装成当前结论。
+后端线程交付物：代码、测试、`.env.example`/README（如新增配置）、以及一份可供 Quartz 使用的 API fixture JSON。
 
-### 里程碑 2：Quartz 质量页
+## 4. 前端线程计划：`quartz`
 
-- 完成服务端骨架、运行时脚本、样式、前端测试和本地插件构建。
-- 验证：质量页在 API 正常、缺失、超时和报告过期四种状态均可读；不出现 `/quartz/` 资源前缀或直接访问 8081 的 URL。
+前端线程以 `design/ui-prototypes/quality.html` 为验收对象；不等待真实 API 完成。先使用后端线程交付的 fixture，之后切换到同源 `/api/quality/latest`。
 
-### 里程碑 3：Windows 集成验证
+### 4.1 页面组件和静态骨架
 
-1. 通过本地同源代理启动 Quartz 与后端。
-2. 检查 `/quality`：概览、五个区块、筛选和证据面板。
-3. 检查浏览器网络请求只访问 `/api/quality/latest`，且该请求没有写副作用。
-4. 检查 `public/quality.html` 引用的是本次构建生成的最新脚本。
+修改 `.local-plugins/knowledge-ui/src/components/QualityPage.tsx`，并在 `quartz/styles/custom.scss` 中同步调整仅属于质量页的样式；保留 slug `quality`、`getKnowledgeObjects(props.allFiles)` 和既有导航，重建以下 DOM 区域及稳定 `data-*` 锚点：
 
-### 里程碑 4：DGX / ECS 发布验证
+| 原型区域 | Quartz 组件职责 | 必需锚点 |
+|---|---|---|
+| 页头与两个操作 | 标题、说明、报告查看、受控运行说明 | `data-quality-report`, `data-quality-run` |
+| 四格状态带 | 先显示 loading，后由 API 填充 | `data-quality-snapshot` |
+| 五个标签 | 全部/内容一致性/结构完整性/图谱质量/新鲜度与修复 | `data-quality-tab` |
+| 左栏内容 | 分区、问题列表、结构表、新鲜度建议 | `data-quality-section`, `data-quality-finding` |
+| 右栏证据 | 当前选中问题的两条证据、页面、建议和状态 | `data-quality-evidence` |
+| 检查边界 | health/lint/graph 的可信范围，始终可见 | `data-quality-boundary` |
+| 静态 metadata 补充 | 缺摘要/标签/更新时间；标明“构建期索引” | `data-quality-metadata` |
 
-1. 在 DGX ARM64 使用项目 `.venv/bin/python` 运行后端全量测试。
-2. 验证 `127.0.0.1:8081/api/quality/latest`、`127.0.0.1:8080/api/quality/latest` 与 `127.0.0.1:8080/quality`。
-3. 使用 `CHAT_PROXY_URL=/api` 和真实 `llm-wiki-agent/wiki` 重新构建 Quartz。
-4. 检查 `public/quality.html`、`public/static/contentIndex.json` 和无 `/quartz/` 前缀。
-5. 在 ECS 验证 `/api/quality/latest` 响应头为 `X-Cache-Status: BYPASS`；静态质量页仍可按现有静态缓存策略缓存。
+默认选择“全部发现项”与第一条内容一致性 finding；没有 finding 时右栏显示说明性空状态。页面首屏不显示原型内的假数据。
 
-## 7. 后续阶段（不进入本期实现）
+### 4.2 客户端交互脚本
 
-在用户明确授权修改 `llm-wiki-agent` 或部署独立运维 worker 后，再实施质量报告生产自动化：
+在 `knowledge-ui` 中新增质量页客户端模块（命名按该插件现有构建约定确定），并由 `QualityPage.afterDOMLoaded` 返回脚本字符串。同步修改 `KnowledgePage.tsx`：将 `QualityPage.afterDOMLoaded` 加入当前只包含 Home/Library 的脚本组合。
 
-1. 为 health、lint、graph、refresh 生成统一的机器可读快照文件，避免后端长期解析自由 Markdown。
-2. 定时或按 ingest 批次运行：`health` → `build_graph` → `lint`；每次运行写入报告版本、覆盖范围和失败原因。
-3. 仅在人工确认后执行 `refresh` 或 `heal`，并记录发起人、输入报告版本、实际 Wiki 变更和后续发布任务。
-4. 如要从 UI 发起巡检/修复，先补齐 HTTPS、身份认证、角色权限、限流、审计日志和可取消的后台任务模型。
+脚本实现：
 
-在该阶段完成前，`/quality` 的核心承诺是“展示最近一次已确认的巡检事实及其边界”，而不是“替用户自动修复知识库”。
+1. 监听 Quartz `nav` 事件，采用 `dataset.bound` 防止 SPA 重复绑定。
+2. `fetch("/api/quality/latest", { headers: { Accept: "application/json" } })`；不写入硬编码 `127.0.0.1:8081`。
+3. 使用 `textContent` 和安全 DOM 构造渲染所有报告文本；不得把 Lint Markdown 用 `innerHTML` 注入。
+4. 标签点击只显示对应 `category` 的区块，`全部` 显示全部；tab count 来自 `tab_counts`。
+5. 点击/键盘激活 finding 后更新右侧 evidence 面板的标题、两条证据、涉及页面、建议和状态。
+6. `data-quality-report` 第一期开启页面内的结构化“报告来源/章节”说明，不请求或下载原始 Markdown。
+7. `data-quality-run` 第一期开启说明：检查必须在受控运维流程中执行；按钮不得发起 POST。
+8. API 请求失败、非 200、无效 JSON、`stale`、`missing`、`parse_failed`、`not_run` 均有不同且可理解的文案；不会显示绿色“通过”。
+
+### 4.3 视觉与内容验收要求
+
+必须遵循原型：
+
+- 保留浅灰纸张背景、深墨绿活动导航、细灰色分隔线、宋体主标题、克制的状态色；不要改成卡片瀑布流、渐变仪表盘或大面积彩色图表。
+- 顶部四格必须为横向分隔的巡检快照，不是四个浮动卡片。
+- 左侧 finding 行显示严重性、标题、摘要和状态；选中行有明确但克制的底色/边界。
+- 右侧 evidence 面板必须容纳两份来源证据、页面定位、涉及页面和“建议核对来源”。
+- 结构完整性使用表格/行式结果；图谱和新鲜度使用分隔清晰的发现项/建议项。
+- “自动发布结论”“原始资料事实验证”必须在检查边界中标为“本页不判断”。
+- 小屏幕时右栏证据面板移动到内容区下方，五个标签允许横向滚动，不丢失操作或文本。
+
+### 4.4 前端测试和构建
+
+新增 `knowledge-ui` 单元测试，覆盖：
+
+1. 五种 `check.state` 的展示文案。
+2. finding 缺少 pages/evidence/recommendation 时的空状态。
+3. graph 为 `stale` 时不展示历史风险数为当前结论。
+4. API 错误时仍显示 `getKnowledgeObjects` 的 metadata gap，但 Agent 报告区块明确不可用。
+5. 标签筛选、默认选中、切换 evidence、键盘访问和 SPA 重复初始化。
+
+构建与验证：
+
+```powershell
+cd C:\job_docs\knowledge_base\mvc_sample\quartz\.local-plugins\knowledge-ui
+npm.cmd test
+npm.cmd run build
+
+cd ..\..
+CHAT_PROXY_URL=/api npx.cmd quartz build -d ..\llm-wiki-agent\wiki
+```
+
+提交 `src/` 与对应 `dist/`；不提交 `public/`、`node_modules/` 或 `.quartz/plugins/`。
+
+前端线程交付物：组件、运行时脚本、测试、`dist/`、原型对照截图/人工视觉验收记录。
+
+## 5. 联调与发布验收
+
+### 5.1 Windows 联调
+
+1. 使用后端 API fixture 测试前端全量状态，再接入本地 `GET /api/quality/latest`。
+2. 在浏览器检查 `/quality` 只发出同源 `/api/quality/latest` 请求，且没有 POST/写操作。
+3. 验证所有五个标签、列表选中、右侧 evidence、API 故障和过期报告状态。
+4. 检查 `public/quality.html` 与它引用的最新哈希脚本，避免只构建 `dist/` 而忘记 Quartz build。
+
+### 5.2 DGX
+
+```bash
+cd /home/dgx/Projects/knowledge_base_mkt/wiki-backend
+.venv/bin/python -m unittest discover -s tests
+curl --fail --silent --show-error http://127.0.0.1:8081/api/quality/latest
+curl --fail --silent --show-error http://127.0.0.1:8080/api/quality/latest
+
+cd /home/dgx/Projects/knowledge_base_mkt/quartz/.local-plugins/knowledge-ui
+npm run build
+cd ../..
+CHAT_PROXY_URL=/api npx quartz build -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
+test -s public/quality.html
+curl --fail --silent --show-error http://127.0.0.1:8080/quality > /dev/null
+```
+
+检查 `public/quality.html` 不包含 `/quartz/` 资源前缀；quality API 始终经 DGX Nginx 同源 `/api`。
+
+### 5.3 ECS
+
+```bash
+curl -sS -D - -o /dev/null http://127.0.0.1:8080/api/quality/latest
+curl -sS -D - -o /dev/null http://127.0.0.1:8080/quality
+```
+
+预期：`/api/quality/latest` 为 `X-Cache-Status: BYPASS`；静态 `/quality` 保留既有短缓存策略。不得影响 `/research_report_library/` 等现有路由。
+
+## 6. 明确留待后续授权的工作
+
+只有在用户明确允许改动 Agent 或部署独立受控 worker 后，才进入下一阶段：
+
+1. 让 health/lint/graph/refresh 产生统一 JSON 快照，替代长期解析自由 Markdown。
+2. 为巡检执行、refresh、heal 建立认证、角色权限、审计、可取消任务与人工确认流程。
+3. 让质量页的“运行新一轮检查”成为真实后台任务入口；成功后记录报告版本和后续发布状态。
+
+在此之前，`/quality` 的承诺仅是：**准确展示最近一次已有巡检报告及其边界，不自动修复知识库。**

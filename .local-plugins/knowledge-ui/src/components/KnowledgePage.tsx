@@ -21,7 +21,7 @@ export default (() => {
     return HomePage(props)
   }
 
-  KnowledgePage.afterDOMLoaded = [HomePage.afterDOMLoaded, LibraryPage.afterDOMLoaded]
+  KnowledgePage.afterDOMLoaded = [HomePage.afterDOMLoaded, LibraryPage.afterDOMLoaded, QualityPage.afterDOMLoaded]
     .filter((script): script is string => typeof script === "string")
     .join("\n")
 

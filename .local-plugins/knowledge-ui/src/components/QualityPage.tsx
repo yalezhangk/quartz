@@ -6,6 +6,7 @@ import type {
 } from "@quartz-community/types"
 import { resolveRelative } from "@quartz-community/utils"
 import { getKnowledgeObjects, getKnowledgeQualitySummary, type KnowledgeObject } from "../knowledge"
+import { qualityScript } from "./scripts/quality.inline"
 
 interface QualityIssueGroupProps {
   title: string
@@ -23,7 +24,7 @@ function QualityIssueGroup({
   currentSlug,
 }: QualityIssueGroupProps) {
   return (
-    <section class="quality-issue-group">
+    <section class="quality-metadata-group">
       <header>
         <div>
           <h2>{title}</h2>
@@ -32,7 +33,7 @@ function QualityIssueGroup({
         <strong>{count}</strong>
       </header>
       {objects.length > 0 ? (
-        <div class="quality-issue-list">
+        <div class="quality-metadata-list">
           {objects.slice(0, 8).map((object) => (
             <a href={resolveRelative(currentSlug, object.slug as FullSlug)}>
               <span class="knowledge-type-code">{object.code}</span>
@@ -45,7 +46,7 @@ function QualityIssueGroup({
           {objects.length > 8 && <p>另有 {objects.length - 8} 项，请在知识库中继续筛选。</p>}
         </div>
       ) : (
-        <p class="quality-issue-empty">当前构建未发现此类元数据缺口。</p>
+        <p class="quality-metadata-empty">当前构建未发现此类元数据缺口。</p>
       )}
     </section>
   )
@@ -59,93 +60,221 @@ export default (() => {
     const missingDescriptions = objects.filter((object) => !object.hasDescription)
     const missingTags = objects.filter((object) => object.tags.length === 0)
     const missingDates = objects.filter((object) => object.updatedAt === null)
-    const ingestHref = resolveRelative(currentSlug, "ingest" as FullSlug)
 
     return (
       <main class="knowledge-quality">
         <header class="knowledge-quality-header">
           <div>
-            <p>构建期可验证范围</p>
+            <p>质量巡检快照</p>
             <h1>知识质量</h1>
-            <span>检查当前静态索引中的元数据完整性；断链、矛盾和入库验证以真实任务结果为准。</span>
+            <span>
+              以最近一次成功的 health、lint 与 graph 巡检为依据；语义发现均需回到来源资料人工确认。
+            </span>
           </div>
-          <a href={ingestHref}>查看入库验证</a>
+          <div class="quality-header-actions">
+            <button type="button" class="quality-action-secondary" data-quality-report>
+              查看巡检报告
+            </button>
+            <button type="button" class="quality-action-primary" data-quality-run>
+              运行新一轮检查
+            </button>
+          </div>
         </header>
 
-        <section class="quality-summary" aria-label="知识质量概览">
-          <div>
-            <span>已索引对象</span>
-            <strong>{summary.total}</strong>
-            <small>本次 Quartz 构建</small>
+        <section class="quality-action-note" data-quality-action-note aria-live="polite" tabindex={-1} hidden>
+          <strong data-quality-action-note-title>质量页说明</strong>
+          <p data-quality-action-note-body></p>
+        </section>
+
+        <section class="quality-status" aria-label="巡检概览" data-quality-snapshot aria-busy="true">
+          <div class="quality-status-item">
+            <span class="quality-status-label">报告生成时间</span>
+            <strong data-quality-generated-at>正在读取</strong>
+            <small data-quality-generated-detail>等待最近质量快照</small>
           </div>
-          <div>
-            <span>受影响对象</span>
-            <strong>{summary.affectedObjects}</strong>
-            <small>至少有一项元数据缺口</small>
+          <div class="quality-status-item">
+            <span class="quality-status-label">检查覆盖</span>
+            <strong data-quality-coverage>正在读取</strong>
+            <small data-quality-coverage-detail>等待最近质量快照</small>
           </div>
-          <div>
-            <span>断链与矛盾</span>
-            <strong>—</strong>
-            <small>静态索引未执行此项检查</small>
+          <div class="quality-status-item">
+            <span class="quality-status-label">图谱状态</span>
+            <strong data-quality-graph-state>正在读取</strong>
+            <small data-quality-graph-detail>图谱不会以历史结果代替当前结论</small>
           </div>
-          <div>
-            <span>发布状态</span>
-            <strong>—</strong>
-            <small>需通过发布流程确认</small>
+          <div class="quality-status-item">
+            <span class="quality-status-label">语义巡检</span>
+            <strong data-quality-lint-state>正在读取</strong>
+            <small data-quality-lint-detail>语义检查范围将在快照中说明</small>
           </div>
         </section>
 
-        <section class="quality-boundary" aria-labelledby="quality-boundary-title">
-          <div>
-            <p>检查边界</p>
-            <h2 id="quality-boundary-title">本页不计算虚假的健康分数</h2>
-          </div>
-          <dl>
-            <div>
-              <dt>标题与对象类型</dt>
-              <dd class="is-checked">已检查</dd>
-            </div>
-            <div>
-              <dt>摘要、标签、更新时间</dt>
-              <dd class="is-checked">已检查</dd>
-            </div>
-            <div>
-              <dt>断链、矛盾、未索引</dt>
-              <dd>查看具体 Ingest 任务</dd>
-            </div>
-            <div>
-              <dt>Quartz 是否已发布</dt>
-              <dd>静态页面无法自行判断</dd>
-            </div>
-          </dl>
-        </section>
+        <nav class="quality-tabs" aria-label="质量类别" role="tablist">
+          <button type="button" class="is-active" data-quality-tab="all" role="tab" aria-selected="true">
+            全部发现项 <span data-quality-tab-count="all">—</span>
+          </button>
+          <button type="button" data-quality-tab="structure" role="tab" aria-selected="false" tabindex={-1}>
+            结构完整性 <span data-quality-tab-count="structure">—</span>
+          </button>
+          <button type="button" data-quality-tab="consistency" role="tab" aria-selected="false" tabindex={-1}>
+            内容一致性 <span data-quality-tab-count="consistency">—</span>
+          </button>
+          <button type="button" data-quality-tab="graph" role="tab" aria-selected="false" tabindex={-1}>
+            图谱健康度 <span data-quality-tab-count="graph">—</span>
+          </button>
+          <button type="button" data-quality-tab="freshness" role="tab" aria-selected="false" tabindex={-1}>
+            新鲜度与修复 <span data-quality-tab-count="freshness">—</span>
+          </button>
+        </nav>
 
-        <div class="quality-issues" id="metadata-gaps">
-          <QualityIssueGroup
-            title="缺少摘要"
-            count={summary.missingDescriptions}
-            description="对象没有可用于目录和搜索结果的 description。"
-            objects={missingDescriptions}
-            currentSlug={currentSlug}
-          />
-          <QualityIssueGroup
-            title="缺少标签"
-            count={summary.missingTags}
-            description="对象尚未提供可用于主题聚合的 tags。"
-            objects={missingTags}
-            currentSlug={currentSlug}
-          />
-          <QualityIssueGroup
-            title="更新时间未知"
-            count={summary.missingDates}
-            description="frontmatter 和构建数据中都没有可确认的更新时间。"
-            objects={missingDates}
-            currentSlug={currentSlug}
-          />
+        <div class="quality-layout">
+          <div class="quality-stream" aria-live="polite">
+            <section class="quality-section" data-quality-section="structure">
+              <header class="quality-section-header">
+                <div>
+                  <p>Health + Lint · 确定性检查</p>
+                  <h2>结构完整性</h2>
+                  <span>结构结果可复现；本页不会用单一健康分数替代具体检查项。</span>
+                </div>
+                <strong data-quality-section-count="structure">等待快照</strong>
+              </header>
+              <table class="quality-check-matrix">
+                <thead>
+                  <tr>
+                    <th>检查项</th>
+                    <th>本次结果</th>
+                    <th>说明</th>
+                  </tr>
+                </thead>
+                <tbody data-quality-structural>
+                  <tr>
+                    <td colSpan={3}>正在读取最近结构巡检报告。</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="quality-section" data-quality-section="consistency">
+              <header class="quality-section-header">
+                <div>
+                  <p>Lint · 语义巡检</p>
+                  <h2>内容一致性</h2>
+                  <span>同一主题在不同资料中的冲突或口径差异，需要人工回到来源资料确认。</span>
+                </div>
+                <strong data-quality-section-count="consistency">等待快照</strong>
+              </header>
+              <div class="quality-section-placeholder" data-quality-findings="consistency">
+                正在读取最近语义巡检报告。
+              </div>
+            </section>
+
+            <section class="quality-section" data-quality-section="graph">
+              <header class="quality-section-header">
+                <div>
+                  <p>Graph · 关联韧性</p>
+                  <h2>图谱健康度</h2>
+                  <span>仅使用与当前 Wiki 同步的图谱结果；过期图谱不会作为当前结论展示。</span>
+                </div>
+                <strong data-quality-section-count="graph">等待快照</strong>
+              </header>
+              <div class="quality-section-placeholder" data-quality-findings="graph">
+                正在读取最近图谱健康度报告。
+              </div>
+            </section>
+
+            <section class="quality-section" data-quality-section="freshness">
+              <header class="quality-section-header">
+                <div>
+                  <p>Refresh + Heal · 受控修复</p>
+                  <h2>新鲜度与修复</h2>
+                  <span>本页仅展示已有来源快照和建议；不会直接运行 refresh 或 heal。</span>
+                </div>
+                <strong data-quality-section-count="freshness">等待快照</strong>
+              </header>
+              <div class="quality-section-placeholder" data-quality-recommendations>
+                正在读取来源新鲜度快照。
+              </div>
+            </section>
+
+            <section class="quality-metadata" data-quality-metadata id="metadata-gaps">
+              <header class="quality-section-header">
+                <div>
+                  <p>Quartz · 构建期索引</p>
+                  <h2>静态 metadata 补充</h2>
+                  <span>以下内容来自本次静态构建，与 Agent 巡检结果分别展示。</span>
+                </div>
+                <strong>{summary.affectedObjects} 项缺口</strong>
+              </header>
+              <div class="quality-metadata-grid">
+                <QualityIssueGroup
+                  title="缺少摘要"
+                  count={summary.missingDescriptions}
+                  description="对象没有可用于目录和搜索结果的 description。"
+                  objects={missingDescriptions}
+                  currentSlug={currentSlug}
+                />
+                <QualityIssueGroup
+                  title="缺少标签"
+                  count={summary.missingTags}
+                  description="对象尚未提供可用于主题聚合的 tags。"
+                  objects={missingTags}
+                  currentSlug={currentSlug}
+                />
+                <QualityIssueGroup
+                  title="更新时间未知"
+                  count={summary.missingDates}
+                  description="frontmatter 和构建数据中都没有可确认的更新时间。"
+                  objects={missingDates}
+                  currentSlug={currentSlug}
+                />
+              </div>
+            </section>
+          </div>
+
+          <aside class="quality-side">
+            <section class="quality-evidence-panel" data-quality-evidence aria-live="polite">
+              <header class="quality-evidence-header">
+                <div>
+                  <p>选中发现项</p>
+                  <h2>证据对比</h2>
+                </div>
+                <span data-quality-evidence-state>等待快照</span>
+              </header>
+              <div class="quality-evidence-empty" data-quality-evidence-body>
+                最近质量快照加载后，此处将显示涉及页面、最多两条来源证据与建议核对动作。
+              </div>
+            </section>
+
+            <section class="quality-boundary" data-quality-boundary aria-labelledby="quality-boundary-title">
+              <div>
+                <p>检查边界</p>
+                <h2 id="quality-boundary-title">本页不计算虚假的健康分数</h2>
+              </div>
+              <dl>
+                <div>
+                  <dt>Health</dt>
+                  <dd>提供可复现的结构结果</dd>
+                </div>
+                <div>
+                  <dt>Lint</dt>
+                  <dd>提供语义线索，需人工核对</dd>
+                </div>
+                <div>
+                  <dt>Graph</dt>
+                  <dd>仅在图谱与当前 Wiki 同步时可用</dd>
+                </div>
+                <div>
+                  <dt>自动发布与原始资料事实验证</dt>
+                  <dd>本页不判断</dd>
+                </div>
+              </dl>
+            </section>
+          </aside>
         </div>
       </main>
     )
   }
 
+  QualityPage.afterDOMLoaded = qualityScript
   return QualityPage
 }) satisfies QuartzComponentConstructor

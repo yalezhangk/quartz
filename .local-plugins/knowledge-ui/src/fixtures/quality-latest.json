@@ -1,0 +1,42 @@
+{
+  "snapshot": {
+    "status": "available",
+    "generated_at": "2026-07-29T10:42:00",
+    "current_object_count": 2,
+    "coverage": { "checked_object_count": 2, "scope": "sampled" },
+    "checks": {
+      "health": { "state": "available", "generated_at": "2026-07-29T10:42:00", "message": "结构检查完成" },
+      "lint": { "state": "available", "generated_at": "2026-07-29T10:42:00", "message": "语义巡检需人工核对" },
+      "graph": { "state": "available", "generated_at": "2026-07-29T10:42:00", "message": "图谱与本次巡检一致" },
+      "freshness": { "state": "not_run", "generated_at": null, "message": "尚无来源新鲜度快照" }
+    }
+  },
+  "tab_counts": { "all": 1, "consistency": 1, "structure": 0, "graph": 0, "freshness": 0 },
+  "structural": {
+    "findings": [],
+    "checks": [
+      { "label": "空页检查", "state": "available", "count": 0, "detail": "本次报告未发现空页。" }
+    ]
+  },
+  "consistency": {
+    "findings": [
+      {
+        "id": "consistency-example-1",
+        "category": "consistency",
+        "severity": "warning",
+        "status": "needs_review",
+        "title": "示例口径差异",
+        "summary": "该 fixture 仅用于验证质量页的安全渲染。",
+        "pages": ["examples/a", "examples/b"],
+        "evidence": [
+          { "label": "来源 A", "source_label": "示例资料 A", "location": "第 1 节", "quote": "示例证据 A。" },
+          { "label": "来源 B", "source_label": "示例资料 B", "location": "第 2 节", "quote": "示例证据 B。" }
+        ],
+        "recommendation": "回到来源资料核对后再决定是否标注版本差异。",
+        "report_section": "Contradictions"
+      }
+    ]
+  },
+  "graph": { "findings": [] },
+  "freshness": { "recommendations": [] }
+}

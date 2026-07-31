@@ -34,6 +34,7 @@
     "@quartz-community/utils": "github:quartz-community/utils"
   },
   "devDependencies": {
+    "happy-dom": "^20.11.1",
     "preact": "^10.28.2",
     "tsup": "^8.5.0",
     "tsx": "^4.21.0",
