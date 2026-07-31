@@ -57,6 +57,9 @@ test("quality runtime renders fixture evidence and switches the selected finding
   ;(payload.tab_counts as Record<string, number>).consistency = 2
 
   const { document } = await setupQualityPage(payload)
+  assert.equal(document.querySelector("[data-quality-generated-at]")?.textContent, "2026/07/29 10:42")
+  assert.equal(document.querySelector("[data-quality-coverage]")?.textContent, "2/2 对象")
+  assert.equal(document.querySelector("[data-quality-coverage-detail]")?.textContent, "完整覆盖当前静态索引")
   const findings = document.querySelectorAll<HTMLButtonElement>(".quality-finding")
   assert.equal(findings.length, 2)
   assert.match(document.querySelector("[data-quality-evidence-body]")?.textContent ?? "", /示例证据 A/)

@@ -201,7 +201,9 @@ export default (() => {
                 <div>
                   <p>Quartz · 构建期索引</p>
                   <h2>静态 metadata 补充</h2>
-                  <span>以下内容来自本次静态构建，与 Agent 巡检结果分别展示。</span>
+                  <span>
+                    统计本次构建中公开展示的 source、entity、concept、synthesis 页面；三类缺口分别计数，同一对象可同时出现。
+                  </span>
                 </div>
                 <strong>{summary.affectedObjects} 项缺口</strong>
               </header>
@@ -209,21 +211,21 @@ export default (() => {
                 <QualityIssueGroup
                   title="缺少摘要"
                   count={summary.missingDescriptions}
-                  description="对象没有可用于目录和搜索结果的 description。"
+                  description="构建数据和 frontmatter 中均没有非空 description。"
                   objects={missingDescriptions}
                   currentSlug={currentSlug}
                 />
                 <QualityIssueGroup
                   title="缺少标签"
                   count={summary.missingTags}
-                  description="对象尚未提供可用于主题聚合的 tags。"
+                  description="frontmatter 中没有非空 tags 数组。"
                   objects={missingTags}
                   currentSlug={currentSlug}
                 />
                 <QualityIssueGroup
                   title="更新时间未知"
                   count={summary.missingDates}
-                  description="frontmatter 和构建数据中都没有可确认的更新时间。"
+                  description="last_updated、modified 和构建记录中均没有可确认的更新时间。"
                   objects={missingDates}
                   currentSlug={currentSlug}
                 />
@@ -243,31 +245,6 @@ export default (() => {
               <div class="quality-evidence-empty" data-quality-evidence-body>
                 最近质量快照加载后，此处将显示涉及页面、最多两条来源证据与建议核对动作。
               </div>
-            </section>
-
-            <section class="quality-boundary" data-quality-boundary aria-labelledby="quality-boundary-title">
-              <div>
-                <p>检查边界</p>
-                <h2 id="quality-boundary-title">本页不计算虚假的健康分数</h2>
-              </div>
-              <dl>
-                <div>
-                  <dt>Health</dt>
-                  <dd>提供可复现的结构结果</dd>
-                </div>
-                <div>
-                  <dt>Lint</dt>
-                  <dd>提供语义线索，需人工核对</dd>
-                </div>
-                <div>
-                  <dt>Graph</dt>
-                  <dd>仅在图谱与当前 Wiki 同步时可用</dd>
-                </div>
-                <div>
-                  <dt>自动发布与原始资料事实验证</dt>
-                  <dd>本页不判断</dd>
-                </div>
-              </dl>
             </section>
           </aside>
         </div>

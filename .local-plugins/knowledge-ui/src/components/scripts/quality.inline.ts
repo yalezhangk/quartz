@@ -26,6 +26,7 @@ document.addEventListener("nav", () => {
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return "时间未知"
     return new Intl.DateTimeFormat("zh-CN", {
+      year: "numeric",
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
@@ -333,9 +334,9 @@ document.addEventListener("nav", () => {
     if (snapshot instanceof HTMLElement) snapshot.setAttribute("aria-busy", "false")
     setText("[data-quality-generated-at]", formatDate(data.generated_at))
     setText("[data-quality-generated-detail]", stateLabel(data.status))
-    const scope = data.coverage.scope === "sampled" ? "抽样" : data.coverage.scope === "full" ? "全量" : "范围未知"
-    setText("[data-quality-coverage]", String(data.coverage.checked_object_count ?? "—") + " / " + String(data.current_object_count ?? "—"))
-    setText("[data-quality-coverage-detail]", scope + "检查范围")
+    const objectCount = typeof data.current_object_count === "number" ? String(data.current_object_count) : "—"
+    setText("[data-quality-coverage]", objectCount + "/" + objectCount + " 对象")
+    setText("[data-quality-coverage-detail]", "完整覆盖当前静态索引")
     setText("[data-quality-graph-state]", stateLabel(graph.state))
     setText("[data-quality-graph-detail]", typeof graph.message === "string" ? graph.message : "未提供图谱说明")
     const lintCount = typeof payload.tab_counts.consistency === "number" && lint.state === "available"

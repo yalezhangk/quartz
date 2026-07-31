@@ -687,6 +687,7 @@ document.addEventListener("nav", () => {
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return "\u65F6\u95F4\u672A\u77E5"
     return new Intl.DateTimeFormat("zh-CN", {
+      year: "numeric",
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
@@ -994,9 +995,9 @@ document.addEventListener("nav", () => {
     if (snapshot instanceof HTMLElement) snapshot.setAttribute("aria-busy", "false")
     setText("[data-quality-generated-at]", formatDate(data.generated_at))
     setText("[data-quality-generated-detail]", stateLabel(data.status))
-    const scope = data.coverage.scope === "sampled" ? "\u62BD\u6837" : data.coverage.scope === "full" ? "\u5168\u91CF" : "\u8303\u56F4\u672A\u77E5"
-    setText("[data-quality-coverage]", String(data.coverage.checked_object_count ?? "\u2014") + " / " + String(data.current_object_count ?? "\u2014"))
-    setText("[data-quality-coverage-detail]", scope + "\u68C0\u67E5\u8303\u56F4")
+    const objectCount = typeof data.current_object_count === "number" ? String(data.current_object_count) : "\u2014"
+    setText("[data-quality-coverage]", objectCount + "/" + objectCount + " \u5BF9\u8C61")
+    setText("[data-quality-coverage-detail]", "\u5B8C\u6574\u8986\u76D6\u5F53\u524D\u9759\u6001\u7D22\u5F15")
     setText("[data-quality-graph-state]", stateLabel(graph.state))
     setText("[data-quality-graph-detail]", typeof graph.message === "string" ? graph.message : "\u672A\u63D0\u4F9B\u56FE\u8C31\u8BF4\u660E")
     const lintCount = typeof payload.tab_counts.consistency === "number" && lint.state === "available"
@@ -1199,7 +1200,7 @@ var QualityPage_default = (() => {
               /* @__PURE__ */ u2("div", { children: [
                 /* @__PURE__ */ u2("p", { children: "Quartz \xB7 \u6784\u5EFA\u671F\u7D22\u5F15" }),
                 /* @__PURE__ */ u2("h2", { children: "\u9759\u6001 metadata \u8865\u5145" }),
-                /* @__PURE__ */ u2("span", { children: "\u4EE5\u4E0B\u5185\u5BB9\u6765\u81EA\u672C\u6B21\u9759\u6001\u6784\u5EFA\uFF0C\u4E0E Agent \u5DE1\u68C0\u7ED3\u679C\u5206\u522B\u5C55\u793A\u3002" })
+                /* @__PURE__ */ u2("span", { children: "\u7EDF\u8BA1\u672C\u6B21\u6784\u5EFA\u4E2D\u516C\u5F00\u5C55\u793A\u7684 source\u3001entity\u3001concept\u3001synthesis \u9875\u9762\uFF1B\u4E09\u7C7B\u7F3A\u53E3\u5206\u522B\u8BA1\u6570\uFF0C\u540C\u4E00\u5BF9\u8C61\u53EF\u540C\u65F6\u51FA\u73B0\u3002" })
               ] }),
               /* @__PURE__ */ u2("strong", { children: [
                 summary.affectedObjects,
@@ -1212,7 +1213,7 @@ var QualityPage_default = (() => {
                 {
                   title: "\u7F3A\u5C11\u6458\u8981",
                   count: summary.missingDescriptions,
-                  description: "\u5BF9\u8C61\u6CA1\u6709\u53EF\u7528\u4E8E\u76EE\u5F55\u548C\u641C\u7D22\u7ED3\u679C\u7684 description\u3002",
+                  description: "\u6784\u5EFA\u6570\u636E\u548C frontmatter \u4E2D\u5747\u6CA1\u6709\u975E\u7A7A description\u3002",
                   objects: missingDescriptions,
                   currentSlug
                 }
@@ -1222,7 +1223,7 @@ var QualityPage_default = (() => {
                 {
                   title: "\u7F3A\u5C11\u6807\u7B7E",
                   count: summary.missingTags,
-                  description: "\u5BF9\u8C61\u5C1A\u672A\u63D0\u4F9B\u53EF\u7528\u4E8E\u4E3B\u9898\u805A\u5408\u7684 tags\u3002",
+                  description: "frontmatter \u4E2D\u6CA1\u6709\u975E\u7A7A tags \u6570\u7EC4\u3002",
                   objects: missingTags,
                   currentSlug
                 }
@@ -1232,7 +1233,7 @@ var QualityPage_default = (() => {
                 {
                   title: "\u66F4\u65B0\u65F6\u95F4\u672A\u77E5",
                   count: summary.missingDates,
-                  description: "frontmatter \u548C\u6784\u5EFA\u6570\u636E\u4E2D\u90FD\u6CA1\u6709\u53EF\u786E\u8BA4\u7684\u66F4\u65B0\u65F6\u95F4\u3002",
+                  description: "last_updated\u3001modified \u548C\u6784\u5EFA\u8BB0\u5F55\u4E2D\u5747\u6CA1\u6709\u53EF\u786E\u8BA4\u7684\u66F4\u65B0\u65F6\u95F4\u3002",
                   objects: missingDates,
                   currentSlug
                 }
@@ -1240,42 +1241,16 @@ var QualityPage_default = (() => {
             ] })
           ] })
         ] }),
-        /* @__PURE__ */ u2("aside", { class: "quality-side", children: [
-          /* @__PURE__ */ u2("section", { class: "quality-evidence-panel", "data-quality-evidence": true, "aria-live": "polite", children: [
-            /* @__PURE__ */ u2("header", { class: "quality-evidence-header", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "\u9009\u4E2D\u53D1\u73B0\u9879" }),
-                /* @__PURE__ */ u2("h2", { children: "\u8BC1\u636E\u5BF9\u6BD4" })
-              ] }),
-              /* @__PURE__ */ u2("span", { "data-quality-evidence-state": true, children: "\u7B49\u5F85\u5FEB\u7167" })
-            ] }),
-            /* @__PURE__ */ u2("div", { class: "quality-evidence-empty", "data-quality-evidence-body": true, children: "\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167\u52A0\u8F7D\u540E\uFF0C\u6B64\u5904\u5C06\u663E\u793A\u6D89\u53CA\u9875\u9762\u3001\u6700\u591A\u4E24\u6761\u6765\u6E90\u8BC1\u636E\u4E0E\u5EFA\u8BAE\u6838\u5BF9\u52A8\u4F5C\u3002" })
-          ] }),
-          /* @__PURE__ */ u2("section", { class: "quality-boundary", "data-quality-boundary": true, "aria-labelledby": "quality-boundary-title", children: [
+        /* @__PURE__ */ u2("aside", { class: "quality-side", children: /* @__PURE__ */ u2("section", { class: "quality-evidence-panel", "data-quality-evidence": true, "aria-live": "polite", children: [
+          /* @__PURE__ */ u2("header", { class: "quality-evidence-header", children: [
             /* @__PURE__ */ u2("div", { children: [
-              /* @__PURE__ */ u2("p", { children: "\u68C0\u67E5\u8FB9\u754C" }),
-              /* @__PURE__ */ u2("h2", { id: "quality-boundary-title", children: "\u672C\u9875\u4E0D\u8BA1\u7B97\u865A\u5047\u7684\u5065\u5EB7\u5206\u6570" })
+              /* @__PURE__ */ u2("p", { children: "\u9009\u4E2D\u53D1\u73B0\u9879" }),
+              /* @__PURE__ */ u2("h2", { children: "\u8BC1\u636E\u5BF9\u6BD4" })
             ] }),
-            /* @__PURE__ */ u2("dl", { children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("dt", { children: "Health" }),
-                /* @__PURE__ */ u2("dd", { children: "\u63D0\u4F9B\u53EF\u590D\u73B0\u7684\u7ED3\u6784\u7ED3\u679C" })
-              ] }),
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("dt", { children: "Lint" }),
-                /* @__PURE__ */ u2("dd", { children: "\u63D0\u4F9B\u8BED\u4E49\u7EBF\u7D22\uFF0C\u9700\u4EBA\u5DE5\u6838\u5BF9" })
-              ] }),
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("dt", { children: "Graph" }),
-                /* @__PURE__ */ u2("dd", { children: "\u4EC5\u5728\u56FE\u8C31\u4E0E\u5F53\u524D Wiki \u540C\u6B65\u65F6\u53EF\u7528" })
-              ] }),
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("dt", { children: "\u81EA\u52A8\u53D1\u5E03\u4E0E\u539F\u59CB\u8D44\u6599\u4E8B\u5B9E\u9A8C\u8BC1" }),
-                /* @__PURE__ */ u2("dd", { children: "\u672C\u9875\u4E0D\u5224\u65AD" })
-              ] })
-            ] })
-          ] })
-        ] })
+            /* @__PURE__ */ u2("span", { "data-quality-evidence-state": true, children: "\u7B49\u5F85\u5FEB\u7167" })
+          ] }),
+          /* @__PURE__ */ u2("div", { class: "quality-evidence-empty", "data-quality-evidence-body": true, children: "\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167\u52A0\u8F7D\u540E\uFF0C\u6B64\u5904\u5C06\u663E\u793A\u6D89\u53CA\u9875\u9762\u3001\u6700\u591A\u4E24\u6761\u6765\u6E90\u8BC1\u636E\u4E0E\u5EFA\u8BAE\u6838\u5BF9\u52A8\u4F5C\u3002" })
+        ] }) })
       ] })
     ] });
   };
