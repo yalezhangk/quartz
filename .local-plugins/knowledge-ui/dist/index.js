@@ -940,18 +940,15 @@ document.addEventListener("nav", () => {
     const reportButton = root.querySelector("[data-quality-report]")
     if (reportButton instanceof HTMLButtonElement) {
       reportButton.addEventListener("click", () => {
-        showActionNote(
-          "\u5DE1\u68C0\u62A5\u544A\u6765\u6E90\u4E0E\u7AE0\u8282",
-          "\u672C\u9875\u53EA\u5C55\u793A\u6700\u8FD1\u4E00\u6B21 Agent \u62A5\u544A\u4E2D\u7684\u7ED3\u6784\u5316\u5FEB\u7167\u3001\u53D1\u73B0\u9879\u548C\u7AE0\u8282\u5B9A\u4F4D\uFF1B\u4E0D\u4F1A\u8BF7\u6C42\u6216\u4E0B\u8F7D\u539F\u59CB Markdown \u62A5\u544A\u3002",
-        )
+        loadSnapshot(true)
       })
     }
     const runButton = root.querySelector("[data-quality-run]")
     if (runButton instanceof HTMLButtonElement) {
       runButton.addEventListener("click", () => {
         showActionNote(
-          "\u8FD0\u884C\u65B0\u4E00\u8F6E\u68C0\u67E5",
-          "\u8D28\u91CF\u68C0\u67E5\u5FC5\u987B\u901A\u8FC7\u53D7\u63A7\u8FD0\u7EF4\u6D41\u7A0B\u6267\u884C\u3002\u672C\u9875\u9762\u4E0D\u4F1A\u53D1\u8D77\u5DE1\u68C0\u3001\u8C03\u7528 LLM\u3001\u5199\u5165 Wiki \u6216\u521B\u5EFA\u540E\u53F0\u4EFB\u52A1\u3002",
+          "\u8FD0\u884C\u68C0\u67E5\u9700\u8981\u7BA1\u7406\u6388\u6743",
+          "\u8D28\u91CF\u68C0\u67E5\u5FC5\u987B\u901A\u8FC7\u53D7\u63A7\u8FD0\u7EF4\u6D41\u7A0B\u6267\u884C\u3002\u672C\u9875\u9762\u4E0D\u4F1A\u53D1\u8D77\u5DE1\u68C0\u3001\u5199\u5165 Wiki \u6216\u521B\u5EFA\u540E\u53F0\u4EFB\u52A1\u3002",
         )
       })
     }
@@ -1029,16 +1026,51 @@ document.addEventListener("nav", () => {
     renderFindings("[data-quality-findings='graph']", graph.state === "available" ? payload.graph?.findings : null, typeof graph.message === "string" ? graph.message : "\u6700\u8FD1\u56FE\u8C31\u5065\u5EB7\u5EA6\u62A5\u544A\u4E0D\u53EF\u7528\u3002", false)
     renderRecommendations(freshness.state === "available" ? payload.freshness?.recommendations : null, typeof freshness.message === "string" ? freshness.message : "\u5C1A\u65E0\u53EF\u7528\u6765\u6E90\u65B0\u9C9C\u5EA6\u5FEB\u7167\u3002")
   }
+  const loadSnapshot = (announce) => {
+    const reportButton = root.querySelector("[data-quality-report]")
+    const previousLabel = reportButton instanceof HTMLButtonElement ? reportButton.textContent : null
+    if (reportButton instanceof HTMLButtonElement) {
+      reportButton.disabled = true
+      reportButton.textContent = "\u6B63\u5728\u8BFB\u53D6\u2026"
+    }
+    if (snapshot instanceof HTMLElement) snapshot.setAttribute("aria-busy", "true")
+    return fetch("/api/quality/latest", { headers: { Accept: "application/json" } })
+      .then((response) => {
+        if (!response.ok) throw new Error("quality snapshot unavailable")
+        return response.json()
+      })
+      .then((payload) => {
+        renderSnapshot(payload)
+        if (announce) {
+          const generatedAt = isRecord(payload) && isRecord(payload.snapshot)
+            ? formatDate(payload.snapshot.generated_at)
+            : "\u65F6\u95F4\u672A\u77E5"
+          showActionNote(
+            "\u5DE1\u68C0\u62A5\u544A\u5DF2\u5237\u65B0",
+            "\u5DF2\u4ECE Agent \u83B7\u53D6\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167\uFF08\u62A5\u544A\u65F6\u95F4\uFF1A" + generatedAt + "\uFF09\u3002\u9875\u9762\u4E2D\u7684\u6982\u89C8\u3001\u53D1\u73B0\u9879\u548C\u8BC1\u636E\u5DF2\u66F4\u65B0\uFF1B\u539F\u59CB Markdown \u62A5\u544A\u4E0D\u4F1A\u5411\u6D4F\u89C8\u5668\u66B4\u9732\u3002",
+          )
+        }
+      })
+      .catch(() => {
+        showUnavailable()
+        if (announce) {
+          showActionNote(
+            "\u5DE1\u68C0\u62A5\u544A\u8BFB\u53D6\u5931\u8D25",
+            "\u672A\u80FD\u4ECE Agent \u83B7\u53D6\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167\u3002\u9875\u9762\u5DF2\u4FDD\u7559\u6784\u5EFA\u671F\u9759\u6001 metadata \u68C0\u67E5\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u6216\u68C0\u67E5 wiki-backend \u4E0E\u540C\u6E90 /api \u4EE3\u7406\u3002",
+          )
+        }
+      })
+      .finally(() => {
+        if (reportButton instanceof HTMLButtonElement) {
+          reportButton.disabled = false
+          reportButton.textContent = previousLabel || "\u67E5\u770B\u5DE1\u68C0\u62A5\u544A"
+        }
+      })
+  }
 
   bindTabs()
   bindActions()
-  fetch("/api/quality/latest", { headers: { Accept: "application/json" } })
-    .then((response) => {
-      if (!response.ok) throw new Error("quality snapshot unavailable")
-      return response.json()
-    })
-    .then(renderSnapshot)
-    .catch(showUnavailable)
+  loadSnapshot(false)
 })
 `;
 

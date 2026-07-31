@@ -33,15 +33,15 @@ async function setupQualityPage(payload: unknown, responseOk: boolean = true) {
   const window = new Window({ url: "http://localhost/quality" })
   const { document } = window
   document.body.innerHTML = pageMarkup()
-  let requestCount = 0
-  window.fetch = (async () => {
-    requestCount += 1
+  const requests: string[] = []
+  window.fetch = (async (input: string | URL | Request) => {
+    requests.push(String(input))
     return { ok: responseOk, json: async () => payload } as Response
   }) as typeof window.fetch
   window.eval(qualityScript)
   document.dispatchEvent(new window.Event("nav"))
   await new Promise((resolve) => setTimeout(resolve, 0))
-  return { window, document, getRequestCount: () => requestCount }
+  return { window, document, getRequestCount: () => requests.length, requests }
 }
 
 test("quality runtime renders fixture evidence and switches the selected finding", async () => {
@@ -123,6 +123,18 @@ test("quality runtime safely renders findings without pages, evidence, or recomm
   assert.match(document.querySelector("[data-quality-evidence-body]")?.textContent ?? "", /请回到来源资料人工核对/)
 })
 
+test("quality report action refreshes the structured snapshot through the existing read API", async () => {
+  const { window, document, getRequestCount, requests } = await setupQualityPage(cloneFixture())
+
+  document.querySelector<HTMLButtonElement>("[data-quality-report]")?.click()
+  await new Promise((resolve) => window.setTimeout(resolve, 0))
+
+  assert.equal(getRequestCount(), 2)
+  assert.deepEqual(requests, ["/api/quality/latest", "/api/quality/latest"])
+  assert.match(document.querySelector("[data-quality-action-note]")?.textContent ?? "", /巡检报告已刷新/)
+  assert.match(document.querySelector("[data-quality-action-note]")?.textContent ?? "", /原始 Markdown 报告不会向浏览器暴露/)
+})
+
 test("quality runtime renders structured Lint findings in the structure section", async () => {
   const payload = cloneFixture()
   const structural = payload.structural as { findings: Array<Record<string, unknown>> }
@@ -158,8 +170,11 @@ test("quality runtime keeps metadata and explains non-writing actions when the A
   assert.match(document.querySelector("[data-quality-metadata]")?.textContent ?? "", /静态 metadata 补充/)
 
   document.querySelector<HTMLButtonElement>("[data-quality-report]")?.click()
-  assert.match(document.querySelector("[data-quality-action-note]")?.textContent ?? "", /不会请求或下载原始 Markdown/)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  assert.match(document.querySelector("[data-quality-action-note]")?.textContent ?? "", /巡检报告读取失败/)
+  assert.match(document.querySelector("[data-quality-action-note]")?.textContent ?? "", /\/api\/quality\/latest/)
 
   document.querySelector<HTMLButtonElement>("[data-quality-run]")?.click()
-  assert.match(document.querySelector("[data-quality-action-note]")?.textContent ?? "", /不会发起巡检.*写入 Wiki/)
+  assert.match(document.querySelector("[data-quality-action-note]")?.textContent ?? "", /没有管理鉴权/)
+  assert.match(document.querySelector("[data-quality-action-note]")?.textContent ?? "", /不会创建后台任务/)
 })

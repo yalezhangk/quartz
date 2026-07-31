@@ -279,18 +279,15 @@ document.addEventListener("nav", () => {
     const reportButton = root.querySelector("[data-quality-report]")
     if (reportButton instanceof HTMLButtonElement) {
       reportButton.addEventListener("click", () => {
-        showActionNote(
-          "巡检报告来源与章节",
-          "本页只展示最近一次 Agent 报告中的结构化快照、发现项和章节定位；不会请求或下载原始 Markdown 报告。",
-        )
+        loadSnapshot(true)
       })
     }
     const runButton = root.querySelector("[data-quality-run]")
     if (runButton instanceof HTMLButtonElement) {
       runButton.addEventListener("click", () => {
         showActionNote(
-          "运行新一轮检查",
-          "质量检查必须通过受控运维流程执行。本页面不会发起巡检、调用 LLM、写入 Wiki 或创建后台任务。",
+          "运行检查需要管理授权",
+          "质量检查必须通过受控运维流程执行。本页面不会发起巡检、写入 Wiki 或创建后台任务。",
         )
       })
     }
@@ -368,15 +365,50 @@ document.addEventListener("nav", () => {
     renderFindings("[data-quality-findings='graph']", graph.state === "available" ? payload.graph?.findings : null, typeof graph.message === "string" ? graph.message : "最近图谱健康度报告不可用。", false)
     renderRecommendations(freshness.state === "available" ? payload.freshness?.recommendations : null, typeof freshness.message === "string" ? freshness.message : "尚无可用来源新鲜度快照。")
   }
+  const loadSnapshot = (announce) => {
+    const reportButton = root.querySelector("[data-quality-report]")
+    const previousLabel = reportButton instanceof HTMLButtonElement ? reportButton.textContent : null
+    if (reportButton instanceof HTMLButtonElement) {
+      reportButton.disabled = true
+      reportButton.textContent = "正在读取…"
+    }
+    if (snapshot instanceof HTMLElement) snapshot.setAttribute("aria-busy", "true")
+    return fetch("/api/quality/latest", { headers: { Accept: "application/json" } })
+      .then((response) => {
+        if (!response.ok) throw new Error("quality snapshot unavailable")
+        return response.json()
+      })
+      .then((payload) => {
+        renderSnapshot(payload)
+        if (announce) {
+          const generatedAt = isRecord(payload) && isRecord(payload.snapshot)
+            ? formatDate(payload.snapshot.generated_at)
+            : "时间未知"
+          showActionNote(
+            "巡检报告已刷新",
+            "已从 Agent 获取最近质量快照（报告时间：" + generatedAt + "）。页面中的概览、发现项和证据已更新；原始 Markdown 报告不会向浏览器暴露。",
+          )
+        }
+      })
+      .catch(() => {
+        showUnavailable()
+        if (announce) {
+          showActionNote(
+            "巡检报告读取失败",
+            "未能从 Agent 获取最近质量快照。页面已保留构建期静态 metadata 检查，请稍后重试或检查 wiki-backend 与同源 /api 代理。",
+          )
+        }
+      })
+      .finally(() => {
+        if (reportButton instanceof HTMLButtonElement) {
+          reportButton.disabled = false
+          reportButton.textContent = previousLabel || "查看巡检报告"
+        }
+      })
+  }
 
   bindTabs()
   bindActions()
-  fetch("/api/quality/latest", { headers: { Accept: "application/json" } })
-    .then((response) => {
-      if (!response.ok) throw new Error("quality snapshot unavailable")
-      return response.json()
-    })
-    .then(renderSnapshot)
-    .catch(showUnavailable)
+  loadSnapshot(false)
 })
 `
