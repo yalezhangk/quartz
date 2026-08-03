@@ -800,7 +800,7 @@ function pollIngestJob(
     ingestPollTimers.set(jobId, window.setTimeout(poll, ingestPollIntervalMs))
   }
 
-  ingestPollTimers.set(jobId, window.setTimeout(poll, ingestPollIntervalMs))
+  ingestPollTimers.set(jobId, window.setTimeout(poll, 0))
 }
 
 async function setupChatPage(pageEl: HTMLElement, generation: number) {

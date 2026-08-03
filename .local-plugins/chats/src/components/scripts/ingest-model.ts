@@ -32,6 +32,10 @@ export function getIngestStatusMeta(status: IngestJobStatus): IngestStatusMeta {
   return statusMeta[status]
 }
 
+export function getIngestTriggerLabel(trigger?: string): string {
+  return trigger === "scheduled" ? "定时同步" : "人工上传"
+}
+
 export function getIngestMetrics(jobs: IngestJobResponse[]): IngestMetrics {
   return jobs.reduce<IngestMetrics>(
     (metrics, job) => {

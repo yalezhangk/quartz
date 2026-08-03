@@ -10,6 +10,7 @@ import {
   getIngestMetrics,
   getIngestResultSummary,
   getIngestStatusMeta,
+  getIngestTriggerLabel,
   sortIngestJobs,
   wikiPathToHref,
 } from "./ingest-model"
@@ -179,6 +180,7 @@ function setupIngestPage(page: HTMLElement): () => void {
       ["提交时间", formatDate(job.created_at)],
       ["开始时间", formatDate(job.started_at)],
       ["完成时间", formatDate(job.finished_at)],
+      ["来源", getIngestTriggerLabel(job.trigger)],
       ["源文件", job.source_path || "—"],
     ].forEach(([label, value]) => {
       facts.append(createElement("dt", undefined, label), createElement("dd", undefined, value))
@@ -263,7 +265,10 @@ function setupIngestPage(page: HTMLElement): () => void {
       const status = createElement("span", `ingest-status is-${job.status}`)
       status.append(createElement("b", undefined, meta.code), document.createTextNode(meta.label))
       const identity = createElement("span", "ingest-job-identity")
-      identity.append(createElement("strong", undefined, job.original_filename), createElement("small", undefined, getIngestResultSummary(job)))
+      identity.append(
+        createElement("strong", undefined, job.original_filename),
+        createElement("small", undefined, `${getIngestTriggerLabel(job.trigger)} · ${getIngestResultSummary(job)}`),
+      )
       button.append(status, identity, createElement("time", undefined, formatDate(job.created_at)))
       button.addEventListener("click", () => void selectJob(job.job_id))
       list.append(button)

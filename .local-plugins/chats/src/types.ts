@@ -73,11 +73,13 @@ export interface PublishStatusResponse {
 }
 
 export type IngestJobStatus = "queued" | "running" | "succeeded" | "failed"
+export type IngestTrigger = "manual" | "scheduled"
 
 export interface IngestJobResponse {
   job_id: string
   status: IngestJobStatus
   original_filename: string
+  trigger?: IngestTrigger
   source_path: string
   created_pages: string[]
   updated_pages: string[]

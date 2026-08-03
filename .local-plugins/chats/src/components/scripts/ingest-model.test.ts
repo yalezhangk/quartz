@@ -5,6 +5,7 @@ import {
   getIngestMetrics,
   getIngestResultSummary,
   getIngestStatusMeta,
+  getIngestTriggerLabel,
   sortIngestJobs,
   wikiPathToHref,
 } from "./ingest-model"
@@ -50,6 +51,11 @@ test("success summary uses page counts", () => {
     createJob({ status: "succeeded", created_pages: ["a.md", "b.md"], updated_pages: ["c.md"] }),
   )
   assert.equal(summary, "新增 2 页 · 更新 1 页")
+})
+
+test("ingest trigger labels remain compatible with older responses", () => {
+  assert.equal(getIngestTriggerLabel(), "人工上传")
+  assert.equal(getIngestTriggerLabel("scheduled"), "定时同步")
 })
 
 test("jobs sort newest first and wiki paths become site links", () => {
