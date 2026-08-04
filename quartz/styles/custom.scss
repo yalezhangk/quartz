@@ -100,13 +100,23 @@ a:focus-visible,
   display: none;
 }
 
-.page:has(.chat-shell) > #quartz-body > .center,
-.page:has(.ingest-page) > #quartz-body > .center {
+.page:has(.ingest-page) .page-header,
+.page:has(.ingest-page) .center > hr,
+.page:has(.ingest-page) .page-footer {
+  display: none;
+}
+
+.page:has(.chat-shell) > #quartz-body > .center {
   width: 100%;
   max-width: none;
   min-height: 100vh;
   padding: 0;
   margin: 0;
+}
+
+.page:has(.ingest-page) > #quartz-body > .center {
+  max-width: 1440px;
+  padding: 68px 48px 56px;
 }
 
 .app-navigation {
@@ -246,8 +256,11 @@ a:focus-visible,
 }
 
 .page:has(.ingest-page) .ingest-page {
+  width: 100%;
+  max-width: none;
   min-height: calc(100vh - 58px);
-  margin-top: 58px;
+  margin-top: 0;
+  padding: 0;
 }
 
 .app-brand {
