@@ -224,6 +224,10 @@
   color: var(--kp-ink, var(--dark));
 }
 
+.chat-history-item.pending {
+  background: color-mix(in srgb, var(--kp-brand, var(--secondary)) 8%, transparent);
+}
+
 .chat-history-item.active::before {
   display: inline-block;
   margin-right: 6px;
@@ -252,6 +256,11 @@
   margin-top: 4px;
   color: var(--kp-muted-2, var(--gray));
   font-size: 9px;
+}
+
+.chat-history-item.pending .chat-item-preview {
+  color: var(--kp-brand, var(--secondary));
+  font-weight: 650;
 }
 
 .ingests-panel {
@@ -722,6 +731,28 @@
   color: var(--kp-muted, var(--gray));
   font-family: var(--kp-sans, var(--bodyFont));
   font-size: 10px;
+}
+
+.message-assistant.is-loading .message-actions {
+  display: none;
+}
+
+.message-assistant.is-loading .message-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 2px 0;
+  color: var(--kp-brand, var(--secondary));
+  font-weight: 650;
+}
+
+.message-assistant.is-loading .message-loading::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
 }
 
 .message-actions {

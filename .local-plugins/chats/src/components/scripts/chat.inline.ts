@@ -25,8 +25,17 @@ interface StoredChatIntent {
   id?: string
 }
 
+interface PendingChatTurn {
+  chatId: string
+  messageCount: number
+  startedAt: number
+}
+
 const CURRENT_CHAT_KEY = "chats:current"
 const CHAT_INTENT_KEY = "chats:intent"
+const PENDING_CHAT_TURN_KEY = "chats:pending-turn"
+const PENDING_CHAT_TURN_MAX_AGE_MS = 20 * 60 * 1000
+const PENDING_CHAT_TURN_POLL_INTERVAL_MS = 3000
 // NOTE: contentIndex 只用于把回答里的 [[wiki-link]] 解析成 Quartz 站内真实 slug。
 // 如果未来站点索引输出路径或字段结构变化，这里会是优先排查点。
 let contentIndexPromise: Promise<Record<string, any> | null> | null = null
@@ -37,7 +46,9 @@ function getChatConfig(el: HTMLElement): ChatConfig {
     // 页面模板通过 CHAT_PROXY_URL 注入后端地址，默认回退到 Quartz 的 /api 反代。
     proxyUrl: el.getAttribute("data-proxy-url") || "/api",
     ingestPollIntervalMs:
-      Number.isFinite(ingestPollIntervalMs) && ingestPollIntervalMs > 0 ? ingestPollIntervalMs : 30_000,
+      Number.isFinite(ingestPollIntervalMs) && ingestPollIntervalMs > 0
+        ? ingestPollIntervalMs
+        : 30_000,
   }
 }
 
@@ -76,6 +87,45 @@ function setCurrentChatId(id: string | null) {
   } else {
     sessionStorage.removeItem(CURRENT_CHAT_KEY)
   }
+}
+
+function getPendingChatTurn(): PendingChatTurn | null {
+  const raw = sessionStorage.getItem(PENDING_CHAT_TURN_KEY)
+  if (!raw) return null
+
+  try {
+    const pending = JSON.parse(raw) as PendingChatTurn
+    if (
+      !pending.chatId ||
+      !Number.isInteger(pending.messageCount) ||
+      pending.messageCount < 0 ||
+      !Number.isFinite(pending.startedAt) ||
+      Date.now() - pending.startedAt > PENDING_CHAT_TURN_MAX_AGE_MS
+    ) {
+      sessionStorage.removeItem(PENDING_CHAT_TURN_KEY)
+      return null
+    }
+    return pending
+  } catch {
+    sessionStorage.removeItem(PENDING_CHAT_TURN_KEY)
+    return null
+  }
+}
+
+function setPendingChatTurn(chatId: string, messageCount: number) {
+  const pending: PendingChatTurn = { chatId, messageCount, startedAt: Date.now() }
+  sessionStorage.setItem(PENDING_CHAT_TURN_KEY, JSON.stringify(pending))
+}
+
+function clearPendingChatTurn(chatId: string, notify: boolean = true): boolean {
+  const pending = getPendingChatTurn()
+  if (!pending || pending.chatId !== chatId) return false
+
+  sessionStorage.removeItem(PENDING_CHAT_TURN_KEY)
+  if (notify) {
+    document.dispatchEvent(new Event("chats:pending-turn-changed"))
+  }
+  return true
 }
 
 function normalizeWikiKey(value: string): string {
@@ -442,6 +492,7 @@ function renderChatHistory(
   errorMessage?: string,
 ) {
   removeAllChildren(historyEl)
+  const pendingChatId = getPendingChatTurn()?.chatId
 
   if (errorMessage || chats.length === 0) {
     const empty = document.createElement("div")
@@ -467,6 +518,9 @@ function renderChatHistory(
       if (chat.id === currentChatId) {
         link.classList.add("active")
       }
+      if (chat.id === pendingChatId) {
+        link.classList.add("pending")
+      }
       link.addEventListener("click", (e) => {
         e.preventDefault()
         setCurrentChatId(chat.id)
@@ -480,7 +534,8 @@ function renderChatHistory(
     }
 
     if (previewEl) {
-      previewEl.textContent = chat.last_message_preview || ""
+      previewEl.textContent =
+        chat.id === pendingChatId ? "正在生成…" : chat.last_message_preview || ""
     }
 
     historyEl.appendChild(clone)
@@ -579,6 +634,7 @@ function appendUserMessage(messagesEl: HTMLElement, text: string) {
 }
 
 function appendAssistantMessage(messagesEl: HTMLElement): {
+  messageEl: HTMLElement
   contentEl: HTMLElement
   copyButton: HTMLButtonElement
   synthesisButton: HTMLButtonElement
@@ -590,6 +646,7 @@ function appendAssistantMessage(messagesEl: HTMLElement): {
     fallback.className = "message message-assistant"
     messagesEl.appendChild(fallback)
     return {
+      messageEl: fallback,
       contentEl: fallback,
       copyButton: fallback as unknown as HTMLButtonElement,
       synthesisButton: fallback as unknown as HTMLButtonElement,
@@ -598,6 +655,7 @@ function appendAssistantMessage(messagesEl: HTMLElement): {
   }
 
   const clone = template.content.cloneNode(true) as DocumentFragment
+  const messageEl = clone.querySelector(".message-assistant") as HTMLElement
   const contentEl = clone.querySelector(".message-content") as HTMLElement
   const copyButton = clone.querySelector(".message-copy-button") as HTMLButtonElement
   const synthesisButton = clone.querySelector(".message-synthesis-button") as HTMLButtonElement
@@ -605,7 +663,7 @@ function appendAssistantMessage(messagesEl: HTMLElement): {
   if (copyButton) copyButton.style.display = "none"
   if (synthesisButton) synthesisButton.style.display = "none"
   messagesEl.appendChild(clone)
-  return { contentEl, copyButton, synthesisButton, loadingEl }
+  return { messageEl, contentEl, copyButton, synthesisButton, loadingEl }
 }
 
 function renderRequestError(messagesEl: HTMLElement, error: unknown) {
@@ -630,8 +688,12 @@ function scrollToBottom(el: HTMLElement) {
   })
 }
 
-function updateSendButton(input: HTMLTextAreaElement, button: HTMLButtonElement) {
-  button.disabled = input.value.trim().length === 0
+function updateSendButton(
+  input: HTMLTextAreaElement,
+  button: HTMLButtonElement,
+  isSending: boolean,
+) {
+  button.disabled = isSending || input.value.trim().length === 0
 }
 
 function autoResizeTextarea(textarea: HTMLTextAreaElement) {
@@ -818,7 +880,7 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
   const mode = detectChatMode()
   let currentChatId = mode.type === "chat" ? mode.id : null
   let currentMessages: ChatMessage[] = []
-  let isSending = false
+  let isSending = getPendingChatTurn() !== null
 
   setChatInputState(pageEl, Boolean(currentChatId))
 
@@ -834,6 +896,16 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
       setCurrentChatId(response.chat.id)
       renderMessages(messagesEl, currentMessages, config.proxyUrl)
       refreshSidebars()
+
+      const pending = getPendingChatTurn()
+      if (
+        pending?.chatId === currentChatId &&
+        currentMessages.length >= pending.messageCount + 2 &&
+        currentMessages.at(-1)?.role === "assistant"
+      ) {
+        clearPendingChatTurn(currentChatId, false)
+        isSending = false
+      }
     } catch (error) {
       if (!isPageActive()) return
 
@@ -852,8 +924,63 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
   if (!isPageActive()) return
   scrollToBottom(messagesEl)
 
+  const startPendingTurnPolling = (pending: PendingChatTurn) => {
+    let timer: number | null = null
+    const stop = () => {
+      if (timer !== null) window.clearTimeout(timer)
+      timer = null
+    }
+    addCleanup(stop)
+
+    const poll = async () => {
+      if (!isPageActive() || getPendingChatTurn()?.chatId !== pending.chatId) return
+      try {
+        const response = await getChatMessages(config.proxyUrl, pending.chatId)
+        if (!isPageActive() || getPendingChatTurn()?.chatId !== pending.chatId) return
+
+        currentMessages = response.messages
+        upsertChat(response.chat)
+        if (
+          currentMessages.length >= pending.messageCount + 2 &&
+          currentMessages.at(-1)?.role === "assistant"
+        ) {
+          clearPendingChatTurn(pending.chatId, false)
+          isSending = false
+          renderMessages(messagesEl, currentMessages, config.proxyUrl)
+          refreshSidebars()
+          inputEl.disabled = false
+          updateSendButton(inputEl, sendButton, false)
+          scrollToBottom(messagesEl)
+          return
+        }
+      } catch (error) {
+        console.error("[Chats] Failed to poll pending chat turn:", error)
+      }
+
+      if (isPageActive() && getPendingChatTurn()?.chatId === pending.chatId) {
+        timer = window.setTimeout(poll, PENDING_CHAT_TURN_POLL_INTERVAL_MS)
+      }
+    }
+
+    timer = window.setTimeout(poll, PENDING_CHAT_TURN_POLL_INTERVAL_MS)
+  }
+
+  const pending = getPendingChatTurn()
+  if (pending) {
+    inputEl.disabled = true
+    updateSendButton(inputEl, sendButton, true)
+    if (pending.chatId === currentChatId) {
+      const { messageEl, loadingEl } = appendAssistantMessage(messagesEl)
+      if (messageEl) messageEl.classList.add("is-loading")
+      if (loadingEl) loadingEl.style.display = "inline-flex"
+      void renderEvidencePanel(messagesEl, undefined, "正在等待本轮回答与引用来源。")
+      scrollToBottom(messagesEl)
+      startPendingTurnPolling(pending)
+    }
+  }
+
   const onInput = () => {
-    updateSendButton(inputEl, sendButton)
+    updateSendButton(inputEl, sendButton, isSending)
     autoResizeTextarea(inputEl)
   }
 
@@ -862,7 +989,7 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
 
   const doSend = async () => {
     const text = inputEl.value.trim()
-    if (!text || isSending || !isPageActive()) return
+    if (!text || isSending || getPendingChatTurn() || !isPageActive()) return
 
     isSending = true
     sendButton.disabled = true
@@ -876,8 +1003,9 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
     inputEl.style.height = "auto"
     scrollToBottom(messagesEl)
 
-    const { loadingEl } = appendAssistantMessage(messagesEl)
-    if (loadingEl) loadingEl.style.display = "block"
+    const { messageEl, loadingEl } = appendAssistantMessage(messagesEl)
+    if (messageEl) messageEl.classList.add("is-loading")
+    if (loadingEl) loadingEl.style.display = "inline-flex"
     void renderEvidencePanel(messagesEl, undefined, "正在等待本轮回答与引用来源。")
     scrollToBottom(messagesEl)
 
@@ -893,8 +1021,12 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
         refreshSidebars()
       }
 
+      setPendingChatTurn(currentChatId, currentMessages.length)
+      refreshSidebars()
       const response = await sendChatMessage(config.proxyUrl, currentChatId, text)
-      if (!isPageActive()) return
+      const pageStillActive = isPageActive()
+      clearPendingChatTurn(currentChatId, !pageStillActive)
+      if (!pageStillActive) return
 
       currentMessages = [...currentMessages, response.user_message, response.assistant_message]
       upsertChat(response.chat)
@@ -902,7 +1034,9 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
       refreshSidebars()
       scrollToBottom(messagesEl)
     } catch (error) {
-      if (!isPageActive()) return
+      const pageStillActive = isPageActive()
+      if (currentChatId) clearPendingChatTurn(currentChatId, !pageStillActive)
+      if (!pageStillActive) return
 
       if (currentMessages.length > 0) {
         renderMessages(messagesEl, currentMessages, config.proxyUrl)
@@ -919,7 +1053,7 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
 
       inputEl.disabled = false
       inputEl.focus()
-      updateSendButton(inputEl, sendButton)
+      updateSendButton(inputEl, sendButton, false)
     }
   }
 
@@ -1102,7 +1236,12 @@ async function handleNav() {
     const proxyUrl = getChatConfig(configEl).proxyUrl
     for (const job of ingestJobs) {
       if (isIngestPending(job)) {
-        pollIngestJob(proxyUrl, job.job_id, generation, getChatConfig(configEl).ingestPollIntervalMs)
+        pollIngestJob(
+          proxyUrl,
+          job.job_id,
+          generation,
+          getChatConfig(configEl).ingestPollIntervalMs,
+        )
       }
     }
   }
@@ -1110,3 +1249,4 @@ async function handleNav() {
 
 document.addEventListener("nav", handleNav)
 document.addEventListener("render", handleNav)
+document.addEventListener("chats:pending-turn-changed", handleNav)
