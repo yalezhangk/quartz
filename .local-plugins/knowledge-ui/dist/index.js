@@ -1293,12 +1293,6 @@ var QualityPage_default = (() => {
 // src/components/SettingsPage.tsx
 var settingsSections = [
   {
-    title: "\u6A21\u578B",
-    description: "\u9009\u62E9\u95EE\u7B54\u4E0E\u5165\u5E93\u4EFB\u52A1\u4F7F\u7528\u7684\u6A21\u578B\uFF0C\u5E76\u660E\u786E\u5176\u7528\u9014\u4E0E\u751F\u6548\u8303\u56F4\u3002",
-    status: "\u7531\u540E\u7AEF\u7BA1\u7406",
-    items: ["\u5FEB\u901F\u95EE\u7B54\u6A21\u578B", "\u6DF1\u5EA6\u5206\u6790\u6A21\u578B", "\u6A21\u578B\u670D\u52A1\u8FDE\u63A5"]
-  },
-  {
     title: "Prompt",
     description: "\u7EF4\u62A4\u95EE\u7B54\u3001\u5165\u5E93\u548C\u77E5\u8BC6\u7EFC\u5408\u4F7F\u7528\u7684\u63D0\u793A\u6A21\u677F\u4E0E\u7248\u672C\u8BB0\u5F55\u3002",
     status: "\u7248\u672C\u5316\u7BA1\u7406",
@@ -1317,6 +1311,88 @@ var settingsSections = [
     items: ["\u8BBF\u95EE\u89D2\u8272", "\u64CD\u4F5C\u5BA1\u8BA1", "\u914D\u7F6E\u53D8\u66F4\u8BB0\u5F55"]
   }
 ];
+var modelUsageSections = [
+  {
+    key: "fast",
+    title: "\u5FEB\u901F\u95EE\u7B54\u6A21\u578B",
+    description: "FAST\uFF0C\u7531\u670D\u52A1\u7AEF\u5185\u90E8\u8C03\u7528\uFF0C\u4E0D\u53D7\u77E5\u8BC6\u95EE\u7B54 Chat \u7684\u6A21\u578B\u9009\u62E9\u5F71\u54CD\u3002",
+    items: [
+      "\u77E5\u8BC6\u95EE\u7B54\uFF1A\u5173\u952E\u8BCD\u4E0E\u56FE\u8C31\u672A\u627E\u5230\u8DB3\u591F\u9875\u9762\u65F6\u9009\u62E9\u76F8\u5173\u9875\u9762",
+      "\u65E0\u72B6\u6001\u95EE\u7B54\uFF1A\u9009\u62E9\u76F8\u5173\u9875\u9762",
+      "\u77E5\u8BC6\u56FE\u8C31\uFF1A\u542F\u7528\u5173\u7CFB\u63A8\u65AD\u65F6\u5206\u6790\u9875\u9762\u5173\u7CFB"
+    ]
+  },
+  {
+    key: "main",
+    title: "\u6DF1\u5EA6\u5206\u6790\u6A21\u578B",
+    description: "MAIN\uFF0C\u7531\u670D\u52A1\u7AEF\u5185\u90E8\u8C03\u7528\uFF0C\u4E0D\u53D7\u77E5\u8BC6\u95EE\u7B54 Chat \u7684\u6A21\u578B\u9009\u62E9\u5F71\u54CD\u3002",
+    items: [
+      "\u65E0\u72B6\u6001\u95EE\u7B54\uFF1A\u751F\u6210\u6700\u7EC8\u7B54\u6848",
+      "\u6587\u6863\u5165\u5E93\uFF1A\u62BD\u53D6\u5185\u5BB9\u5E76\u751F\u6210\u77E5\u8BC6\u9875\u9762",
+      "\u77E5\u8BC6\u8D28\u91CF\uFF1A\u6267\u884C\u8BED\u4E49\u5206\u6790\u4E0E\u751F\u6210\u5DE1\u68C0\u62A5\u544A"
+    ]
+  }
+];
+var settingsScript = `
+document.addEventListener("nav", () => {
+  const container = document.querySelector("[data-model-profiles-overview]")
+  const internalModelNodes = document.querySelectorAll("[data-internal-model]")
+  if (!(container instanceof HTMLElement) || container.dataset.bound === "true") return
+  container.dataset.bound = "true"
+
+  const renderFailure = () => {
+    container.replaceChildren()
+    const message = document.createElement("p")
+    message.className = "settings-model-profiles-empty"
+    message.textContent = "\u6682\u65F6\u65E0\u6CD5\u8BFB\u53D6\u670D\u52A1\u7AEF\u6A21\u578B\u914D\u7F6E\uFF1B\u8BF7\u786E\u8BA4\u540E\u7AEF\u670D\u52A1\u53EF\u7528\u540E\u5237\u65B0\u9875\u9762\u3002"
+    container.appendChild(message)
+    for (const node of internalModelNodes) {
+      if (node instanceof HTMLElement) {
+        node.textContent = "\u6682\u65F6\u65E0\u6CD5\u8BFB\u53D6\u670D\u52A1\u7AEF\u914D\u7F6E"
+      }
+    }
+  }
+
+  fetch("/api/model-profiles/overview", { headers: { Accept: "application/json" } })
+    .then((response) => {
+      if (!response.ok) throw new Error(String(response.status))
+      return response.json()
+    })
+    .then((overview) => {
+      if (!overview || !Array.isArray(overview.chat_models)) throw new Error("invalid payload")
+      container.replaceChildren()
+      const validProfiles = overview.chat_models.filter((profile) =>
+        profile &&
+        typeof profile.label === "string",
+      )
+      if (validProfiles.length === 0) {
+        const message = document.createElement("p")
+        message.className = "settings-model-profiles-empty"
+        message.textContent = "\u5F53\u524D\u6CA1\u6709\u5DF2\u542F\u7528\u7684\u56DE\u7B54\u6A21\u578B\u3002"
+        container.appendChild(message)
+      }
+
+      for (const profile of validProfiles) {
+        const row = document.createElement("article")
+        row.className = "settings-model-profile"
+        const name = document.createElement("strong")
+        name.textContent = profile.label
+        row.appendChild(name)
+        container.appendChild(row)
+      }
+
+      for (const node of internalModelNodes) {
+        if (!(node instanceof HTMLElement)) continue
+        const model = overview[node.dataset.internalModel + "_model"]
+        if (!model || typeof model.provider !== "string" || typeof model.model !== "string") {
+          throw new Error("invalid internal model")
+        }
+        node.textContent = model.provider + " / " + model.model
+      }
+    })
+    .catch(renderFailure)
+})
+`;
 var SettingsPage_default = (() => {
   const SettingsPage2 = (props) => {
     const currentSlug = "settings";
@@ -1341,6 +1417,27 @@ var SettingsPage_default = (() => {
         ] }),
         /* @__PURE__ */ u2("p", { children: "\u6A21\u578B\u4E0E Prompt \u7531 `wiki-backend` \u7684\u53D7\u63A7\u914D\u7F6E\u63D0\u4F9B\uFF1B\u6587\u6863\u5165\u5E93\u5B8C\u6210\u540E\u4ECD\u9700\u91CD\u65B0\u6784\u5EFA Quartz\uFF0C\u9759\u6001\u9875\u9762\u548C\u5185\u5BB9\u7D22\u5F15\u624D\u4F1A\u66F4\u65B0\u3002" })
       ] }),
+      /* @__PURE__ */ u2("section", { class: "settings-model-profiles", "aria-labelledby": "settings-model-profiles-title", children: [
+        /* @__PURE__ */ u2("header", { children: [
+          /* @__PURE__ */ u2("div", { children: [
+            /* @__PURE__ */ u2("p", { children: "\u53EA\u8BFB\u6982\u89C8" }),
+            /* @__PURE__ */ u2("h2", { id: "settings-model-profiles-title", children: "\u77E5\u8BC6\u95EE\u7B54\u6A21\u578B" })
+          ] }),
+          /* @__PURE__ */ u2("span", { children: "\u7531\u540E\u7AEF\u53D7\u63A7\u6863\u6848\u63D0\u4F9B" })
+        ] }),
+        /* @__PURE__ */ u2("p", { children: "\u7531\u540E\u7AEF\u8FD4\u56DE\u77E5\u8BC6\u95EE\u7B54 Chat \u5F53\u524D\u53EF\u9009\u62E9\u7684\u6A21\u578B\u540D\u79F0\uFF1B\u6B64\u9875\u9762\u4E0D\u5141\u8BB8\u4FEE\u6539\u6A21\u578B\u670D\u52A1\u3001\u51ED\u636E\u3001Prompt \u6216\u7CFB\u7EDF\u9ED8\u8BA4\u914D\u7F6E\u3002" }),
+        /* @__PURE__ */ u2("div", { class: "settings-model-profiles-list", "data-model-profiles-overview": true, children: /* @__PURE__ */ u2("p", { class: "settings-model-profiles-empty", children: "\u6B63\u5728\u52A0\u8F7D\u77E5\u8BC6\u95EE\u7B54\u6A21\u578B\u2026" }) })
+      ] }),
+      /* @__PURE__ */ u2("div", { class: "settings-section-grid settings-model-usage-grid", children: modelUsageSections.map((section) => /* @__PURE__ */ u2("section", { class: "settings-section", children: [
+        /* @__PURE__ */ u2("header", { children: [
+          /* @__PURE__ */ u2("div", { class: "settings-model-usage-copy", children: [
+            /* @__PURE__ */ u2("h2", { children: section.title }),
+            /* @__PURE__ */ u2("p", { children: section.description })
+          ] }),
+          /* @__PURE__ */ u2("strong", { class: "settings-internal-model", "data-internal-model": section.key, children: "\u6B63\u5728\u8BFB\u53D6\u670D\u52A1\u7AEF\u914D\u7F6E\u2026" })
+        ] }),
+        /* @__PURE__ */ u2("ul", { children: section.items.map((item) => /* @__PURE__ */ u2("li", { children: item })) })
+      ] })) }),
       /* @__PURE__ */ u2("div", { class: "settings-section-grid", children: settingsSections.map((section) => /* @__PURE__ */ u2("section", { class: "settings-section", children: [
         /* @__PURE__ */ u2("header", { children: [
           /* @__PURE__ */ u2("div", { children: [
@@ -1357,6 +1454,7 @@ var SettingsPage_default = (() => {
       /* @__PURE__ */ u2("p", { class: "settings-boundary", children: "\u5199\u5165\u6A21\u578B\u53C2\u6570\u3001Prompt\u3001\u53D1\u5E03\u64CD\u4F5C\u6216\u7528\u6237\u6743\u9650\u9700\u8981\u5BF9\u5E94\u7684\u540E\u7AEF API \u4E0E\u6388\u6743\u7B56\u7565\uFF1B\u5F53\u524D\u9759\u6001\u7AD9\u70B9\u4E0D\u4F1A\u76F4\u63A5\u6267\u884C\u8FD9\u4E9B\u53D8\u66F4\u3002" })
     ] });
   };
+  SettingsPage2.afterDOMLoaded = settingsScript;
   return SettingsPage2;
 });
 
@@ -1372,7 +1470,12 @@ var KnowledgePage_default = (() => {
     if (props.fileData.slug === "settings") return SettingsPage(props);
     return HomePage(props);
   };
-  KnowledgePage.afterDOMLoaded = [HomePage.afterDOMLoaded, LibraryPage.afterDOMLoaded, QualityPage.afterDOMLoaded].filter((script) => typeof script === "string").join("\n");
+  KnowledgePage.afterDOMLoaded = [
+    HomePage.afterDOMLoaded,
+    LibraryPage.afterDOMLoaded,
+    QualityPage.afterDOMLoaded,
+    SettingsPage.afterDOMLoaded
+  ].filter((script) => typeof script === "string").join("\n");
   return KnowledgePage;
 });
 

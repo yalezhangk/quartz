@@ -6,12 +6,13 @@ import {
   getChatMessages,
   getIngestJob,
   listIngestJobs,
+  listModelProfiles,
   listChats,
   saveMessageAsSynthesis,
   sendChatMessage,
   uploadIngestDocument,
 } from "../../api/chatApi"
-import type { Chat, ChatMessage, IngestJobResponse } from "../../types"
+import type { Chat, ChatMessage, IngestJobResponse, ModelProfile } from "../../types"
 import { renderMarkdown } from "./markdown"
 import { normalizeWikiPath } from "./wiki-path"
 
@@ -34,6 +35,8 @@ interface PendingChatTurn {
 const CURRENT_CHAT_KEY = "chats:current"
 const CHAT_INTENT_KEY = "chats:intent"
 const PENDING_CHAT_TURN_KEY = "chats:pending-turn"
+const MODEL_PROFILE_KEY = "chats:model-profile"
+const PREFERRED_MODEL_PROFILE_ID = "deepseek-v4-flash"
 const PENDING_CHAT_TURN_MAX_AGE_MS = 20 * 60 * 1000
 const PENDING_CHAT_TURN_POLL_INTERVAL_MS = 3000
 // NOTE: contentIndex 只用于把回答里的 [[wiki-link]] 解析成 Quartz 站内真实 slug。
@@ -86,6 +89,18 @@ function setCurrentChatId(id: string | null) {
     sessionStorage.setItem(CURRENT_CHAT_KEY, id)
   } else {
     sessionStorage.removeItem(CURRENT_CHAT_KEY)
+  }
+}
+
+function getStoredModelProfileId(): string | null {
+  return sessionStorage.getItem(MODEL_PROFILE_KEY)
+}
+
+function setStoredModelProfileId(id: string | null) {
+  if (id) {
+    sessionStorage.setItem(MODEL_PROFILE_KEY, id)
+  } else {
+    sessionStorage.removeItem(MODEL_PROFILE_KEY)
   }
 }
 
@@ -584,6 +599,14 @@ function setChatInputState(pageEl: HTMLElement, hasChat: boolean) {
   if (labelEl) labelEl.textContent = label
 }
 
+function renderModelProfileBadge(container: ParentNode, message: ChatMessage) {
+  const badgeEl = container.querySelector("[data-message-model-profile]") as HTMLElement | null
+  if (!badgeEl) return
+
+  badgeEl.textContent = message.model_profile_label || "历史模型未知"
+  badgeEl.hidden = false
+}
+
 function renderMessages(messagesEl: HTMLElement, messages: ChatMessage[], proxyUrl: string) {
   removeAllChildren(messagesEl)
   setChatPageState(messagesEl, messages.length > 0)
@@ -610,6 +633,7 @@ function renderMessages(messagesEl: HTMLElement, messages: ChatMessage[], proxyU
     const synthesisButton = clone.querySelector(".message-synthesis-button") as HTMLButtonElement
     const loadingEl = clone.querySelector(".message-loading") as HTMLElement
     if (contentEl) contentEl.innerHTML = renderMarkdown(message.content)
+    renderModelProfileBadge(clone, message)
     bindCopyButton(copyButton, message.content.trim())
     bindSynthesisButton(synthesisButton, message, proxyUrl)
     if (loadingEl) loadingEl.style.display = "none"
@@ -692,8 +716,9 @@ function updateSendButton(
   input: HTMLTextAreaElement,
   button: HTMLButtonElement,
   isSending: boolean,
+  canSend: boolean = true,
 ) {
-  button.disabled = isSending || input.value.trim().length === 0
+  button.disabled = isSending || !canSend || input.value.trim().length === 0
 }
 
 function autoResizeTextarea(textarea: HTMLTextAreaElement) {
@@ -871,6 +896,8 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
   const inputEl = pageEl.querySelector(".chat-input") as HTMLTextAreaElement
   const sendButton = pageEl.querySelector(".chat-send-button") as HTMLButtonElement
   const attachButton = pageEl.querySelector(".chat-attach-button") as HTMLButtonElement
+  const modelSelector = pageEl.querySelector(".chat-model-selector") as HTMLSelectElement | null
+  const modelProfileNote = pageEl.querySelector("[data-model-profile-note]") as HTMLElement | null
 
   if (!messagesEl || !inputEl || !sendButton) return
 
@@ -881,8 +908,69 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
   let currentChatId = mode.type === "chat" ? mode.id : null
   let currentMessages: ChatMessage[] = []
   let isSending = getPendingChatTurn() !== null
+  let modelProfiles: ModelProfile[] = []
+  let modelProfileState: "loading" | "ready" | "failed" = "loading"
+  let selectedModelProfileId: string | null = null
+
+  const canSendWithModelProfile = () =>
+    modelProfileState === "ready" && selectedModelProfileId !== null
+
+  const updateModelProfileNote = () => {
+    if (!modelProfileNote) return
+
+    if (modelProfileState === "loading") {
+      modelProfileNote.textContent = "正在加载可用回答模式…"
+      return
+    }
+    if (modelProfileState === "failed") {
+      modelProfileNote.textContent = "回答模式暂不可用，请稍后刷新页面重试。"
+      return
+    }
+
+    const selected = modelProfiles.find((profile) => profile.id === selectedModelProfileId)
+    modelProfileNote.textContent = selected
+      ? `本轮将使用 ${selected.label}；切换仅影响本轮及后续回答，历史回答保持原模型。`
+      : "当前没有可用的回答模式。"
+  }
+
+  const renderModelProfileOptions = () => {
+    if (!modelSelector) return
+    modelSelector.replaceChildren()
+
+    const profilesByLocation: Array<["cloud" | "local", string]> = [
+      ["cloud", "云端模型"],
+      ["local", "本地模型"],
+    ]
+    for (const [location, label] of profilesByLocation) {
+      const profiles = modelProfiles.filter((profile) => profile.location === location)
+      if (profiles.length === 0) continue
+      const group = document.createElement("optgroup")
+      group.label = label
+      for (const profile of profiles) {
+        const option = document.createElement("option")
+        option.value = profile.id
+        option.textContent = profile.available ? profile.label : `${profile.label}（当前不可用）`
+        option.disabled = !profile.available
+        group.appendChild(option)
+      }
+      modelSelector.appendChild(group)
+    }
+
+    const availableProfiles = modelProfiles.filter((profile) => profile.available)
+    const storedId = getStoredModelProfileId()
+    const preferredProfile =
+      availableProfiles.find((profile) => profile.id === storedId) ??
+      availableProfiles.find((profile) => profile.is_default) ??
+      availableProfiles.find((profile) => profile.id === PREFERRED_MODEL_PROFILE_ID) ??
+      availableProfiles[0]
+    selectedModelProfileId = preferredProfile?.id ?? null
+    modelSelector.disabled = selectedModelProfileId === null
+    if (selectedModelProfileId) modelSelector.value = selectedModelProfileId
+    updateModelProfileNote()
+  }
 
   setChatInputState(pageEl, Boolean(currentChatId))
+  updateModelProfileNote()
 
   if (!currentChatId) {
     renderNewChat(messagesEl)
@@ -949,7 +1037,7 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
           renderMessages(messagesEl, currentMessages, config.proxyUrl)
           refreshSidebars()
           inputEl.disabled = false
-          updateSendButton(inputEl, sendButton, false)
+          updateSendButton(inputEl, sendButton, false, canSendWithModelProfile())
           scrollToBottom(messagesEl)
           return
         }
@@ -980,7 +1068,7 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
   }
 
   const onInput = () => {
-    updateSendButton(inputEl, sendButton, isSending)
+    updateSendButton(inputEl, sendButton, isSending, canSendWithModelProfile())
     autoResizeTextarea(inputEl)
   }
 
@@ -989,7 +1077,11 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
 
   const doSend = async () => {
     const text = inputEl.value.trim()
-    if (!text || isSending || getPendingChatTurn() || !isPageActive()) return
+    if (!text || !canSendWithModelProfile() || isSending || getPendingChatTurn() || !isPageActive())
+      return
+
+    const modelProfileId = selectedModelProfileId
+    if (!modelProfileId) return
 
     isSending = true
     sendButton.disabled = true
@@ -1023,7 +1115,7 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
 
       setPendingChatTurn(currentChatId, currentMessages.length)
       refreshSidebars()
-      const response = await sendChatMessage(config.proxyUrl, currentChatId, text)
+      const response = await sendChatMessage(config.proxyUrl, currentChatId, text, modelProfileId)
       const pageStillActive = isPageActive()
       clearPendingChatTurn(currentChatId, !pageStillActive)
       if (!pageStillActive) return
@@ -1053,13 +1145,53 @@ async function setupChatPage(pageEl: HTMLElement, generation: number) {
 
       inputEl.disabled = false
       inputEl.focus()
-      updateSendButton(inputEl, sendButton, false)
+      updateSendButton(inputEl, sendButton, false, canSendWithModelProfile())
     }
   }
 
   const onSendClick = () => doSend()
   sendButton.addEventListener("click", onSendClick)
   addCleanup(() => sendButton.removeEventListener("click", onSendClick))
+
+  if (modelSelector) {
+    const onModelProfileChange = () => {
+      selectedModelProfileId = modelSelector.value || null
+      setStoredModelProfileId(selectedModelProfileId)
+      updateModelProfileNote()
+      updateSendButton(inputEl, sendButton, isSending, canSendWithModelProfile())
+    }
+    modelSelector.addEventListener("change", onModelProfileChange)
+    addCleanup(() => modelSelector.removeEventListener("change", onModelProfileChange))
+  }
+
+  void listModelProfiles(config.proxyUrl)
+    .then((profiles) => {
+      if (!isPageActive()) return
+      modelProfiles = profiles.filter(
+        (profile) =>
+          typeof profile.id === "string" &&
+          profile.id.length > 0 &&
+          typeof profile.label === "string" &&
+          (profile.location === "cloud" || profile.location === "local") &&
+          typeof profile.available === "boolean",
+      )
+      modelProfileState = "ready"
+      renderModelProfileOptions()
+      updateSendButton(inputEl, sendButton, isSending, canSendWithModelProfile())
+    })
+    .catch(() => {
+      if (!isPageActive()) return
+      modelProfileState = "failed"
+      if (modelSelector) {
+        modelSelector.replaceChildren()
+        const option = document.createElement("option")
+        option.textContent = "回答模式暂不可用"
+        modelSelector.appendChild(option)
+        modelSelector.disabled = true
+      }
+      updateModelProfileNote()
+      updateSendButton(inputEl, sendButton, isSending, false)
+    })
 
   if (attachButton) {
     const fileInput = document.createElement("input")
@@ -1248,5 +1380,6 @@ async function handleNav() {
 }
 
 document.addEventListener("nav", handleNav)
+void handleNav()
 document.addEventListener("render", handleNav)
 document.addEventListener("chats:pending-turn-changed", handleNav)

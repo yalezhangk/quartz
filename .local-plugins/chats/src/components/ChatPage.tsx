@@ -159,9 +159,17 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
           </div>
           <div class="chat-input-wrap">
             <div class="chat-input-card">
-              <label class="chat-input-label" for="chat-input-box">
-                {strings.newChatInputLabel}
-              </label>
+              <div class="chat-input-label-row">
+                <label class="chat-input-label" for="chat-input-box">
+                  {strings.newChatInputLabel}
+                </label>
+                <label class="chat-model-selector-label" for="chat-model-selector">
+                  <span>模型</span>
+                  <select id="chat-model-selector" class="chat-model-selector" disabled>
+                    <option>正在加载回答模式…</option>
+                  </select>
+                </label>
+              </div>
               <div class="chat-input-area">
                 <button
                   type="button"
@@ -209,7 +217,9 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                 </button>
               </div>
             </div>
-            <p class="chat-input-note">{strings.inputNote}</p>
+            <p class="chat-input-note" data-model-profile-note>
+              {strings.inputNote}
+            </p>
           </div>
           <template id="template-message-user">
             <div class="message message-user">
@@ -224,6 +234,7 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                 <div class="message-document-meta">
                   <span>知识回答</span>
                   <small>基于已发布知识</small>
+                  <em class="message-model-profile" data-message-model-profile></em>
                 </div>
                 <div class="message-content"></div>
                 <div class="message-actions">
@@ -288,9 +299,7 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
             <strong data-evidence-count>0</strong>
           </header>
           <div class="chat-evidence-list" data-evidence-list>
-            <div class="chat-evidence-empty">
-              {strings.referenceDescription}
-            </div>
+            <div class="chat-evidence-empty">{strings.referenceDescription}</div>
           </div>
           <p class="chat-evidence-scope">当前范围：全部已发布 Wiki 页面</p>
         </aside>

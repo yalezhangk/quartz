@@ -27,6 +27,8 @@ interface ChatMessage {
     created_at: string;
     synthesis_path: string | null;
     synthesized_at: string | null;
+    model_profile_id?: string | null;
+    model_profile_label?: string | null;
 }
 interface ChatMessagesResponse {
     chat: Chat;

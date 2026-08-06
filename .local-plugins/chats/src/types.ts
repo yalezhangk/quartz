@@ -18,6 +18,17 @@ export interface ChatMessage {
   created_at: string
   synthesis_path: string | null
   synthesized_at: string | null
+  model_profile_id?: string | null
+  model_profile_label?: string | null
+}
+
+export interface ModelProfile {
+  id: string
+  label: string
+  location: "cloud" | "local"
+  reasoning_mode: "direct" | "thinking" | null
+  available: boolean
+  is_default?: boolean
 }
 
 export interface ChatMessagesResponse {

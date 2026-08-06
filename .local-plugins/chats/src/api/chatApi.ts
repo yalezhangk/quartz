@@ -3,6 +3,7 @@ import type {
   ChatMessagesResponse,
   ChatTurnResponse,
   IngestJobResponse,
+  ModelProfile,
   PublishJobResponse,
   PublishStatusResponse,
   SynthesisResponse,
@@ -30,6 +31,10 @@ function getApiBaseUrl(proxyUrl: string): string {
 
 function getChatsEndpoint(proxyUrl: string): string {
   return `${getApiBaseUrl(proxyUrl)}/chats`
+}
+
+function getModelProfilesEndpoint(proxyUrl: string): string {
+  return `${getApiBaseUrl(proxyUrl)}/model-profiles`
 }
 
 function getSynthesisEndpoint(proxyUrl: string): string {
@@ -104,6 +109,10 @@ export function createChat(proxyUrl: string, title?: string): Promise<Chat> {
   return request<Chat>(getChatsEndpoint(proxyUrl), jsonRequest("POST", body))
 }
 
+export function listModelProfiles(proxyUrl: string): Promise<ModelProfile[]> {
+  return request<ModelProfile[]>(getModelProfilesEndpoint(proxyUrl))
+}
+
 export function getChatMessages(proxyUrl: string, chatId: string): Promise<ChatMessagesResponse> {
   return request<ChatMessagesResponse>(
     `${getChatsEndpoint(proxyUrl)}/${encodeURIComponent(chatId)}/messages`,
@@ -114,10 +123,11 @@ export function sendChatMessage(
   proxyUrl: string,
   chatId: string,
   content: string,
+  modelProfileId: string,
 ): Promise<ChatTurnResponse> {
   return request<ChatTurnResponse>(
     `${getChatsEndpoint(proxyUrl)}/${encodeURIComponent(chatId)}/messages`,
-    jsonRequest("POST", { content }),
+    jsonRequest("POST", { content, model_profile_id: modelProfileId }),
   )
 }
 
@@ -144,10 +154,7 @@ export function saveMessageAsSynthesis(
   )
 }
 
-export function uploadIngestDocument(
-  proxyUrl: string,
-  file: File,
-): Promise<IngestJobResponse> {
+export function uploadIngestDocument(proxyUrl: string, file: File): Promise<IngestJobResponse> {
   const body = new FormData()
   body.append("file", file)
   body.append("auto_convert", "true")
@@ -163,10 +170,7 @@ export function getIngestJob(proxyUrl: string, jobId: string): Promise<IngestJob
   )
 }
 
-export function listIngestJobs(
-  proxyUrl: string,
-  limit: number = 20,
-): Promise<IngestJobResponse[]> {
+export function listIngestJobs(proxyUrl: string, limit: number = 20): Promise<IngestJobResponse[]> {
   return request<IngestJobResponse[]>(
     `${getIngestJobsEndpoint(proxyUrl)}?limit=${encodeURIComponent(String(limit))}`,
   )
