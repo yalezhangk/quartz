@@ -1,93 +1,182 @@
 # Quartz 知识库前端
 
-本项目基于 Quartz v5，将 `llm-wiki-agent/wiki` 中的 Markdown 构建为静态知识库。`knowledge-ui` 本地插件提供产品级知识浏览界面，`chats` 本地插件通过同源 `/api` 调用 `wiki-backend` 提供知识问答和文档入库。最终运行环境是 NVIDIA DGX Spark（Ubuntu ARM64），Windows 主要用于开发和 Git 管理。
+本项目基于 Quartz v5，将同级 `llm-wiki-agent/wiki` 中的 Markdown 构建为静态知识库，并通过同源 `/api` 使用 `wiki-backend` 的问答、模型档案、文档入库、Synthesis、质量快照和发布能力。
 
-## 项目职责
+## 项目边界
 
-- 读取 `llm-wiki-agent/wiki` 中的真实知识库内容。
-- 生成可由 Nginx 直接提供的 `public/` 静态站点。
-- 通过 `.local-plugins/knowledge-ui` 提供唯一主导航、首页 `/`、知识库 `/library` 与知识质量 `/quality`。
-- 通过 `.local-plugins/chats` 提供知识问答 `/chats`、文档入库 `/ingest` 和 Synthesis 前端界面。
-- 保留 Quartz 原生正文、Search、Explorer、TOC、Backlinks 与 Graph；`/graph` 使用 Wiki 生成的图谱 HTML。
-- 使用同源 `/api` 调用 `wiki-backend`，浏览器不直接访问后端端口。
+- `.local-plugins/knowledge-ui`：唯一主导航、首页 `/`、知识库 `/library`、知识质量 `/quality` 和只读设置 `/settings`。
+- `.local-plugins/chats`：知识问答 `/chats`、回答模型选择、文档入库 `/ingest`、Synthesis 和发布状态。
+- `.local-plugins/footer`：站点页脚。
+- `llm-wiki-agent/wiki`：唯一知识内容源；Quartz 不保存知识正文。
+- `wiki-backend`：保存 Chat、Ingest、Maintenance、Publish 状态，并在业务流程中读写 Wiki 数据。
+- `public/`：当前在线构建入口，禁止手工修补，也不提交 Git。
 
-`public/` 是构建产物，不是内容源，也不要手工修改。文档入库完成后，`llm-wiki-agent/wiki` 会发生变化；当前发布流程仍需要重新构建 Quartz 才能让页面和搜索索引反映最新内容。
+仓库内 `docs/` 是 Quartz v5 上游通用文档。其中默认 `content/`、GitHub Pages 和通用托管示例不适用于本项目；本项目始终使用显式 `-d <llm-wiki-agent/wiki>`。
 
-## 当前部署拓扑
+## 运行架构
 
 ```text
-局域网浏览器
-  -> http://192.168.8.8:8080
-  -> DGX Nginx
-     |- /api/* -> 127.0.0.1:8081 (wiki-backend)
-     `- 其他路径 -> quartz/public
+浏览器 -> DGX Nginx :8080
+             |- 静态页面 -> quartz/public
+             `- /api/* -> 127.0.0.1:8081 -> wiki-backend
 
-公网浏览器
-  -> ECS Nginx :8080
-  -> ECS 127.0.0.1:18080 (frps)
-  -> DGX frpc
-  -> DGX 127.0.0.1:8080 (同一个 DGX Nginx)
+ECS Nginx -> ECS 127.0.0.1:18080 -> FRP -> DGX Nginx :8080
 ```
 
-只保留一条业务隧道：ECS `18080` 到 DGX `8080`。不要恢复 ECS `18081` 到 DGX `8081` 的后端直通。
+必须保持：
 
-两个入口都从站点根路径 `/` 访问 Quartz，不使用 `/quartz/` 子路径：
-
-- DGX 局域网：`http://192.168.8.8:8080/`
-- ECS 公网：`http://<ECS_PUBLIC_HOST>:8080/`
-
-`quartz.config.yaml` 当前使用：
-
-```yaml
-configuration:
-  baseUrl: "192.168.8.8:8080"
-```
-
-这样不会把 ECS 公网地址写入构建产物。`baseUrl` 不是浏览器允许访问的地址白名单，也不妨碍用户从 ECS 入口访问。若以后启用正式域名、HTTPS，或发现 sitemap、RSS、OG URL 必须统一为公网域名，再单独调整它。
+- Quartz 部署在根路径 `/`，不是 `/quartz/`。
+- 生产构建使用 `CHAT_PROXY_URL=/api`，浏览器不直连 `8081` 或 Ollama `11434`。
+- 只保留 ECS `18080` 到 DGX `8080` 的一条业务隧道，不恢复 `18081` 后端直通。
+- DGX Nginx 的 `proxy_pass http://127.0.0.1:8081;` 后不加 `/`，保留后端 `/api/` 前缀。
+- `/api/` 不缓存；`/api/publish/` 和 `/api/maintenance/` 还必须使用 HTTPS、认证和限流。
+- `public/graph` 是无扩展名 HTML，Nginx 必须让 `/graph` 返回 `text/html`。
 
 ## 环境要求
 
 - Node.js `>=22`
 - npm `>=10.9.2`
-- 最终构建验证环境：DGX Ubuntu ARM64
-- 内容目录：`/home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki`
-- Quartz 目录：`/home/dgx/Projects/knowledge_base_mkt/quartz`
+- 最终运行环境：DGX Spark Ubuntu ARM64
+- Quartz：`/home/dgx/Projects/knowledge_base_mkt/quartz`
+- Wiki：`/home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki`
 
-版本要求以 `package.json` 为准。
+版本要求以 `package.json` 为准。不要把 Windows 的 `node_modules/`、`.quartz/plugins/`、`.publish/` 或 `public/` 复制到 DGX。
 
-## 首次初始化
-
-在 DGX 上执行：
+## DGX 首次初始化
 
 ```bash
 cd /home/dgx/Projects/knowledge_base_mkt/quartz
 npm ci
 
-cd .local-plugins/knowledge-ui
-npm ci
-npm run build
-
-cd ../chats
-npm ci
-npm run build
-cd ../..
+for plugin in knowledge-ui chats footer; do
+  npm --prefix ".local-plugins/$plugin" ci
+  npm --prefix ".local-plugins/$plugin" run build
+done
 
 npx quartz plugin install --clean
 npx quartz plugin install --from-config
 ```
 
-这些命令分别恢复 Quartz、Knowledge UI、Chats 插件依赖与 `dist/`，再恢复社区插件及本地插件链接。两个插件的 `dist/` 是实际包入口，和 `src/` 一起由 Git 追踪；DGX 仍须重新构建以验证 Linux ARM64 环境。不要把 Windows 的 `node_modules/`、`.quartz/plugins/` 或 `public/` 复制到 DGX。
+三个本地插件的 `dist/` 都是 Quartz 实际包入口并由 Git 追踪。只修改一个插件时，只安装和构建该插件即可。
+
+## DGX 打包与发布
+
+### 手工构建
+
+Quartz 配置、插件、部署方式变化，或需要运维重建时执行：
+
+```bash
+cd /home/dgx/Projects/knowledge_base_mkt/quartz
+
+CHAT_PROXY_URL=/api npx quartz build \
+  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
+```
+
+修改本地插件源码后，先构建对应插件，再构建 Quartz：
+
+```bash
+cd /home/dgx/Projects/knowledge_base_mkt/quartz
+
+npm --prefix .local-plugins/knowledge-ui run build
+npm --prefix .local-plugins/chats run build
+npm --prefix .local-plugins/footer run build
+
+CHAT_PROXY_URL=/api npx quartz build \
+  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
+```
+
+未修改的插件不需要重复构建。
+
+### 自动发布
+
+Ingest 或 Synthesis 成功后，`wiki-backend` 会把知识变更加入 Quartz 发布批次：
+
+```text
+Wiki 变更
+-> 默认合并等待 120 秒，连续变更最长等待 600 秒
+-> 复制 Wiki 快照
+-> 构建到 .publish/releases/<job-id>
+-> 验证关键页面、/quartz/ 前缀和同源 /api
+-> 原子切换 public 符号链接
+```
+
+Ingest 的 `succeeded` 只表示知识已写入；只有 `publication.status=published` 才表示静态站已更新。发布失败时上一版站点继续可用。有权限的用户可在 `/ingest` 提前触发 `POST /api/publish/jobs`。
+
+自动发布切换 `public` 后不需要重启或 reload Nginx。ECS 静态缓存仍可能在短 TTL 到期后才显示新内容。
+
+## DGX 启动与重启
+
+Quartz 生产站点是静态文件，没有独立的 Quartz 常驻进程；生产入口是 DGX Nginx，动态 API 和自动发布 worker 位于 `wiki-backend`。
+
+### 启动或重载 Nginx
+
+```bash
+sudo nginx -t
+sudo systemctl enable --now nginx
+sudo systemctl reload nginx
+sudo systemctl status nginx --no-pager
+```
+
+仅修改 `public/` 内容或自动发布成功时不需要 reload。只有 Nginx 配置变化时，先 `nginx -t`，再 `reload`；服务异常且 reload 无法恢复时才使用：
+
+```bash
+sudo systemctl restart nginx
+```
+
+### 启动或重启 wiki-backend
+后端代码、`.env`、模型配置或 systemd 配置变化后：
+
+```bash
+sudo systemctl restart wiki-backend.service
+sudo systemctl status wiki-backend.service --no-pager
+sudo journalctl -u wiki-backend.service -n 100 --no-pager
+```
+
+随后验证后端和同源代理：
+
+```bash
+curl --fail --silent --show-error http://127.0.0.1:8081/api/health
+curl --fail --silent --show-error http://127.0.0.1:8081/api/chats > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/api/health
+```
+
+`/api/health` 只证明 FastAPI 进程可达；`/api/chats` 才能基本验证 MySQL 路径。模型、Ingest 和 Publish 仍需各自验证。
+
+## 构建后验证
+
+```bash
+cd /home/dgx/Projects/knowledge_base_mkt/quartz
+
+for file in \
+  index.html library.html chats.html ingest.html quality.html settings.html graph \
+  static/contentIndex.json; do
+  test -f "public/$file"
+done
+
+grep -R '/quartz/' public/index.html public/chats.html public/ingest.html && exit 1 || true
+grep -n 'data-proxy-url="/api"' public/chats.html
+grep -n 'data-proxy-url="/api"' public/ingest.html
+
+for path in / /library /chats /ingest /quality /settings /graph /static/contentIndex.json; do
+  curl --fail --silent --show-error "http://127.0.0.1:8080$path" > /dev/null
+done
+
+curl --fail --silent --show-error http://127.0.0.1:8080/api/model-profiles > /dev/null
+curl --fail --silent --show-error http://127.0.0.1:8080/api/quality/latest > /dev/null
+```
+
+带认证检查 `GET /api/publish/status`。只有获得运维授权时才调用手动发布或 Maintenance 写接口。
 
 ## Windows 本地同源预览
 
-先在一个 PowerShell 窗口启动后端，必须使用后端项目自己的虚拟环境：
+先用 `wiki-backend` 自己的虚拟环境启动后端：
 
 ```powershell
 cd ..\wiki-backend
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8081
 ```
 
-再在 Quartz 目录构建并启动带 `/api` 转发的静态预览：
+再回到 Quartz：
 
 ```powershell
 $env:CHAT_PROXY_URL="/api"
@@ -95,196 +184,32 @@ npx.cmd quartz build -d ..\llm-wiki-agent\wiki
 npm.cmd run serve:integrated
 ```
 
-浏览器打开 `http://127.0.0.1:8080/`。该预览只监听回环地址，并将 `/api/*` 转发到 `127.0.0.1:8081`；它还会为无扩展名的 `/graph` 返回正确的 HTML 类型。如果 `8080` 已占用，可先设置 `$env:QUARTZ_PREVIEW_PORT="8090"`；如后端端口不同，可设置 `$env:QUARTZ_API_TARGET="http://127.0.0.1:<port>"`。这只用于 Windows 验证，不改变生产环境的 Nginx 同源代理。
-
-## 生产构建
-
-正常内容或配置更新：
-
-```bash
-cd /home/dgx/Projects/knowledge_base_mkt/quartz
-
-CHAT_PROXY_URL=/api npx quartz build \
-  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
-```
-
-`CHAT_PROXY_URL=/api` 必须保持同源。无论浏览器从局域网还是 ECS 访问，Chats 都先请求当前站点的 `/api/*`，再由 DGX Nginx 转发到 `wiki-backend`。
-
-如果修改了任一本地插件的 `src/`，必须先构建对应插件。两个插件都变更时可按以下顺序执行：
-
-```bash
-cd /home/dgx/Projects/knowledge_base_mkt/quartz/.local-plugins/knowledge-ui
-npm run build
-
-cd ../chats
-npm run build
-
-cd ../..
-CHAT_PROXY_URL=/api npx quartz build \
-  -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
-```
-
-只改其中一个插件时，只构建它即可；提交前必须同步提交该插件的 `src/` 与 `dist/`。
-
-资源链路是：
-
-```text
-.local-plugins/knowledge-ui/src 或 .local-plugins/chats/src
-  -> 对应目录 npm run build
-  -> 对应 dist/
-  -> npx quartz build
-  -> public/index.html、library.html、chats.html、ingest.html、quality.html、static/*
-```
-
-只改 Wiki 内容时不需要重装插件，但仍需重新执行 Quartz 构建。`ingest` 成功只代表文档处理和入库成功，不代表 `public/` 已自动发布。`/quality` 只报告构建期可以确认的元数据缺口，不伪造断链、矛盾或发布结论。
-
-## DGX Nginx
-
-DGX Nginx 是局域网入口，也是 FRP 唯一回源入口：
-
-```nginx
-server {
-    listen 8080;
-    server_name _;
-
-    root /home/dgx/Projects/knowledge_base_mkt/quartz/public;
-    index index.html;
-    error_page 404 /404.html;
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:8081;
-        proxy_http_version 1.1;
-
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        client_max_body_size 100m;
-        proxy_connect_timeout 10s;
-        proxy_send_timeout 600s;
-        proxy_read_timeout 600s;
-
-        proxy_buffering off;
-        proxy_cache off;
-        add_header X-Accel-Buffering no;
-    }
-
-    # Wiki 中的 graph.html 被 Quartz 发射为无扩展名的 public/graph。
-    location = /graph {
-        default_type text/html;
-        try_files /graph =404;
-    }
-
-    location / {
-        try_files $uri $uri.html $uri/ $uri/index.html =404;
-    }
-}
-```
-
-`proxy_pass` 后面不要加 `/`。后端路由本身带 `/api/`，正确写法会把 `/api/chats` 原样转发为 `/api/chats`。
-
-DGX Nginx 不需要额外配置反向代理缓存：静态文件本来就从 DGX 本地磁盘读取，Linux 页缓存已经能减少磁盘开销。公网延迟优化放在 ECS Nginx，由 ECS 缓存 Quartz 静态响应；`/api/` 在任何一层都不得缓存。
-
-检查并重载：
-
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-如果 Nginx 无权读取 `public/`，应给实际 worker 用户补充父目录执行权限和文件读取权限，不要使用 `chmod -R 777`。
-
-## ECS 缓存边界
-
-ECS Nginx 继续保留现有 `/research_report_library/` 等本地路由。Quartz 相关请求通过 `127.0.0.1:18080` 回源 DGX，并按以下边界处理：
-
-- `/api/`：不缓存，关闭响应缓冲，支持上传和流式回答。
-- `/static/contentIndex.json`：短缓存，例如 1 分钟。
-- `/static/`：较长缓存，例如 1 天。
-- 其他 Quartz 页面：短缓存，例如 1 分钟。
-
-当前构建文件名可能带内容哈希，但不能假定所有文件都永久不可变。除非确认文件名随内容变化，否则不要统一加 `immutable` 或一年缓存。内容更新后若要立即生效，可清理 ECS 对应缓存，或等待短 TTL 到期。
-
-## 构建后验证
-
-先确认产物：
-
-```bash
-cd /home/dgx/Projects/knowledge_base_mkt/quartz
-
-test -f public/index.html
-test -f public/library.html
-test -f public/chats.html
-test -f public/ingest.html
-test -f public/quality.html
-test -f public/graph
-test -f public/static/contentIndex.json
-grep -R '/quartz/' public/index.html public/chats.html public/ingest.html && exit 1 || true
-grep -n 'data-proxy-url="/api"' public/chats.html
-grep -n 'data-proxy-url="/api"' public/ingest.html
-```
-
-再验证 DGX 入口：
-
-```bash
-curl --fail --silent --show-error http://127.0.0.1:8080/ > /dev/null
-curl --fail --silent --show-error http://127.0.0.1:8080/library > /dev/null
-curl --fail --silent --show-error http://127.0.0.1:8080/chats > /dev/null
-curl --fail --silent --show-error http://127.0.0.1:8080/ingest > /dev/null
-curl --fail --silent --show-error http://127.0.0.1:8080/quality > /dev/null
-curl --fail --silent --show-error http://127.0.0.1:8080/graph > /dev/null
-curl --fail --silent --show-error http://127.0.0.1:8080/static/contentIndex.json > /dev/null
-curl --fail --silent --show-error http://127.0.0.1:8080/api/health
-curl --fail --silent --show-error http://127.0.0.1:8080/api/chats > /dev/null
-```
-
-最后分别用浏览器验证局域网和 ECS 入口。重点检查首页、知识库筛选、知识正文、Search、Graph、Chats、上传、任务详情和流式回答。
+打开 `http://127.0.0.1:8080/`。`serve:integrated` 只监听回环地址，把 `/api/*` 转发到 `QUARTZ_API_TARGET`（默认 `http://127.0.0.1:8081`），并正确处理 `/graph` 的 HTML 类型。
 
 ## 常见问题
 
-### 请求 `/quartz/static/*` 返回 404
+### 页面或资源 404
 
-站点实际部署在根路径 `/`，但构建产物仍带 `/quartz/` 前缀。检查 `baseUrl` 是否误写了 `/quartz`，重新构建 `public/`，再清理浏览器和 ECS 缓存。不要通过 Nginx 为错误路径长期增加兼容 alias。
+依次检查：请求是否错误包含 `/quartz/`、`public/` 中是否存在目标文件、本次构建是否成功、DGX Nginx `root/try_files`、ECS 与浏览器缓存。
 
-### 页面能打开，但 Chats 调用失败
+### Chats 或设置页 API 失败
 
-按顺序检查：
+检查构建产物中的 `data-proxy-url="/api"`、DGX Nginx `/api/` 转发、`127.0.0.1:8081/api/health`、后端/Nginx 日志。不要把生产构建改成浏览器直连 `8081`。
 
-1. `public/chats.html` 中的代理地址是否为 `/api`。
-2. DGX Nginx 的 `location /api/` 是否使用 `proxy_pass http://127.0.0.1:8081;`。
-3. `curl http://127.0.0.1:8081/api/health` 是否成功。
-4. `wiki-backend` 和 Nginx 错误日志是否有异常。
+### Ingest 成功但页面没有新文档
 
-不要把生产构建改回浏览器直连 `http://192.168.8.8:8081/api`。
+确认 Wiki 已更新，再检查任务的 `publication`、`GET /api/publish/status` 和发布日志。不要把 Ingest 的 `succeeded` 当作静态站已经发布。
 
-### ingest 成功但页面没有新文档
+### 插件源码更新但 UI 仍是旧版本
 
-确认 `llm-wiki-agent/wiki` 已更新，然后重新构建 Quartz。当前没有把 ingest 完成和 Quartz 发布强绑定为一个自动事务。
+构建对应 `.local-plugins/*/dist`，再构建 Quartz，并检查实际服务的 `public/`、ECS 缓存和浏览器缓存。
 
-### Chats 源码更新但 UI 仍是旧版本
+### Graph 被下载
 
-先确认变更属于 `.local-plugins/knowledge-ui` 还是 `.local-plugins/chats`，在对应目录执行 `npm run build`，再重建 Quartz，并检查 ECS 缓存与浏览器缓存。
+确认 `public/graph` 是 HTML，并为 Nginx 精确路径 `/graph` 配置 `default_type text/html`。不要手工修改生成物。
 
-### 点击 Graph 后浏览器下载文件
+## Git 与生成物
 
-先确认 `public/graph` 存在且内容是 HTML。由于它没有扩展名，DGX Nginx 必须为精确路径 `/graph` 返回 `text/html`；采用上文 `location = /graph` 配置后重载 Nginx。不要手工改 `public/graph`。
+需要同步和审查：本地插件 `src/`、`dist/`、`package.json`、lockfile、Quartz 配置、脚本和文档。
 
-## 仓库边界
-
-下列内容是依赖、缓存或生成状态，不是跨机器同步依据：
-
-- `node_modules/`
-- `.local-plugins/knowledge-ui/node_modules/`
-- `.local-plugins/chats/node_modules/`
-- `.quartz/plugins/`
-- `.quartz-cache/`
-- `public/`
-
-以下内容是跨机器需要同步和审查的本地插件交付物：
-
-- `.local-plugins/knowledge-ui/src/` 与 `.local-plugins/knowledge-ui/dist/`
-- `.local-plugins/chats/src/` 与 `.local-plugins/chats/dist/`
-- 两个插件各自的 `package.json`、`package-lock.json` 和构建配置
-
-Windows 修改源码并提交；DGX 拉取后安装依赖、重建插件、构建 `public/` 并验证。所有文本、脚本与配置最终以 Linux Ubuntu ARM64、LF 换行和 Linux 权限语义为准。
+不要提交：`node_modules/`、`.quartz/plugins/`、`.quartz-cache/`、`.publish/`、`public/`、`.env`、密码、Token、证书私钥或服务器私有配置。

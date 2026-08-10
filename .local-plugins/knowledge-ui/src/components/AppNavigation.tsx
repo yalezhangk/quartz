@@ -96,12 +96,12 @@ document.addEventListener("nav", () => {
     fetch("/api/health", { headers: { Accept: "application/json" } })
       .then((response) => {
         if (!response.ok) throw new Error(String(response.status))
-        healthCard.textContent = "系统运行正常"
+        healthCard.textContent = "后端进程可达"
         healthCard.classList.add("is-healthy")
-        if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "后端健康检查已通过"
+        if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "/api/health 已响应；MySQL、模型和发布需分别验证"
       })
       .catch(() => {
-        healthCard.textContent = "需要检查系统"
+        healthCard.textContent = "后端进程不可达"
         healthCard.classList.add("is-unavailable")
         if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "无法连接 /api/health"
       })
@@ -231,9 +231,9 @@ export default (() => {
             </nav>
           </div>
           <div class="app-index-status" aria-live="polite">
-            <span class="app-index-status-title" data-platform-health-card>系统检查中</span>
+            <span class="app-index-status-title" data-platform-health-card>后端进程检查中</span>
             <strong>{objectCount.toLocaleString("zh-CN")} 个知识对象</strong>
-            <small data-platform-health-detail>正在连接后端健康检查</small>
+            <small data-platform-health-detail>正在请求 /api/health</small>
           </div>
         </div>
       </div>

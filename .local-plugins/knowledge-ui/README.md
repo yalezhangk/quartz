@@ -3,14 +3,17 @@
 该插件承载“中压市场部知识库”的产品级应用外壳和专用 Quartz 页面。
 
 - `AppNavigation`：唯一的产品主导航；Quartz Explorer 继续作为知识正文二级目录。
-- `KnowledgePageType`：统一分派首页和 `/library`，并在构建期生成知识库虚拟页面。
+- `KnowledgePageType`：统一分派首页、`/library`、`/quality` 与 `/settings`，并在构建期生成后三个虚拟页面。
 - `HomePage`：使用构建期 `allFiles` 输出真实统计和最近更新。
 - `LibraryPage`：提供真实知识对象的类型筛选、当前结果搜索和排序。
+- `QualityPage`：读取同源 `GET /api/quality/latest` 展示最近 Health、Graph、Lint 快照，并用构建期数据补充元数据缺口；页面不会创建维护任务。
+- `SettingsPage`：读取同源 `GET /api/model-profiles/overview`，只读展示 Chat 模型档案以及服务端 FAST、MAIN 模型。
 - `knowledge.ts`：统一知识对象类型、日期、标签和摘要适配，不复制 Markdown 正文。
 
-构建：
+测试与构建：
 
 ```powershell
+npm.cmd test
 npm.cmd run build
 ```
 

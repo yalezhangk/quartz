@@ -4,7 +4,8 @@ import KnowledgePageBody from "./components/KnowledgePage"
 export const KnowledgePageType: QuartzPageTypePlugin = () => ({
   name: "KnowledgePageType",
   priority: 100,
-  match: ({ slug }) => slug === "index" || slug === "library" || slug === "quality" || slug === "settings",
+  match: ({ slug }) =>
+    slug === "index" || slug === "library" || slug === "quality" || slug === "settings",
   generate() {
     const virtualPages: VirtualPage[] = [
       {
@@ -20,7 +21,7 @@ export const KnowledgePageType: QuartzPageTypePlugin = () => ({
         title: "知识质量",
         data: {
           unlisted: true,
-          description: "检查当前构建可确认的知识对象元数据完整性。",
+          description: "查看最近 Health、Graph、Lint 巡检快照和当前构建的元数据缺口。",
         },
       },
       {

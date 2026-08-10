@@ -148,9 +148,8 @@ var chat_inline_default = 'var zs=Object.defineProperty;var Us=(t,e,n)=>e in t?z
 
 // src/components/ChatPage.tsx
 var defaultOptions2 = {
-  // NOTE: 当前后端地址是直接写死到本地开发地址的。
-  // 后续若接入正式 wiki-backend、反向代理或多环境配置，优先把它改成可配置项，
-  // 不要继续依赖这里的硬编码默认值。
+  // 默认使用同源 /api；quartz.config.yaml 可通过 CHAT_PROXY_URL 覆盖 proxyUrl。
+  // 生产构建必须保持 /api，由 DGX Nginx 转发到 wiki-backend。
   proxyUrl: "/api",
   ingestPollIntervalMs: 3e4
 };
@@ -306,7 +305,7 @@ var ChatPage_default = ((userOpts) => {
                           type: "button",
                           class: "chat-attach-button",
                           "aria-label": "\u4E34\u65F6\u4E0A\u4F20\u8D44\u6599",
-                          title: "\u4E34\u65F6\u4E0A\u4F20\u8D44\u6599\uFF1B\u5B8C\u6574\u4EFB\u52A1\u8BF7\u5728\u540E\u7EED\u5165\u5E93\u4E2D\u5FC3\u67E5\u770B",
+                          title: "\u4E34\u65F6\u4E0A\u4F20\u8D44\u6599\uFF1B\u5B8C\u6574\u4EFB\u52A1\u8BF7\u5728\u6587\u6863\u5165\u5E93\u9875\u67E5\u770B",
                           children: /* @__PURE__ */ u2(
                             "svg",
                             {

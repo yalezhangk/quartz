@@ -287,7 +287,7 @@ document.addEventListener("nav", () => {
       runButton.addEventListener("click", () => {
         showActionNote(
           "运行检查需要管理授权",
-          "质量检查必须通过受控运维流程执行。本页面不会发起巡检、写入 Wiki 或创建后台任务。",
+          "当前页面没有管理鉴权；质量检查必须通过受控运维流程执行。本页面不会创建后台任务，也不会发起巡检或写入 Wiki。",
         )
       })
     }
@@ -395,7 +395,7 @@ document.addEventListener("nav", () => {
         if (announce) {
           showActionNote(
             "巡检报告读取失败",
-            "未能从 Agent 获取最近质量快照。页面已保留构建期静态 metadata 检查，请稍后重试或检查 wiki-backend 与同源 /api 代理。",
+      "未能从 /api/quality/latest 读取最近质量快照。页面已保留构建期静态 metadata 检查，请稍后重试或检查 wiki-backend 与同源 /api 代理。",
           )
         }
       })

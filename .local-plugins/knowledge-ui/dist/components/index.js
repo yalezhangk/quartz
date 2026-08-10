@@ -266,12 +266,12 @@ document.addEventListener("nav", () => {
     fetch("/api/health", { headers: { Accept: "application/json" } })
       .then((response) => {
         if (!response.ok) throw new Error(String(response.status))
-        healthCard.textContent = "\u7CFB\u7EDF\u8FD0\u884C\u6B63\u5E38"
+        healthCard.textContent = "\u540E\u7AEF\u8FDB\u7A0B\u53EF\u8FBE"
         healthCard.classList.add("is-healthy")
-        if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "\u540E\u7AEF\u5065\u5EB7\u68C0\u67E5\u5DF2\u901A\u8FC7"
+        if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "/api/health \u5DF2\u54CD\u5E94\uFF1BMySQL\u3001\u6A21\u578B\u548C\u53D1\u5E03\u9700\u5206\u522B\u9A8C\u8BC1"
       })
       .catch(() => {
-        healthCard.textContent = "\u9700\u8981\u68C0\u67E5\u7CFB\u7EDF"
+        healthCard.textContent = "\u540E\u7AEF\u8FDB\u7A0B\u4E0D\u53EF\u8FBE"
         healthCard.classList.add("is-unavailable")
         if (healthCardDetail instanceof HTMLElement) healthCardDetail.textContent = "\u65E0\u6CD5\u8FDE\u63A5 /api/health"
       })
@@ -379,12 +379,12 @@ var AppNavigation_default = (() => {
           }) })
         ] }),
         /* @__PURE__ */ u2("div", { class: "app-index-status", "aria-live": "polite", children: [
-          /* @__PURE__ */ u2("span", { class: "app-index-status-title", "data-platform-health-card": true, children: "\u7CFB\u7EDF\u68C0\u67E5\u4E2D" }),
+          /* @__PURE__ */ u2("span", { class: "app-index-status-title", "data-platform-health-card": true, children: "\u540E\u7AEF\u8FDB\u7A0B\u68C0\u67E5\u4E2D" }),
           /* @__PURE__ */ u2("strong", { children: [
             objectCount.toLocaleString("zh-CN"),
             " \u4E2A\u77E5\u8BC6\u5BF9\u8C61"
           ] }),
-          /* @__PURE__ */ u2("small", { "data-platform-health-detail": true, children: "\u6B63\u5728\u8FDE\u63A5\u540E\u7AEF\u5065\u5EB7\u68C0\u67E5" })
+          /* @__PURE__ */ u2("small", { "data-platform-health-detail": true, children: "\u6B63\u5728\u8BF7\u6C42 /api/health" })
         ] })
       ] })
     ] });
@@ -683,7 +683,7 @@ document.addEventListener("nav", () => {
       runButton.addEventListener("click", () => {
         showActionNote(
           "\u8FD0\u884C\u68C0\u67E5\u9700\u8981\u7BA1\u7406\u6388\u6743",
-          "\u8D28\u91CF\u68C0\u67E5\u5FC5\u987B\u901A\u8FC7\u53D7\u63A7\u8FD0\u7EF4\u6D41\u7A0B\u6267\u884C\u3002\u672C\u9875\u9762\u4E0D\u4F1A\u53D1\u8D77\u5DE1\u68C0\u3001\u5199\u5165 Wiki \u6216\u521B\u5EFA\u540E\u53F0\u4EFB\u52A1\u3002",
+          "\u5F53\u524D\u9875\u9762\u6CA1\u6709\u7BA1\u7406\u9274\u6743\uFF1B\u8D28\u91CF\u68C0\u67E5\u5FC5\u987B\u901A\u8FC7\u53D7\u63A7\u8FD0\u7EF4\u6D41\u7A0B\u6267\u884C\u3002\u672C\u9875\u9762\u4E0D\u4F1A\u521B\u5EFA\u540E\u53F0\u4EFB\u52A1\uFF0C\u4E5F\u4E0D\u4F1A\u53D1\u8D77\u5DE1\u68C0\u6216\u5199\u5165 Wiki\u3002",
         )
       })
     }
@@ -791,7 +791,7 @@ document.addEventListener("nav", () => {
         if (announce) {
           showActionNote(
             "\u5DE1\u68C0\u62A5\u544A\u8BFB\u53D6\u5931\u8D25",
-            "\u672A\u80FD\u4ECE Agent \u83B7\u53D6\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167\u3002\u9875\u9762\u5DF2\u4FDD\u7559\u6784\u5EFA\u671F\u9759\u6001 metadata \u68C0\u67E5\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u6216\u68C0\u67E5 wiki-backend \u4E0E\u540C\u6E90 /api \u4EE3\u7406\u3002",
+      "\u672A\u80FD\u4ECE /api/quality/latest \u8BFB\u53D6\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167\u3002\u9875\u9762\u5DF2\u4FDD\u7559\u6784\u5EFA\u671F\u9759\u6001 metadata \u68C0\u67E5\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u6216\u68C0\u67E5 wiki-backend \u4E0E\u540C\u6E90 /api \u4EE3\u7406\u3002",
           )
         }
       })

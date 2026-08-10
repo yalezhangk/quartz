@@ -8,20 +8,20 @@ import { resolveRelative } from "@quartz-community/utils"
 const settingsSections = [
   {
     title: "Prompt",
-    description: "维护问答、入库和知识综合使用的提示模板与版本记录。",
-    status: "版本化管理",
-    items: ["问答提示模板", "文档入库模板", "综合分析模板"],
+    description: "问答、入库和知识综合提示模板由 wiki-backend 的受控文件提供。",
+    status: "后端文件管理",
+    items: ["问答提示模板", "文档入库模板", "Agent 指令副本"],
   },
   {
     title: "发布",
-    description: "确认知识变更何时重新构建为可访问的静态站点。",
-    status: "需执行构建",
-    items: ["待发布变更", "Quartz 构建", "缓存失效策略"],
+    description: "Ingest 与 Synthesis 变更由 wiki-backend 合并构建，也可在入库页手动触发。",
+    status: "自动合并发布",
+    items: ["待发布变更", "Quartz 发布任务", "ECS 短缓存"],
   },
   {
     title: "用户与审计",
-    description: "查看访问权限、关键操作和配置调整的可追溯记录。",
-    status: "待接入权限服务",
+    description: "当前页面不提供用户、角色或配置变更管理接口。",
+    status: "未提供管理接口",
     items: ["访问角色", "操作审计", "配置变更记录"],
   },
 ]
@@ -135,11 +135,11 @@ export default (() => {
         <section class="settings-runtime-note" aria-labelledby="settings-runtime-note-title">
           <div>
             <p>当前运行方式</p>
-            <h2 id="settings-runtime-note-title">参数由服务端配置，站点由 Quartz 单独发布</h2>
+            <h2 id="settings-runtime-note-title">参数由服务端配置，知识变更由发布队列构建</h2>
           </div>
           <p>
-            模型与 Prompt 由 `wiki-backend` 的受控配置提供；文档入库完成后仍需重新构建
-            Quartz，静态页面和内容索引才会更新。
+            模型与 Prompt 由 `wiki-backend` 的受控配置提供；Ingest 或 Synthesis 成功后会进入 Quartz
+            发布队列，发布成功后静态页面和内容索引才会更新。
           </p>
         </section>
 
@@ -152,7 +152,8 @@ export default (() => {
             <span>由后端受控档案提供</span>
           </header>
           <p>
-            由后端返回知识问答 Chat 当前可选择的模型名称；此页面不允许修改模型服务、凭据、Prompt 或系统默认配置。
+            由后端返回知识问答 Chat 当前可选择的模型名称；此页面不允许修改模型服务、凭据、Prompt
+            或系统默认配置。
           </p>
           <div class="settings-model-profiles-list" data-model-profiles-overview>
             <p class="settings-model-profiles-empty">正在加载知识问答模型…</p>
@@ -203,8 +204,8 @@ export default (() => {
         </div>
 
         <p class="settings-boundary">
-          写入模型参数、Prompt、发布操作或用户权限需要对应的后端 API
-          与授权策略；当前静态站点不会直接执行这些变更。
+          模型参数、Prompt 和用户权限没有前端写接口；发布状态和手动发布入口位于文档入库页，
+          写操作必须由 `wiki-backend` 和入口层授权控制。
         </p>
       </main>
     )

@@ -16,9 +16,8 @@ export interface ChatPageOptions {
 }
 
 const defaultOptions: ChatPageOptions = {
-  // NOTE: 当前后端地址是直接写死到本地开发地址的。
-  // 后续若接入正式 wiki-backend、反向代理或多环境配置，优先把它改成可配置项，
-  // 不要继续依赖这里的硬编码默认值。
+  // 默认使用同源 /api；quartz.config.yaml 可通过 CHAT_PROXY_URL 覆盖 proxyUrl。
+  // 生产构建必须保持 /api，由 DGX Nginx 转发到 wiki-backend。
   proxyUrl: "/api",
   ingestPollIntervalMs: 30_000,
 }
@@ -175,7 +174,7 @@ export default ((userOpts?: Partial<ChatPageOptions>) => {
                   type="button"
                   class="chat-attach-button"
                   aria-label="临时上传资料"
-                  title="临时上传资料；完整任务请在后续入库中心查看"
+                  title="临时上传资料；完整任务请在文档入库页查看"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"

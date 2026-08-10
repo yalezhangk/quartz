@@ -46,11 +46,11 @@ test("metrics count real job states", () => {
   assert.deepEqual(metrics, { queued: 1, running: 1, failed: 1, waitingPublish: 2 })
 })
 
-test("success summary uses page counts", () => {
+test("success summary uses page counts and publication state", () => {
   const summary = getIngestResultSummary(
     createJob({ status: "succeeded", created_pages: ["a.md", "b.md"], updated_pages: ["c.md"] }),
   )
-  assert.equal(summary, "新增 2 页 · 更新 1 页")
+  assert.equal(summary, "新增 2 页 · 更新 1 页 · 等待发布")
 })
 
 test("ingest trigger labels remain compatible with older responses", () => {
