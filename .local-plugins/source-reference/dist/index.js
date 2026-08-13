@@ -22,6 +22,7 @@ function u2(e2, t2, n2, o2, i2, u3) {
 
 // ../knowledge-ui/src/components/SourceReference.tsx
 var MANUAL_SOURCE_PREFIX = "raw/uploads/manual/";
+var RAW_SOURCE_PREFIX = "raw/";
 var NEW_TAB_EXTENSIONS = /* @__PURE__ */ new Set([
   "pdf",
   "png",
@@ -38,21 +39,24 @@ function getFileExtension(filename) {
   const extension = filename.split(".").pop()?.trim().toLowerCase();
   return extension && extension !== filename.toLowerCase() ? extension : null;
 }
-function getManualSourceReference(sourceFile) {
-  if (!sourceFile.startsWith(MANUAL_SOURCE_PREFIX)) return null;
+function getSourceFileReference(sourceFile) {
+  if (!sourceFile.startsWith(RAW_SOURCE_PREFIX)) return null;
   if (sourceFile.includes("\\")) return null;
-  const relativePath = sourceFile.slice(MANUAL_SOURCE_PREFIX.length);
+  const isManual = sourceFile.startsWith(MANUAL_SOURCE_PREFIX);
+  const relativePath = sourceFile.slice(isManual ? MANUAL_SOURCE_PREFIX.length : RAW_SOURCE_PREFIX.length);
   const segments = relativePath.split("/");
   if (!relativePath || segments.some((segment) => !segment || segment === "." || segment === "..")) return null;
   const filename = segments.at(-1);
   const extension = getFileExtension(filename);
   const normalizedExtension = extension?.toUpperCase() ?? "\u6587\u4EF6";
   const opensInNewTab = extension ? NEW_TAB_EXTENSIONS.has(extension) : false;
+  const sourceKind = isManual ? "manual" : "legacy";
+  const originLabel = isManual ? "\u4EBA\u5DE5\u4E0A\u4F20" : "\u5386\u53F2\u5165\u5E93";
   return {
-    href: `/source-files/manual/${segments.map(encodeURIComponent).join("/")}`,
+    href: `/source-files/${sourceKind}/${segments.map(encodeURIComponent).join("/")}`,
     label: opensInNewTab ? "\u67E5\u770B\u539F\u6587" : "\u4E0B\u8F7D\u539F\u6587\u4EF6",
-    detail: `${filename} \xB7 ${normalizedExtension} \xB7 \u4EBA\u5DE5\u4E0A\u4F20`,
-    marker: `[${normalizedExtension}] ${filename}`,
+    detail: `${filename} \xB7 ${normalizedExtension} \xB7 ${originLabel}`,
+    marker: `[${normalizedExtension}] ${filename} \xB7 ${originLabel}`,
     searchText: filename,
     ...opensInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : { download: true }
   };
@@ -76,7 +80,7 @@ function getExternalSourceReference(sourceUrl) {
 }
 function getSourceReference(object) {
   if (object.sourceFile && object.sourceUrl) return null;
-  if (object.sourceFile) return getManualSourceReference(object.sourceFile);
+  if (object.sourceFile) return getSourceFileReference(object.sourceFile);
   if (object.sourceUrl) return getExternalSourceReference(object.sourceUrl);
   return null;
 }

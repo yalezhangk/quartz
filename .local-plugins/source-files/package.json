@@ -33,7 +33,7 @@
   "quartz": {
     "name": "source-files",
     "displayName": "Source Files",
-    "description": "Publishes only manual source files referenced by published Source pages.",
+    "description": "Publishes manual and historical source files explicitly referenced by published Source pages.",
     "category": "emitter",
     "version": "1.0.0",
     "quartzVersion": ">=5.0.0",

@@ -66,10 +66,11 @@ test("last_updated is preferred and top tags are based on real object frequency"
 })
 
 test("Source metadata distinguishes manual files, scheduled URLs, and legacy Sources", () => {
-  const [manual, scheduled, legacy, ambiguous] = getKnowledgeObjects([
+  const [manual, scheduled, legacy, mveLegacy, ambiguous, invalid] = getKnowledgeObjects([
     { slug: "sources/manual", frontmatter: { type: "source", source_file: "raw/uploads/manual/report.pdf" } },
     { slug: "sources/scheduled", frontmatter: { type: "source", source_url: "https://mp.weixin.qq.com/s/example" } },
     { slug: "sources/legacy", frontmatter: { type: "source", source_file: "raw/uploads/report.pdf" } },
+    { slug: "sources/mve-legacy", frontmatter: { type: "source", source_file: "raw/MVE/legacy-report.pdf" } },
     {
       slug: "sources/ambiguous",
       frontmatter: {
@@ -78,6 +79,7 @@ test("Source metadata distinguishes manual files, scheduled URLs, and legacy Sou
         source_url: "https://example.com/report",
       },
     },
+    { slug: "sources/invalid", frontmatter: { type: "source", source_file: "raw/../private.pdf" } },
   ])
 
   assert.deepEqual(
@@ -88,12 +90,14 @@ test("Source metadata distinguishes manual files, scheduled URLs, and legacy Sou
   assert.equal(scheduled.sourceUrl, "https://mp.weixin.qq.com/s/example")
   assert.deepEqual(
     { sourceFile: legacy.sourceFile, sourceUrl: legacy.sourceUrl },
-    { sourceFile: null, sourceUrl: null },
+    { sourceFile: "raw/uploads/report.pdf", sourceUrl: null },
   )
+  assert.equal(mveLegacy.sourceFile, "raw/MVE/legacy-report.pdf")
   assert.deepEqual(
     { sourceFile: ambiguous.sourceFile, sourceUrl: ambiguous.sourceUrl },
     { sourceFile: null, sourceUrl: null },
   )
+  assert.equal(invalid.sourceFile, null)
 })
 
 test("Source references generate safe actions and searchable labels", () => {
@@ -106,9 +110,24 @@ test("Source references generate safe actions and searchable labels", () => {
     href: "/source-files/manual/equipment.docx",
     label: "下载原文件",
     detail: "equipment.docx · DOCX · 人工上传",
-    marker: "[DOCX] equipment.docx",
+    marker: "[DOCX] equipment.docx · 人工上传",
     searchText: "equipment.docx",
     download: true,
+  })
+
+  const legacy = getSourceReference({
+    type: "source",
+    sourceFile: "raw/MVE/legacy report.pdf",
+    sourceUrl: null,
+  })
+  assert.deepEqual(legacy, {
+    href: "/source-files/legacy/MVE/legacy%20report.pdf",
+    label: "查看原文",
+    detail: "legacy report.pdf · PDF · 历史入库",
+    marker: "[PDF] legacy report.pdf · 历史入库",
+    searchText: "legacy report.pdf",
+    target: "_blank",
+    rel: "noopener noreferrer",
   })
 
   const scheduled = getSourceReference({
@@ -131,6 +150,18 @@ test("Source references generate safe actions and searchable labels", () => {
   )
   assert.equal(
     getSourceReference({ type: "source", sourceFile: "raw/uploads/manual/..\\report.pdf", sourceUrl: null }),
+    null,
+  )
+  assert.equal(
+    getSourceReference({ type: "source", sourceFile: "raw/../legacy-report.pdf", sourceUrl: null }),
+    null,
+  )
+  assert.equal(
+    getSourceReference({ type: "source", sourceFile: "private/report.pdf", sourceUrl: null }),
+    null,
+  )
+  assert.equal(
+    getSourceReference({ type: "source", sourceFile: "raw/MVE/report.pdf", sourceUrl: "https://example.com/report" }),
     null,
   )
 })

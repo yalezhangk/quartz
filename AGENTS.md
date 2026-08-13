@@ -31,7 +31,7 @@ ECS Nginx -> ECS 127.0.0.1:18080 -> FRP -> DGX Nginx :8080
 9. `public/graph` 是由 Wiki 中的 `graph.html` 发射出的无扩展名 HTML；生产 Nginx 必须为 `/graph` 返回 `text/html`，不能让浏览器下载文件。
 10. Ingest 与 Synthesis 成功后由 `wiki-backend` 加入 Quartz 发布批次；`succeeded` 不等于 `published`，以前端 `publication` 或 `/api/publish/status` 为准。
 11. `/api/publish/` 与 `/api/maintenance/` 会启动构建、写入运行产物或调用 LLM，DGX 和 ECS 入口必须使用 HTTPS、认证、限流，并保持不缓存。
-12. `source-files` emitter 只复制已发布 `sources/*.md` 中 `raw/uploads/manual/` 引用的原文件；生产和快照构建必须显式设置 `WIKI_SOURCE_ROOT`，不得把整个 `raw/` 加入 `-d` 输入。
+12. `source-files` emitter 只复制已发布 `sources/*.md` 显式引用的安全 `raw/` 原文件：`raw/uploads/manual/` 输出到 `manual/`，其他历史路径输出到 `legacy/`；生产和快照构建必须显式设置 `WIKI_SOURCE_ROOT`，不得把整个 `raw/` 加入 `-d` 输入。
 
 ## 目录职责
 
@@ -41,7 +41,7 @@ ECS Nginx -> ECS 127.0.0.1:18080 -> FRP -> DGX Nginx :8080
 - `.local-plugins/chats/src/`：Chats/Ingest 插件源码，包括模型选择、Synthesis 和发布状态/手动触发界面。
 - `.local-plugins/chats/dist/`：Chats/Ingest 插件运行入口和类型声明；与源码一起由 Git 追踪，源码变化后必须同步更新。
 - `.local-plugins/source-reference/`：单组件布局适配层；将 `knowledge-ui` 中的 SourceReference 挂载到 Source 知识正文，运行入口与源码一起由 Git 追踪。
-- `.local-plugins/source-files/src/`、`.local-plugins/source-files/dist/`：选择性发布 manual 原文件的 emitter 及其运行入口；与源码一起由 Git 追踪，源码变化后必须同步更新。
+- `.local-plugins/source-files/src/`、`.local-plugins/source-files/dist/`：选择性发布已发布 Source 页面显式引用的 manual 与历史原文件的 emitter 及其运行入口；与源码一起由 Git 追踪，源码变化后必须同步更新。
 - `.local-plugins/footer/src/`、`.local-plugins/footer/dist/`：站点页脚源码与实际包入口；源码变化后必须同步更新。
 - `scripts/serve-with-api.mjs`：仅 Windows 本地验证使用的回环静态服务器和同源 `/api` 代理，不参与 DGX 生产服务。
 - `quartz.lock.json`：社区插件来源和版本状态。
@@ -110,7 +110,7 @@ test -f public/quality.html
 test -f public/settings.html
 test -f public/graph
 test -f public/static/contentIndex.json
-# 对每个被引用的 manual Source，验证相应的 public/source-files/manual/<file> 存在。
+# 对每个被引用的 manual 或历史 Source，验证相应的 public/source-files/manual/<file> 或 public/source-files/legacy/<file> 存在。
 grep -R '/quartz/' public/index.html public/chats.html public/ingest.html && exit 1 || true
 grep -n 'data-proxy-url="/api"' public/chats.html
 grep -n 'data-proxy-url="/api"' public/ingest.html

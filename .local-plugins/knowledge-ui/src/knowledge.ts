@@ -120,10 +120,13 @@ function getTags(file: KnowledgeFileData): string[] {
   return tags.filter((tag): tag is string => typeof tag === "string" && tag.trim().length > 0)
 }
 
-function getManualSourceFile(value: unknown): string | null {
+function getRawSourceFile(value: unknown): string | null {
   if (typeof value !== "string") return null
   const sourceFile = value.trim()
-  return sourceFile.startsWith("raw/uploads/manual/") && sourceFile.length > "raw/uploads/manual/".length
+  if (!sourceFile.startsWith("raw/") || sourceFile.includes("\\")) return null
+
+  const segments = sourceFile.split("/")
+  return segments.length >= 2 && !segments.some((segment) => !segment || segment === "." || segment === "..")
     ? sourceFile
     : null
 }
@@ -152,7 +155,7 @@ function getSourceOrigin(
   if (hasBothOrigins) return { sourceFile: null, sourceUrl: null }
 
   return {
-    sourceFile: getManualSourceFile(rawSourceFile),
+    sourceFile: getRawSourceFile(rawSourceFile),
     sourceUrl: getExternalSourceUrl(rawSourceUrl),
   }
 }
