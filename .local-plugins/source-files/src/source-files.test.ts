@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { access, mkdtemp, mkdir, readFile, symlink, writeFile } from "node:fs/promises"
+import { access, chmod, mkdtemp, mkdir, readFile, stat, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import test from "node:test"
@@ -57,6 +57,7 @@ test("only collects raw files from published Source pages", () => {
 
 test("copies referenced manual and legacy files to separate namespaces", async () => {
   const fixture = await createFixture()
+  await chmod(path.join(fixture.root, "raw", "uploads", "old.md"), 0o600)
   const emitted = await copyPublishedSourceFiles({
     outputDirectory: fixture.outputDirectory,
     sourceRoot: fixture.root,
@@ -84,6 +85,12 @@ test("copies referenced manual and legacy files to separate namespaces", async (
     await readFile(path.join(fixture.outputDirectory, "source-files", "legacy", "uploads", "old.md"), "utf8"),
     "old",
   )
+  if (process.platform !== "win32") {
+    const outputMode = (await stat(
+      path.join(fixture.outputDirectory, "source-files", "legacy", "uploads", "old.md"),
+    )).mode & 0o777
+    assert.equal(outputMode, 0o644)
+  }
   await assert.rejects(access(path.join(fixture.outputDirectory, "source-files", "legacy", "MVE", "unreferenced.pdf")))
 })
 

@@ -1,4 +1,4 @@
-import { realpath, lstat, mkdir, cp } from 'fs/promises';
+import { realpath, lstat, mkdir, cp, chmod } from 'fs/promises';
 import path from 'path';
 
 // src/source-files.ts
@@ -75,6 +75,7 @@ async function copyPublishedSourceFiles({
     );
     await mkdir(path.dirname(destination), { recursive: true });
     await cp(realSourcePath, destination, { force: true });
+    await chmod(destination, 420);
     copiedSourcePaths.add(realSourcePath);
     emitted.push(destination);
   }

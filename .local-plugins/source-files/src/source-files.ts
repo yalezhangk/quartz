@@ -1,4 +1,4 @@
-import { cp, lstat, mkdir, realpath } from "node:fs/promises"
+import { chmod, cp, lstat, mkdir, realpath } from "node:fs/promises"
 import path from "node:path"
 
 type FilePath = string
@@ -128,6 +128,7 @@ export async function copyPublishedSourceFiles({
     )
     await mkdir(path.dirname(destination), { recursive: true })
     await cp(realSourcePath, destination, { force: true })
+    await chmod(destination, 0o644)
     copiedSourcePaths.add(realSourcePath)
     emitted.push(destination as FilePath)
   }
