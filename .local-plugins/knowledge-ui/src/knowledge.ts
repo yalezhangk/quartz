@@ -22,6 +22,8 @@ export interface KnowledgeObject {
   hasDescription: boolean
   tags: string[]
   updatedAt: Date | null
+  sourceFile: string | null
+  sourceUrl: string | null
 }
 
 export interface KnowledgeQualitySummary {
@@ -118,6 +120,43 @@ function getTags(file: KnowledgeFileData): string[] {
   return tags.filter((tag): tag is string => typeof tag === "string" && tag.trim().length > 0)
 }
 
+function getManualSourceFile(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const sourceFile = value.trim()
+  return sourceFile.startsWith("raw/uploads/manual/") && sourceFile.length > "raw/uploads/manual/".length
+    ? sourceFile
+    : null
+}
+
+function getExternalSourceUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null
+  try {
+    const url = new URL(value.trim())
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null
+  } catch {
+    return null
+  }
+}
+
+function getSourceOrigin(
+  file: KnowledgeFileData,
+  type: KnowledgeObjectType,
+): Pick<KnowledgeObject, "sourceFile" | "sourceUrl"> {
+  if (type !== "source") return { sourceFile: null, sourceUrl: null }
+
+  const rawSourceFile = file.frontmatter?.source_file
+  const rawSourceUrl = file.frontmatter?.source_url
+  const hasBothOrigins =
+    typeof rawSourceFile === "string" && rawSourceFile.trim() &&
+    typeof rawSourceUrl === "string" && rawSourceUrl.trim()
+  if (hasBothOrigins) return { sourceFile: null, sourceUrl: null }
+
+  return {
+    sourceFile: getManualSourceFile(rawSourceFile),
+    sourceUrl: getExternalSourceUrl(rawSourceUrl),
+  }
+}
+
 export function getKnowledgeObjects(files: KnowledgeFileData[]): KnowledgeObject[] {
   const objects: KnowledgeObject[] = []
 
@@ -137,6 +176,7 @@ export function getKnowledgeObjects(files: KnowledgeFileData[]): KnowledgeObject
       hasDescription: hasDescription(file),
       tags: getTags(file),
       updatedAt: getKnowledgeUpdatedAt(file),
+      ...getSourceOrigin(file, type),
     })
   }
 

@@ -31,6 +31,7 @@ ECS Nginx -> ECS 127.0.0.1:18080 -> FRP -> DGX Nginx :8080
 9. `public/graph` 是由 Wiki 中的 `graph.html` 发射出的无扩展名 HTML；生产 Nginx 必须为 `/graph` 返回 `text/html`，不能让浏览器下载文件。
 10. Ingest 与 Synthesis 成功后由 `wiki-backend` 加入 Quartz 发布批次；`succeeded` 不等于 `published`，以前端 `publication` 或 `/api/publish/status` 为准。
 11. `/api/publish/` 与 `/api/maintenance/` 会启动构建、写入运行产物或调用 LLM，DGX 和 ECS 入口必须使用 HTTPS、认证、限流，并保持不缓存。
+12. `source-files` emitter 只复制已发布 `sources/*.md` 中 `raw/uploads/manual/` 引用的原文件；生产和快照构建必须显式设置 `WIKI_SOURCE_ROOT`，不得把整个 `raw/` 加入 `-d` 输入。
 
 ## 目录职责
 
@@ -39,6 +40,8 @@ ECS Nginx -> ECS 127.0.0.1:18080 -> FRP -> DGX Nginx :8080
 - `.local-plugins/knowledge-ui/dist/`：Knowledge UI 插件运行入口和类型声明；与源码一起由 Git 追踪，源码变化后必须同步更新。
 - `.local-plugins/chats/src/`：Chats/Ingest 插件源码，包括模型选择、Synthesis 和发布状态/手动触发界面。
 - `.local-plugins/chats/dist/`：Chats/Ingest 插件运行入口和类型声明；与源码一起由 Git 追踪，源码变化后必须同步更新。
+- `.local-plugins/source-reference/`：单组件布局适配层；将 `knowledge-ui` 中的 SourceReference 挂载到 Source 知识正文，运行入口与源码一起由 Git 追踪。
+- `.local-plugins/source-files/src/`、`.local-plugins/source-files/dist/`：选择性发布 manual 原文件的 emitter 及其运行入口；与源码一起由 Git 追踪，源码变化后必须同步更新。
 - `.local-plugins/footer/src/`、`.local-plugins/footer/dist/`：站点页脚源码与实际包入口；源码变化后必须同步更新。
 - `scripts/serve-with-api.mjs`：仅 Windows 本地验证使用的回环静态服务器和同源 `/api` 代理，不参与 DGX 生产服务。
 - `quartz.lock.json`：社区插件来源和版本状态。
@@ -50,6 +53,7 @@ ECS Nginx -> ECS 127.0.0.1:18080 -> FRP -> DGX Nginx :8080
 
 - 只修改任务直接涉及的文件，不顺手重构 Quartz 上游代码。
 - 优先在 `.local-plugins/knowledge-ui` 或 `.local-plugins/chats` 内完成本项目定制，避免无必要修改 Quartz 核心。
+- Source 原文件发布只能由 `.local-plugins/source-files` 处理；不得修改 Quartz 核心 Assets emitter，且不得因为链接展示而暴露未被引用的 `raw/` 文件。
 - `dist/` 是本地插件的实际包入口，不是可忽略的临时目录：提交源码改动时必须一并提交对应的 `dist/`、`package.json` 与 lockfile；绝不提交 `node_modules/`、`.publish/` 或 `public/`。
 - 不把真实 FRP token、密码、ECS 公网 IP、域名或服务器私有配置提交到仓库。
 - 不在文档或默认配置中新增 Windows 绝对路径。
@@ -64,6 +68,7 @@ Node 和 npm 版本必须满足 `package.json`：Node.js `>=22`、npm `>=10.9.2`
 
 ```bash
 cd /home/dgx/Projects/knowledge_base_mkt/quartz
+WIKI_SOURCE_ROOT=/home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent \
 CHAT_PROXY_URL=/api npx quartz build \
   -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
 ```
@@ -77,10 +82,17 @@ npm run build
 cd ../chats
 npm run build
 
+cd ../source-files
+npm run build
+
+cd ../source-reference
+npm run build
+
 cd ../footer
 npm run build
 
 cd ../..
+WIKI_SOURCE_ROOT=/home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent \
 CHAT_PROXY_URL=/api npx quartz build \
   -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
 ```
@@ -98,6 +110,7 @@ test -f public/quality.html
 test -f public/settings.html
 test -f public/graph
 test -f public/static/contentIndex.json
+# 对每个被引用的 manual Source，验证相应的 public/source-files/manual/<file> 存在。
 grep -R '/quartz/' public/index.html public/chats.html public/ingest.html && exit 1 || true
 grep -n 'data-proxy-url="/api"' public/chats.html
 grep -n 'data-proxy-url="/api"' public/ingest.html
@@ -130,6 +143,7 @@ curl --fail --silent --show-error http://127.0.0.1:8080/api/health
 - DGX Nginx 从本地磁盘提供 `public/`，无需再配置代理缓存。
 - ECS Nginx 可以缓存 Quartz 静态响应以降低 FRP 往返延迟。
 - `/api/` 在 ECS 和 DGX 都不得缓存；流式响应需要关闭代理缓冲。
+- `/source-files/` 是静态路径，不走 `/api`；PDF 需要支持 Range，HTML 与 Office 文件默认 attachment，并设置 `X-Content-Type-Options: nosniff`。ECS 可以缓存这些静态文件，但不得改变 `/api` 的 BYPASS 规则。
 - `/api/publish/` 和 `/api/maintenance/` 必须在 DGX、ECS 两层配置 HTTPS、认证和限流；凭据不提交仓库。
 - `static/contentIndex.json` 应使用短 TTL，其他带可靠内容哈希的资源才适合较长缓存。
 - 不修改或覆盖 ECS 现有 `/research_report_library/` 等独立路由。
@@ -153,7 +167,7 @@ Chats 失败：
 
 UI 没有反映插件源码变化：
 
-1. 确认变更属于 `knowledge-ui` 还是 `chats`，构建对应 `dist/`。
+1. 确认变更属于 `knowledge-ui`、`chats`、`source-reference` 或 `source-files`，构建对应 `dist/`。
 2. 重建 `public/`。
 3. 检查实际服务的产物和缓存。
 
@@ -168,7 +182,7 @@ Graph 下载而不是渲染：
 Quartz 变更只有在以下条件满足后才算完成：
 
 - 变更范围与任务一致，未覆盖用户已有修改。
-- 必要的 `knowledge-ui`、`chats` 插件构建和 Quartz 构建已完成，且相应 `dist/` 已同步。
+- 必要的 `knowledge-ui`、`chats`、`source-reference`、`source-files` 插件构建和 Quartz 构建已完成，且相应 `dist/` 已同步。
 - `public/` 不含错误的 `/quartz/` 资源前缀。
 - Chats 使用同源 `/api`。
 - DGX 根页面、知识库、Chats、Ingest、质量页、Graph、内容索引和 `/api/health` 按任务风险验证通过。

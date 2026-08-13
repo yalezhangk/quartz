@@ -77,19 +77,6 @@ document.addEventListener("nav", () => {
     })
   }
 
-  const copyTrigger = topbar.querySelector("[data-copy-page-link]")
-  if (copyTrigger instanceof HTMLButtonElement) {
-    copyTrigger.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(window.location.href)
-        copyTrigger.textContent = "链接已复制"
-      } catch {
-        copyTrigger.textContent = "复制失败"
-      }
-      window.setTimeout(() => { copyTrigger.textContent = "复制链接" }, 1600)
-    })
-  }
-
   const healthCard = document.querySelector("[data-platform-health-card]")
   const healthCardDetail = document.querySelector("[data-platform-health-detail]")
   if (healthCard instanceof HTMLElement) {
@@ -156,8 +143,6 @@ export default (() => {
         ? props.fileData.frontmatter.title
         : areaLabel)
     const homeHref = resolveRelative(currentSlug as FullSlug, "index" as FullSlug)
-    const chatsHref = resolveRelative(currentSlug as FullSlug, "chats" as FullSlug)
-    const graphHref = resolveRelative(currentSlug as FullSlug, "graph" as FullSlug)
     const objectCount = objects.length
 
     return (
@@ -171,15 +156,6 @@ export default (() => {
             {pageTitle !== areaLabel && <span aria-hidden="true">/</span>}
             {pageTitle !== areaLabel && <span title={pageTitle}>{pageTitle}</span>}
           </div>
-          {currentObject && (
-            <div class="app-page-actions" aria-label="当前知识页面操作">
-              <a href={chatsHref}>知识问答</a>
-              <button type="button" data-copy-page-link>
-                复制链接
-              </button>
-              <a href={graphHref}>查看图谱</a>
-            </div>
-          )}
           <button type="button" class="app-topbar-search" data-app-search>
             <span>全局搜索</span>
             <kbd>Ctrl K</kbd>

@@ -1,74 +1,7 @@
-// ../../node_modules/github-slugger/index.js
-var l;
-l = { __e: function(n2, l2, u3, t2) {
-  for (var i2, r2, o2; l2 = l2.__; ) if ((i2 = l2.__c) && !i2.__) try {
-    if ((r2 = i2.constructor) && null != r2.getDerivedStateFromError && (i2.setState(r2.getDerivedStateFromError(n2)), o2 = i2.__d), null != i2.componentDidCatch && (i2.componentDidCatch(n2, t2 || {}), o2 = i2.__d), o2) return i2.__E = i2;
-  } catch (l3) {
-    n2 = l3;
-  }
-  throw n2;
-} }, "function" == typeof Promise ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout, Math.random().toString(8);
+import { resolveRelative } from '@quartz-community/utils';
+import { jsxs, jsx } from 'preact/jsx-runtime';
 
-// node_modules/preact/jsx-runtime/dist/jsxRuntime.mjs
-var f2 = 0;
-function u2(e2, t2, n2, o2, i2, u3) {
-  t2 || (t2 = {});
-  var a2, c2, p2 = t2;
-  if ("ref" in p2) for (c2 in p2 = {}, t2) "ref" == c2 ? a2 = t2[c2] : p2[c2] = t2[c2];
-  var l2 = { type: e2, props: p2, key: n2, ref: a2, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: void 0, __v: --f2, __i: -1, __u: 0, __source: i2, __self: u3 };
-  if ("function" == typeof e2 && (a2 = e2.defaultProps)) for (c2 in a2) void 0 === p2[c2] && (p2[c2] = a2[c2]);
-  return l.vnode && l.vnode(l2), l2;
-}
-
-// node_modules/@quartz-community/utils/dist/index.js
-function simplifySlug(fp) {
-  const res = stripSlashes(trimSuffix(fp, "index"), true);
-  return res.length === 0 ? "/" : res;
-}
-function joinSegments(...args) {
-  if (args.length === 0) {
-    return "";
-  }
-  let joined = args.filter((segment) => segment !== "" && segment !== "/").map((segment) => stripSlashes(segment)).join("/");
-  const first = args[0];
-  const last = args[args.length - 1];
-  if (first?.startsWith("/")) {
-    joined = "/" + joined;
-  }
-  if (last?.endsWith("/")) {
-    joined = joined + "/";
-  }
-  return joined;
-}
-function endsWith(s2, suffix) {
-  return s2 === suffix || s2.endsWith("/" + suffix);
-}
-function trimSuffix(s2, suffix) {
-  if (endsWith(s2, suffix)) {
-    s2 = s2.slice(0, -suffix.length);
-  }
-  return s2;
-}
-function stripSlashes(s2, onlyStripPrefix) {
-  if (s2.startsWith("/")) {
-    s2 = s2.substring(1);
-  }
-  if (!onlyStripPrefix && s2.endsWith("/")) {
-    s2 = s2.slice(0, -1);
-  }
-  return s2;
-}
-function pathToRoot(slug2) {
-  let rootPath = slug2.split("/").filter((x2) => x2 !== "").slice(0, -1).map((_2) => "..").join("/");
-  if (rootPath.length === 0) {
-    rootPath = ".";
-  }
-  return rootPath;
-}
-function resolveRelative(current, target) {
-  const res = joinSegments(pathToRoot(current), simplifySlug(target));
-  return res;
-}
+// src/components/AppNavigation.tsx
 
 // src/knowledge.ts
 var TYPE_CODES = {
@@ -113,10 +46,10 @@ function parseDate(value) {
 function getKnowledgeUpdatedAt(file) {
   return parseDate(file.frontmatter?.last_updated) ?? parseDate(file.frontmatter?.modified) ?? parseDate(file.dates?.modified);
 }
-function getTitle(file, slug2) {
+function getTitle(file, slug) {
   const title = file.frontmatter?.title;
   if (typeof title === "string" && title.trim()) return title.trim();
-  return slug2.split("/").pop() ?? slug2;
+  return slug.split("/").pop() ?? slug;
 }
 function getDescription(file) {
   const candidates = [file.description, file.frontmatter?.description];
@@ -135,6 +68,31 @@ function getTags(file) {
   if (!Array.isArray(tags)) return [];
   return tags.filter((tag) => typeof tag === "string" && tag.trim().length > 0);
 }
+function getManualSourceFile(value) {
+  if (typeof value !== "string") return null;
+  const sourceFile = value.trim();
+  return sourceFile.startsWith("raw/uploads/manual/") && sourceFile.length > "raw/uploads/manual/".length ? sourceFile : null;
+}
+function getExternalSourceUrl(value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+function getSourceOrigin(file, type) {
+  if (type !== "source") return { sourceFile: null, sourceUrl: null };
+  const rawSourceFile = file.frontmatter?.source_file;
+  const rawSourceUrl = file.frontmatter?.source_url;
+  const hasBothOrigins = typeof rawSourceFile === "string" && rawSourceFile.trim() && typeof rawSourceUrl === "string" && rawSourceUrl.trim();
+  if (hasBothOrigins) return { sourceFile: null, sourceUrl: null };
+  return {
+    sourceFile: getManualSourceFile(rawSourceFile),
+    sourceUrl: getExternalSourceUrl(rawSourceUrl)
+  };
+}
 function getKnowledgeObjects(files) {
   const objects = [];
   for (const file of files) {
@@ -150,7 +108,8 @@ function getKnowledgeObjects(files) {
       description: getDescription(file),
       hasDescription: hasDescription(file),
       tags: getTags(file),
-      updatedAt: getKnowledgeUpdatedAt(file)
+      updatedAt: getKnowledgeUpdatedAt(file),
+      ...getSourceOrigin(file, type)
     });
   }
   return objects;
@@ -167,16 +126,14 @@ function getKnowledgeQualitySummary(objects) {
     affectedObjects
   };
 }
-
-// src/components/AppNavigation.tsx
-function getAreaLabel(slug2) {
-  if (slug2 === "index") return "\u9996\u9875";
-  if (slug2 === "library") return "\u77E5\u8BC6\u5E93";
-  if (slug2 === "chats" || slug2.startsWith("chats/")) return "\u77E5\u8BC6\u95EE\u7B54";
-  if (slug2 === "ingest") return "\u6587\u6863\u5165\u5E93";
-  if (slug2 === "quality") return "\u77E5\u8BC6\u8D28\u91CF";
-  if (slug2 === "settings") return "\u7CFB\u7EDF\u8BBE\u7F6E";
-  if (slug2 === "graph" || slug2.startsWith("graph/")) return "\u77E5\u8BC6\u56FE\u8C31";
+function getAreaLabel(slug) {
+  if (slug === "index") return "\u9996\u9875";
+  if (slug === "library") return "\u77E5\u8BC6\u5E93";
+  if (slug === "chats" || slug.startsWith("chats/")) return "\u77E5\u8BC6\u95EE\u7B54";
+  if (slug === "ingest") return "\u6587\u6863\u5165\u5E93";
+  if (slug === "quality") return "\u77E5\u8BC6\u8D28\u91CF";
+  if (slug === "settings") return "\u7CFB\u7EDF\u8BBE\u7F6E";
+  if (slug === "graph" || slug.startsWith("graph/")) return "\u77E5\u8BC6\u56FE\u8C31";
   return "\u77E5\u8BC6\u6B63\u6587";
 }
 function NavigationIcon({ name }) {
@@ -192,42 +149,42 @@ function NavigationIcon({ name }) {
     "aria-hidden": true
   };
   if (name === "home") {
-    return /* @__PURE__ */ u2("svg", { ...common, children: [
-      /* @__PURE__ */ u2("path", { d: "m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" }),
-      /* @__PURE__ */ u2("path", { d: "M9 21v-7h6v7" })
+    return /* @__PURE__ */ jsxs("svg", { ...common, children: [
+      /* @__PURE__ */ jsx("path", { d: "m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" }),
+      /* @__PURE__ */ jsx("path", { d: "M9 21v-7h6v7" })
     ] });
   }
   if (name === "library") {
-    return /* @__PURE__ */ u2("svg", { ...common, children: [
-      /* @__PURE__ */ u2("path", { d: "M5 4h14v16H5z" }),
-      /* @__PURE__ */ u2("path", { d: "M8 8h8M8 12h8M8 16h5" })
+    return /* @__PURE__ */ jsxs("svg", { ...common, children: [
+      /* @__PURE__ */ jsx("path", { d: "M5 4h14v16H5z" }),
+      /* @__PURE__ */ jsx("path", { d: "M8 8h8M8 12h8M8 16h5" })
     ] });
   }
   if (name === "chat") {
-    return /* @__PURE__ */ u2("span", { class: "app-question-mark", children: "?" });
+    return /* @__PURE__ */ jsx("span", { class: "app-question-mark", children: "?" });
   }
   if (name === "ingest") {
-    return /* @__PURE__ */ u2("svg", { ...common, children: [
-      /* @__PURE__ */ u2("path", { d: "M12 3v12" }),
-      /* @__PURE__ */ u2("path", { d: "m8 7 4-4 4 4" }),
-      /* @__PURE__ */ u2("path", { d: "M5 13v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7" })
+    return /* @__PURE__ */ jsxs("svg", { ...common, children: [
+      /* @__PURE__ */ jsx("path", { d: "M12 3v12" }),
+      /* @__PURE__ */ jsx("path", { d: "m8 7 4-4 4 4" }),
+      /* @__PURE__ */ jsx("path", { d: "M5 13v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7" })
     ] });
   }
   if (name === "graph") {
-    return /* @__PURE__ */ u2("svg", { ...common, children: [
-      /* @__PURE__ */ u2("circle", { cx: "6", cy: "6", r: "2.5" }),
-      /* @__PURE__ */ u2("circle", { cx: "18", cy: "6", r: "2.5" }),
-      /* @__PURE__ */ u2("circle", { cx: "6", cy: "18", r: "2.5" }),
-      /* @__PURE__ */ u2("circle", { cx: "18", cy: "18", r: "2.5" }),
-      /* @__PURE__ */ u2("path", { d: "m8.2 7.2 7.6 3.6M8.2 16.8l7.6-3.6M6 8.5v7" })
+    return /* @__PURE__ */ jsxs("svg", { ...common, children: [
+      /* @__PURE__ */ jsx("circle", { cx: "6", cy: "6", r: "2.5" }),
+      /* @__PURE__ */ jsx("circle", { cx: "18", cy: "6", r: "2.5" }),
+      /* @__PURE__ */ jsx("circle", { cx: "6", cy: "18", r: "2.5" }),
+      /* @__PURE__ */ jsx("circle", { cx: "18", cy: "18", r: "2.5" }),
+      /* @__PURE__ */ jsx("path", { d: "m8.2 7.2 7.6 3.6M8.2 16.8l7.6-3.6M6 8.5v7" })
     ] });
   }
   if (name === "quality") {
-    return /* @__PURE__ */ u2("svg", { ...common, children: /* @__PURE__ */ u2("path", { d: "m5 12 4 4L19 5" }) });
+    return /* @__PURE__ */ jsx("svg", { ...common, children: /* @__PURE__ */ jsx("path", { d: "m5 12 4 4L19 5" }) });
   }
-  return /* @__PURE__ */ u2("svg", { ...common, children: [
-    /* @__PURE__ */ u2("circle", { cx: "12", cy: "12", r: "3" }),
-    /* @__PURE__ */ u2("path", { d: "M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.3 2.3-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-3v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2.3-2.3.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5v-3h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.3-2.3.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3.5h3v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.3 2.3-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v3h-.2a1.7 1.7 0 0 0-1.5 1Z" })
+  return /* @__PURE__ */ jsxs("svg", { ...common, children: [
+    /* @__PURE__ */ jsx("circle", { cx: "12", cy: "12", r: "3" }),
+    /* @__PURE__ */ jsx("path", { d: "M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.3 2.3-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-3v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2.3-2.3.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5v-3h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.3-2.3.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3.5h3v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.3 2.3-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v3h-.2a1.7 1.7 0 0 0-1.5 1Z" })
   ] });
 }
 var navigationScript = `
@@ -244,19 +201,6 @@ document.addEventListener("nav", () => {
     searchTrigger.addEventListener("click", () => {
       const quartzSearch = document.querySelector(".search > .search-button")
       if (quartzSearch instanceof HTMLButtonElement) quartzSearch.click()
-    })
-  }
-
-  const copyTrigger = topbar.querySelector("[data-copy-page-link]")
-  if (copyTrigger instanceof HTMLButtonElement) {
-    copyTrigger.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(window.location.href)
-        copyTrigger.textContent = "\u94FE\u63A5\u5DF2\u590D\u5236"
-      } catch {
-        copyTrigger.textContent = "\u590D\u5236\u5931\u8D25"
-      }
-      window.setTimeout(() => { copyTrigger.textContent = "\u590D\u5236\u94FE\u63A5" }, 1600)
     })
   }
 
@@ -279,36 +223,36 @@ document.addEventListener("nav", () => {
 })
 `;
 var navigationItems = [
-  { label: "\u9996\u9875", icon: "home", target: "index", active: (slug2) => slug2 === "index" },
+  { label: "\u9996\u9875", icon: "home", target: "index", active: (slug) => slug === "index" },
   {
     label: "\u77E5\u8BC6\u5E93",
     icon: "library",
     target: "library",
-    active: (slug2) => slug2 === "library" || /^(sources|entities|concepts|syntheses)(\/|$)/.test(slug2)
+    active: (slug) => slug === "library" || /^(sources|entities|concepts|syntheses)(\/|$)/.test(slug)
   },
   {
     label: "\u77E5\u8BC6\u95EE\u7B54",
     icon: "chat",
     target: "chats",
-    active: (slug2) => slug2 === "chats" || slug2.startsWith("chats/")
+    active: (slug) => slug === "chats" || slug.startsWith("chats/")
   },
   {
     label: "\u6587\u6863\u5165\u5E93",
     icon: "ingest",
     target: "ingest",
-    active: (slug2) => slug2 === "ingest"
+    active: (slug) => slug === "ingest"
   },
   {
     label: "\u77E5\u8BC6\u56FE\u8C31",
     icon: "graph",
     target: "graph",
     openInNewTab: true,
-    active: (slug2) => slug2 === "graph" || slug2.startsWith("graph/")
+    active: (slug) => slug === "graph" || slug.startsWith("graph/")
   },
-  { label: "\u77E5\u8BC6\u8D28\u91CF", icon: "quality", target: "quality", active: (slug2) => slug2 === "quality" }
+  { label: "\u77E5\u8BC6\u8D28\u91CF", icon: "quality", target: "quality", active: (slug) => slug === "quality" }
 ];
 var managementItems = [
-  { label: "\u7CFB\u7EDF\u8BBE\u7F6E", icon: "settings", target: "settings", active: (slug2) => slug2 === "settings" }
+  { label: "\u7CFB\u7EDF\u8BBE\u7F6E", icon: "settings", target: "settings", active: (slug) => slug === "settings" }
 ];
 var AppNavigation_default = (() => {
   const AppNavigation = (props) => {
@@ -318,39 +262,32 @@ var AppNavigation_default = (() => {
     const areaLabel = getAreaLabel(currentSlug);
     const pageTitle = currentObject?.title ?? (typeof props.fileData.frontmatter?.title === "string" ? props.fileData.frontmatter.title : areaLabel);
     const homeHref = resolveRelative(currentSlug, "index");
-    const chatsHref = resolveRelative(currentSlug, "chats");
-    const graphHref = resolveRelative(currentSlug, "graph");
     const objectCount = objects.length;
-    return /* @__PURE__ */ u2("div", { class: "app-navigation", children: [
-      /* @__PURE__ */ u2("a", { class: "app-skip-link", href: "#main-content", children: "\u8DF3\u5230\u4E3B\u8981\u5185\u5BB9" }),
-      /* @__PURE__ */ u2("header", { class: "app-topbar", "data-app-topbar": true, children: [
-        /* @__PURE__ */ u2("div", { class: "app-breadcrumb", "aria-label": "\u5F53\u524D\u4F4D\u7F6E", children: [
-          /* @__PURE__ */ u2("strong", { children: areaLabel }),
-          pageTitle !== areaLabel && /* @__PURE__ */ u2("span", { "aria-hidden": "true", children: "/" }),
-          pageTitle !== areaLabel && /* @__PURE__ */ u2("span", { title: pageTitle, children: pageTitle })
+    return /* @__PURE__ */ jsxs("div", { class: "app-navigation", children: [
+      /* @__PURE__ */ jsx("a", { class: "app-skip-link", href: "#main-content", children: "\u8DF3\u5230\u4E3B\u8981\u5185\u5BB9" }),
+      /* @__PURE__ */ jsxs("header", { class: "app-topbar", "data-app-topbar": true, children: [
+        /* @__PURE__ */ jsxs("div", { class: "app-breadcrumb", "aria-label": "\u5F53\u524D\u4F4D\u7F6E", children: [
+          /* @__PURE__ */ jsx("strong", { children: areaLabel }),
+          pageTitle !== areaLabel && /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: "/" }),
+          pageTitle !== areaLabel && /* @__PURE__ */ jsx("span", { title: pageTitle, children: pageTitle })
         ] }),
-        currentObject && /* @__PURE__ */ u2("div", { class: "app-page-actions", "aria-label": "\u5F53\u524D\u77E5\u8BC6\u9875\u9762\u64CD\u4F5C", children: [
-          /* @__PURE__ */ u2("a", { href: chatsHref, children: "\u77E5\u8BC6\u95EE\u7B54" }),
-          /* @__PURE__ */ u2("button", { type: "button", "data-copy-page-link": true, children: "\u590D\u5236\u94FE\u63A5" }),
-          /* @__PURE__ */ u2("a", { href: graphHref, children: "\u67E5\u770B\u56FE\u8C31" })
-        ] }),
-        /* @__PURE__ */ u2("button", { type: "button", class: "app-topbar-search", "data-app-search": true, children: [
-          /* @__PURE__ */ u2("span", { children: "\u5168\u5C40\u641C\u7D22" }),
-          /* @__PURE__ */ u2("kbd", { children: "Ctrl K" })
+        /* @__PURE__ */ jsxs("button", { type: "button", class: "app-topbar-search", "data-app-search": true, children: [
+          /* @__PURE__ */ jsx("span", { children: "\u5168\u5C40\u641C\u7D22" }),
+          /* @__PURE__ */ jsx("kbd", { children: "Ctrl K" })
         ] })
       ] }),
-      /* @__PURE__ */ u2("a", { class: "app-brand", href: homeHref, "aria-label": "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93\u9996\u9875", children: [
-        /* @__PURE__ */ u2("span", { class: "app-brand-mark", "aria-hidden": "true", children: "MKT" }),
-        /* @__PURE__ */ u2("span", { class: "app-brand-copy", children: [
-          /* @__PURE__ */ u2("strong", { children: "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93" }),
-          /* @__PURE__ */ u2("small", { children: "MKT / TECHNICAL ARCHIVE" })
+      /* @__PURE__ */ jsxs("a", { class: "app-brand", href: homeHref, "aria-label": "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93\u9996\u9875", children: [
+        /* @__PURE__ */ jsx("span", { class: "app-brand-mark", "aria-hidden": "true", children: "MKT" }),
+        /* @__PURE__ */ jsxs("span", { class: "app-brand-copy", children: [
+          /* @__PURE__ */ jsx("strong", { children: "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93" }),
+          /* @__PURE__ */ jsx("small", { children: "MKT / TECHNICAL ARCHIVE" })
         ] })
       ] }),
-      /* @__PURE__ */ u2("p", { class: "app-navigation-label", children: "\u4E3B\u8981\u529F\u80FD" }),
-      /* @__PURE__ */ u2("nav", { class: "app-navigation-items", "aria-label": "\u4EA7\u54C1\u4E3B\u5BFC\u822A", children: navigationItems.map((item) => {
+      /* @__PURE__ */ jsx("p", { class: "app-navigation-label", children: "\u4E3B\u8981\u529F\u80FD" }),
+      /* @__PURE__ */ jsx("nav", { class: "app-navigation-items", "aria-label": "\u4EA7\u54C1\u4E3B\u5BFC\u822A", children: navigationItems.map((item) => {
         const active = item.active(currentSlug);
         const href = resolveRelative(currentSlug, item.target);
-        return /* @__PURE__ */ u2(
+        return /* @__PURE__ */ jsxs(
           "a",
           {
             class: `app-navigation-item${active ? " is-active" : ""}`,
@@ -360,31 +297,31 @@ var AppNavigation_default = (() => {
             "data-router-ignore": item.openInNewTab ? "" : void 0,
             "aria-current": active ? "page" : void 0,
             children: [
-              /* @__PURE__ */ u2("span", { class: "app-navigation-icon", children: /* @__PURE__ */ u2(NavigationIcon, { name: item.icon }) }),
-              /* @__PURE__ */ u2("span", { children: item.label })
+              /* @__PURE__ */ jsx("span", { class: "app-navigation-icon", children: /* @__PURE__ */ jsx(NavigationIcon, { name: item.icon }) }),
+              /* @__PURE__ */ jsx("span", { children: item.label })
             ]
           }
         );
       }) }),
-      /* @__PURE__ */ u2("div", { class: "app-sidebar-footer", children: [
-        /* @__PURE__ */ u2("div", { class: "app-management", children: [
-          /* @__PURE__ */ u2("p", { class: "app-navigation-label", children: "\u7BA1\u7406" }),
-          /* @__PURE__ */ u2("nav", { class: "app-navigation-items", "aria-label": "\u7CFB\u7EDF\u7BA1\u7406", children: managementItems.map((item) => {
+      /* @__PURE__ */ jsxs("div", { class: "app-sidebar-footer", children: [
+        /* @__PURE__ */ jsxs("div", { class: "app-management", children: [
+          /* @__PURE__ */ jsx("p", { class: "app-navigation-label", children: "\u7BA1\u7406" }),
+          /* @__PURE__ */ jsx("nav", { class: "app-navigation-items", "aria-label": "\u7CFB\u7EDF\u7BA1\u7406", children: managementItems.map((item) => {
             const active = item.active(currentSlug);
             const href = resolveRelative(currentSlug, item.target);
-            return /* @__PURE__ */ u2("a", { class: `app-navigation-item${active ? " is-active" : ""}`, href, "aria-current": active ? "page" : void 0, children: [
-              /* @__PURE__ */ u2("span", { class: "app-navigation-icon", children: /* @__PURE__ */ u2(NavigationIcon, { name: item.icon }) }),
-              /* @__PURE__ */ u2("span", { children: item.label })
+            return /* @__PURE__ */ jsxs("a", { class: `app-navigation-item${active ? " is-active" : ""}`, href, "aria-current": active ? "page" : void 0, children: [
+              /* @__PURE__ */ jsx("span", { class: "app-navigation-icon", children: /* @__PURE__ */ jsx(NavigationIcon, { name: item.icon }) }),
+              /* @__PURE__ */ jsx("span", { children: item.label })
             ] });
           }) })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "app-index-status", "aria-live": "polite", children: [
-          /* @__PURE__ */ u2("span", { class: "app-index-status-title", "data-platform-health-card": true, children: "\u540E\u7AEF\u8FDB\u7A0B\u68C0\u67E5\u4E2D" }),
-          /* @__PURE__ */ u2("strong", { children: [
+        /* @__PURE__ */ jsxs("div", { class: "app-index-status", "aria-live": "polite", children: [
+          /* @__PURE__ */ jsx("span", { class: "app-index-status-title", "data-platform-health-card": true, children: "\u540E\u7AEF\u8FDB\u7A0B\u68C0\u67E5\u4E2D" }),
+          /* @__PURE__ */ jsxs("strong", { children: [
             objectCount.toLocaleString("zh-CN"),
             " \u4E2A\u77E5\u8BC6\u5BF9\u8C61"
           ] }),
-          /* @__PURE__ */ u2("small", { "data-platform-health-detail": true, children: "\u6B63\u5728\u8BF7\u6C42 /api/health" })
+          /* @__PURE__ */ jsx("small", { "data-platform-health-detail": true, children: "\u6B63\u5728\u8BF7\u6C42 /api/health" })
         ] })
       ] })
     ] });
@@ -808,8 +745,6 @@ document.addEventListener("nav", () => {
   loadSnapshot(false)
 })
 `;
-
-// src/components/QualityPage.tsx
 function QualityIssueGroup({
   title,
   count,
@@ -817,28 +752,28 @@ function QualityIssueGroup({
   objects,
   currentSlug
 }) {
-  return /* @__PURE__ */ u2("section", { class: "quality-metadata-group", children: [
-    /* @__PURE__ */ u2("header", { children: [
-      /* @__PURE__ */ u2("div", { children: [
-        /* @__PURE__ */ u2("h2", { children: title }),
-        /* @__PURE__ */ u2("p", { children: description })
+  return /* @__PURE__ */ jsxs("section", { class: "quality-metadata-group", children: [
+    /* @__PURE__ */ jsxs("header", { children: [
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("h2", { children: title }),
+        /* @__PURE__ */ jsx("p", { children: description })
       ] }),
-      /* @__PURE__ */ u2("strong", { children: count })
+      /* @__PURE__ */ jsx("strong", { children: count })
     ] }),
-    objects.length > 0 ? /* @__PURE__ */ u2("div", { class: "quality-metadata-list", children: [
-      objects.slice(0, 8).map((object) => /* @__PURE__ */ u2("a", { href: resolveRelative(currentSlug, object.slug), children: [
-        /* @__PURE__ */ u2("span", { class: "knowledge-type-code", children: object.code }),
-        /* @__PURE__ */ u2("span", { children: [
-          /* @__PURE__ */ u2("strong", { children: object.title }),
-          /* @__PURE__ */ u2("small", { children: object.slug })
+    objects.length > 0 ? /* @__PURE__ */ jsxs("div", { class: "quality-metadata-list", children: [
+      objects.slice(0, 8).map((object) => /* @__PURE__ */ jsxs("a", { href: resolveRelative(currentSlug, object.slug), children: [
+        /* @__PURE__ */ jsx("span", { class: "knowledge-type-code", children: object.code }),
+        /* @__PURE__ */ jsxs("span", { children: [
+          /* @__PURE__ */ jsx("strong", { children: object.title }),
+          /* @__PURE__ */ jsx("small", { children: object.slug })
         ] })
       ] })),
-      objects.length > 8 && /* @__PURE__ */ u2("p", { children: [
+      objects.length > 8 && /* @__PURE__ */ jsxs("p", { children: [
         "\u53E6\u6709 ",
         objects.length - 8,
         " \u9879\uFF0C\u8BF7\u5728\u77E5\u8BC6\u5E93\u4E2D\u7EE7\u7EED\u7B5B\u9009\u3002"
       ] })
-    ] }) : /* @__PURE__ */ u2("p", { class: "quality-metadata-empty", children: "\u5F53\u524D\u6784\u5EFA\u672A\u53D1\u73B0\u6B64\u7C7B\u5143\u6570\u636E\u7F3A\u53E3\u3002" })
+    ] }) : /* @__PURE__ */ jsx("p", { class: "quality-metadata-empty", children: "\u5F53\u524D\u6784\u5EFA\u672A\u53D1\u73B0\u6B64\u7C7B\u5143\u6570\u636E\u7F3A\u53E3\u3002" })
   ] });
 }
 var QualityPage_default = (() => {
@@ -849,133 +784,133 @@ var QualityPage_default = (() => {
     const missingDescriptions = objects.filter((object) => !object.hasDescription);
     const missingTags = objects.filter((object) => object.tags.length === 0);
     const missingDates = objects.filter((object) => object.updatedAt === null);
-    return /* @__PURE__ */ u2("main", { class: "knowledge-quality", children: [
-      /* @__PURE__ */ u2("header", { class: "knowledge-quality-header", children: [
-        /* @__PURE__ */ u2("div", { children: [
-          /* @__PURE__ */ u2("p", { children: "\u8D28\u91CF\u5DE1\u68C0\u5FEB\u7167" }),
-          /* @__PURE__ */ u2("h1", { children: "\u77E5\u8BC6\u8D28\u91CF" }),
-          /* @__PURE__ */ u2("span", { children: "\u4EE5\u6700\u8FD1\u4E00\u6B21\u6210\u529F\u7684 health\u3001lint \u4E0E graph \u5DE1\u68C0\u4E3A\u4F9D\u636E\uFF1B\u8BED\u4E49\u53D1\u73B0\u5747\u9700\u56DE\u5230\u6765\u6E90\u8D44\u6599\u4EBA\u5DE5\u786E\u8BA4\u3002" })
+    return /* @__PURE__ */ jsxs("main", { class: "knowledge-quality", children: [
+      /* @__PURE__ */ jsxs("header", { class: "knowledge-quality-header", children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("p", { children: "\u8D28\u91CF\u5DE1\u68C0\u5FEB\u7167" }),
+          /* @__PURE__ */ jsx("h1", { children: "\u77E5\u8BC6\u8D28\u91CF" }),
+          /* @__PURE__ */ jsx("span", { children: "\u4EE5\u6700\u8FD1\u4E00\u6B21\u6210\u529F\u7684 health\u3001lint \u4E0E graph \u5DE1\u68C0\u4E3A\u4F9D\u636E\uFF1B\u8BED\u4E49\u53D1\u73B0\u5747\u9700\u56DE\u5230\u6765\u6E90\u8D44\u6599\u4EBA\u5DE5\u786E\u8BA4\u3002" })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "quality-header-actions", children: [
-          /* @__PURE__ */ u2("button", { type: "button", class: "quality-action-secondary", "data-quality-report": true, children: "\u67E5\u770B\u5DE1\u68C0\u62A5\u544A" }),
-          /* @__PURE__ */ u2("button", { type: "button", class: "quality-action-primary", "data-quality-run": true, children: "\u8FD0\u884C\u65B0\u4E00\u8F6E\u68C0\u67E5" })
+        /* @__PURE__ */ jsxs("div", { class: "quality-header-actions", children: [
+          /* @__PURE__ */ jsx("button", { type: "button", class: "quality-action-secondary", "data-quality-report": true, children: "\u67E5\u770B\u5DE1\u68C0\u62A5\u544A" }),
+          /* @__PURE__ */ jsx("button", { type: "button", class: "quality-action-primary", "data-quality-run": true, children: "\u8FD0\u884C\u65B0\u4E00\u8F6E\u68C0\u67E5" })
         ] })
       ] }),
-      /* @__PURE__ */ u2("section", { class: "quality-action-note", "data-quality-action-note": true, "aria-live": "polite", tabindex: -1, hidden: true, children: [
-        /* @__PURE__ */ u2("strong", { "data-quality-action-note-title": true, children: "\u8D28\u91CF\u9875\u8BF4\u660E" }),
-        /* @__PURE__ */ u2("p", { "data-quality-action-note-body": true })
+      /* @__PURE__ */ jsxs("section", { class: "quality-action-note", "data-quality-action-note": true, "aria-live": "polite", tabindex: -1, hidden: true, children: [
+        /* @__PURE__ */ jsx("strong", { "data-quality-action-note-title": true, children: "\u8D28\u91CF\u9875\u8BF4\u660E" }),
+        /* @__PURE__ */ jsx("p", { "data-quality-action-note-body": true })
       ] }),
-      /* @__PURE__ */ u2("section", { class: "quality-status", "aria-label": "\u5DE1\u68C0\u6982\u89C8", "data-quality-snapshot": true, "aria-busy": "true", children: [
-        /* @__PURE__ */ u2("div", { class: "quality-status-item", children: [
-          /* @__PURE__ */ u2("span", { class: "quality-status-label", children: "\u62A5\u544A\u751F\u6210\u65F6\u95F4" }),
-          /* @__PURE__ */ u2("strong", { "data-quality-generated-at": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
-          /* @__PURE__ */ u2("small", { "data-quality-generated-detail": true, children: "\u7B49\u5F85\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167" })
+      /* @__PURE__ */ jsxs("section", { class: "quality-status", "aria-label": "\u5DE1\u68C0\u6982\u89C8", "data-quality-snapshot": true, "aria-busy": "true", children: [
+        /* @__PURE__ */ jsxs("div", { class: "quality-status-item", children: [
+          /* @__PURE__ */ jsx("span", { class: "quality-status-label", children: "\u62A5\u544A\u751F\u6210\u65F6\u95F4" }),
+          /* @__PURE__ */ jsx("strong", { "data-quality-generated-at": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
+          /* @__PURE__ */ jsx("small", { "data-quality-generated-detail": true, children: "\u7B49\u5F85\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167" })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "quality-status-item", children: [
-          /* @__PURE__ */ u2("span", { class: "quality-status-label", children: "\u68C0\u67E5\u8986\u76D6" }),
-          /* @__PURE__ */ u2("strong", { "data-quality-coverage": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
-          /* @__PURE__ */ u2("small", { "data-quality-coverage-detail": true, children: "\u7B49\u5F85\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167" })
+        /* @__PURE__ */ jsxs("div", { class: "quality-status-item", children: [
+          /* @__PURE__ */ jsx("span", { class: "quality-status-label", children: "\u68C0\u67E5\u8986\u76D6" }),
+          /* @__PURE__ */ jsx("strong", { "data-quality-coverage": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
+          /* @__PURE__ */ jsx("small", { "data-quality-coverage-detail": true, children: "\u7B49\u5F85\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167" })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "quality-status-item", children: [
-          /* @__PURE__ */ u2("span", { class: "quality-status-label", children: "\u56FE\u8C31\u72B6\u6001" }),
-          /* @__PURE__ */ u2("strong", { "data-quality-graph-state": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
-          /* @__PURE__ */ u2("small", { "data-quality-graph-detail": true, children: "\u56FE\u8C31\u4E0D\u4F1A\u4EE5\u5386\u53F2\u7ED3\u679C\u4EE3\u66FF\u5F53\u524D\u7ED3\u8BBA" })
+        /* @__PURE__ */ jsxs("div", { class: "quality-status-item", children: [
+          /* @__PURE__ */ jsx("span", { class: "quality-status-label", children: "\u56FE\u8C31\u72B6\u6001" }),
+          /* @__PURE__ */ jsx("strong", { "data-quality-graph-state": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
+          /* @__PURE__ */ jsx("small", { "data-quality-graph-detail": true, children: "\u56FE\u8C31\u4E0D\u4F1A\u4EE5\u5386\u53F2\u7ED3\u679C\u4EE3\u66FF\u5F53\u524D\u7ED3\u8BBA" })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "quality-status-item", children: [
-          /* @__PURE__ */ u2("span", { class: "quality-status-label", children: "\u8BED\u4E49\u5DE1\u68C0" }),
-          /* @__PURE__ */ u2("strong", { "data-quality-lint-state": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
-          /* @__PURE__ */ u2("small", { "data-quality-lint-detail": true, children: "\u8BED\u4E49\u68C0\u67E5\u8303\u56F4\u5C06\u5728\u5FEB\u7167\u4E2D\u8BF4\u660E" })
+        /* @__PURE__ */ jsxs("div", { class: "quality-status-item", children: [
+          /* @__PURE__ */ jsx("span", { class: "quality-status-label", children: "\u8BED\u4E49\u5DE1\u68C0" }),
+          /* @__PURE__ */ jsx("strong", { "data-quality-lint-state": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
+          /* @__PURE__ */ jsx("small", { "data-quality-lint-detail": true, children: "\u8BED\u4E49\u68C0\u67E5\u8303\u56F4\u5C06\u5728\u5FEB\u7167\u4E2D\u8BF4\u660E" })
         ] })
       ] }),
-      /* @__PURE__ */ u2("nav", { class: "quality-tabs", "aria-label": "\u8D28\u91CF\u7C7B\u522B", role: "tablist", children: [
-        /* @__PURE__ */ u2("button", { type: "button", class: "is-active", "data-quality-tab": "all", role: "tab", "aria-selected": "true", children: [
+      /* @__PURE__ */ jsxs("nav", { class: "quality-tabs", "aria-label": "\u8D28\u91CF\u7C7B\u522B", role: "tablist", children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", class: "is-active", "data-quality-tab": "all", role: "tab", "aria-selected": "true", children: [
           "\u5168\u90E8\u53D1\u73B0\u9879 ",
-          /* @__PURE__ */ u2("span", { "data-quality-tab-count": "all", children: "\u2014" })
+          /* @__PURE__ */ jsx("span", { "data-quality-tab-count": "all", children: "\u2014" })
         ] }),
-        /* @__PURE__ */ u2("button", { type: "button", "data-quality-tab": "structure", role: "tab", "aria-selected": "false", tabindex: -1, children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", "data-quality-tab": "structure", role: "tab", "aria-selected": "false", tabindex: -1, children: [
           "\u7ED3\u6784\u5B8C\u6574\u6027 ",
-          /* @__PURE__ */ u2("span", { "data-quality-tab-count": "structure", children: "\u2014" })
+          /* @__PURE__ */ jsx("span", { "data-quality-tab-count": "structure", children: "\u2014" })
         ] }),
-        /* @__PURE__ */ u2("button", { type: "button", "data-quality-tab": "consistency", role: "tab", "aria-selected": "false", tabindex: -1, children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", "data-quality-tab": "consistency", role: "tab", "aria-selected": "false", tabindex: -1, children: [
           "\u5185\u5BB9\u4E00\u81F4\u6027 ",
-          /* @__PURE__ */ u2("span", { "data-quality-tab-count": "consistency", children: "\u2014" })
+          /* @__PURE__ */ jsx("span", { "data-quality-tab-count": "consistency", children: "\u2014" })
         ] }),
-        /* @__PURE__ */ u2("button", { type: "button", "data-quality-tab": "graph", role: "tab", "aria-selected": "false", tabindex: -1, children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", "data-quality-tab": "graph", role: "tab", "aria-selected": "false", tabindex: -1, children: [
           "\u56FE\u8C31\u5065\u5EB7\u5EA6 ",
-          /* @__PURE__ */ u2("span", { "data-quality-tab-count": "graph", children: "\u2014" })
+          /* @__PURE__ */ jsx("span", { "data-quality-tab-count": "graph", children: "\u2014" })
         ] }),
-        /* @__PURE__ */ u2("button", { type: "button", "data-quality-tab": "freshness", role: "tab", "aria-selected": "false", tabindex: -1, children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", "data-quality-tab": "freshness", role: "tab", "aria-selected": "false", tabindex: -1, children: [
           "\u65B0\u9C9C\u5EA6\u4E0E\u4FEE\u590D ",
-          /* @__PURE__ */ u2("span", { "data-quality-tab-count": "freshness", children: "\u2014" })
+          /* @__PURE__ */ jsx("span", { "data-quality-tab-count": "freshness", children: "\u2014" })
         ] })
       ] }),
-      /* @__PURE__ */ u2("div", { class: "quality-layout", children: [
-        /* @__PURE__ */ u2("div", { class: "quality-stream", "aria-live": "polite", children: [
-          /* @__PURE__ */ u2("section", { class: "quality-section", "data-quality-section": "structure", children: [
-            /* @__PURE__ */ u2("header", { class: "quality-section-header", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "Health + Lint \xB7 \u786E\u5B9A\u6027\u68C0\u67E5" }),
-                /* @__PURE__ */ u2("h2", { children: "\u7ED3\u6784\u5B8C\u6574\u6027" }),
-                /* @__PURE__ */ u2("span", { children: "\u7ED3\u6784\u7ED3\u679C\u53EF\u590D\u73B0\uFF1B\u672C\u9875\u4E0D\u4F1A\u7528\u5355\u4E00\u5065\u5EB7\u5206\u6570\u66FF\u4EE3\u5177\u4F53\u68C0\u67E5\u9879\u3002" })
+      /* @__PURE__ */ jsxs("div", { class: "quality-layout", children: [
+        /* @__PURE__ */ jsxs("div", { class: "quality-stream", "aria-live": "polite", children: [
+          /* @__PURE__ */ jsxs("section", { class: "quality-section", "data-quality-section": "structure", children: [
+            /* @__PURE__ */ jsxs("header", { class: "quality-section-header", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "Health + Lint \xB7 \u786E\u5B9A\u6027\u68C0\u67E5" }),
+                /* @__PURE__ */ jsx("h2", { children: "\u7ED3\u6784\u5B8C\u6574\u6027" }),
+                /* @__PURE__ */ jsx("span", { children: "\u7ED3\u6784\u7ED3\u679C\u53EF\u590D\u73B0\uFF1B\u672C\u9875\u4E0D\u4F1A\u7528\u5355\u4E00\u5065\u5EB7\u5206\u6570\u66FF\u4EE3\u5177\u4F53\u68C0\u67E5\u9879\u3002" })
               ] }),
-              /* @__PURE__ */ u2("strong", { "data-quality-section-count": "structure", children: "\u7B49\u5F85\u5FEB\u7167" })
+              /* @__PURE__ */ jsx("strong", { "data-quality-section-count": "structure", children: "\u7B49\u5F85\u5FEB\u7167" })
             ] }),
-            /* @__PURE__ */ u2("table", { class: "quality-check-matrix", children: [
-              /* @__PURE__ */ u2("thead", { children: /* @__PURE__ */ u2("tr", { children: [
-                /* @__PURE__ */ u2("th", { children: "\u68C0\u67E5\u9879" }),
-                /* @__PURE__ */ u2("th", { children: "\u672C\u6B21\u7ED3\u679C" }),
-                /* @__PURE__ */ u2("th", { children: "\u8BF4\u660E" })
+            /* @__PURE__ */ jsxs("table", { class: "quality-check-matrix", children: [
+              /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { children: [
+                /* @__PURE__ */ jsx("th", { children: "\u68C0\u67E5\u9879" }),
+                /* @__PURE__ */ jsx("th", { children: "\u672C\u6B21\u7ED3\u679C" }),
+                /* @__PURE__ */ jsx("th", { children: "\u8BF4\u660E" })
               ] }) }),
-              /* @__PURE__ */ u2("tbody", { "data-quality-structural": true, children: /* @__PURE__ */ u2("tr", { children: /* @__PURE__ */ u2("td", { colSpan: 3, children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u7ED3\u6784\u5DE1\u68C0\u62A5\u544A\u3002" }) }) })
+              /* @__PURE__ */ jsx("tbody", { "data-quality-structural": true, children: /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: 3, children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u7ED3\u6784\u5DE1\u68C0\u62A5\u544A\u3002" }) }) })
             ] })
           ] }),
-          /* @__PURE__ */ u2("section", { class: "quality-section", "data-quality-section": "consistency", children: [
-            /* @__PURE__ */ u2("header", { class: "quality-section-header", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "Lint \xB7 \u8BED\u4E49\u5DE1\u68C0" }),
-                /* @__PURE__ */ u2("h2", { children: "\u5185\u5BB9\u4E00\u81F4\u6027" }),
-                /* @__PURE__ */ u2("span", { children: "\u540C\u4E00\u4E3B\u9898\u5728\u4E0D\u540C\u8D44\u6599\u4E2D\u7684\u51B2\u7A81\u6216\u53E3\u5F84\u5DEE\u5F02\uFF0C\u9700\u8981\u4EBA\u5DE5\u56DE\u5230\u6765\u6E90\u8D44\u6599\u786E\u8BA4\u3002" })
+          /* @__PURE__ */ jsxs("section", { class: "quality-section", "data-quality-section": "consistency", children: [
+            /* @__PURE__ */ jsxs("header", { class: "quality-section-header", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "Lint \xB7 \u8BED\u4E49\u5DE1\u68C0" }),
+                /* @__PURE__ */ jsx("h2", { children: "\u5185\u5BB9\u4E00\u81F4\u6027" }),
+                /* @__PURE__ */ jsx("span", { children: "\u540C\u4E00\u4E3B\u9898\u5728\u4E0D\u540C\u8D44\u6599\u4E2D\u7684\u51B2\u7A81\u6216\u53E3\u5F84\u5DEE\u5F02\uFF0C\u9700\u8981\u4EBA\u5DE5\u56DE\u5230\u6765\u6E90\u8D44\u6599\u786E\u8BA4\u3002" })
               ] }),
-              /* @__PURE__ */ u2("strong", { "data-quality-section-count": "consistency", children: "\u7B49\u5F85\u5FEB\u7167" })
+              /* @__PURE__ */ jsx("strong", { "data-quality-section-count": "consistency", children: "\u7B49\u5F85\u5FEB\u7167" })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "quality-section-placeholder", "data-quality-findings": "consistency", children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u8BED\u4E49\u5DE1\u68C0\u62A5\u544A\u3002" })
+            /* @__PURE__ */ jsx("div", { class: "quality-section-placeholder", "data-quality-findings": "consistency", children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u8BED\u4E49\u5DE1\u68C0\u62A5\u544A\u3002" })
           ] }),
-          /* @__PURE__ */ u2("section", { class: "quality-section", "data-quality-section": "graph", children: [
-            /* @__PURE__ */ u2("header", { class: "quality-section-header", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "Graph \xB7 \u5173\u8054\u97E7\u6027" }),
-                /* @__PURE__ */ u2("h2", { children: "\u56FE\u8C31\u5065\u5EB7\u5EA6" }),
-                /* @__PURE__ */ u2("span", { children: "\u4EC5\u4F7F\u7528\u4E0E\u5F53\u524D Wiki \u540C\u6B65\u7684\u56FE\u8C31\u7ED3\u679C\uFF1B\u8FC7\u671F\u56FE\u8C31\u4E0D\u4F1A\u4F5C\u4E3A\u5F53\u524D\u7ED3\u8BBA\u5C55\u793A\u3002" })
+          /* @__PURE__ */ jsxs("section", { class: "quality-section", "data-quality-section": "graph", children: [
+            /* @__PURE__ */ jsxs("header", { class: "quality-section-header", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "Graph \xB7 \u5173\u8054\u97E7\u6027" }),
+                /* @__PURE__ */ jsx("h2", { children: "\u56FE\u8C31\u5065\u5EB7\u5EA6" }),
+                /* @__PURE__ */ jsx("span", { children: "\u4EC5\u4F7F\u7528\u4E0E\u5F53\u524D Wiki \u540C\u6B65\u7684\u56FE\u8C31\u7ED3\u679C\uFF1B\u8FC7\u671F\u56FE\u8C31\u4E0D\u4F1A\u4F5C\u4E3A\u5F53\u524D\u7ED3\u8BBA\u5C55\u793A\u3002" })
               ] }),
-              /* @__PURE__ */ u2("strong", { "data-quality-section-count": "graph", children: "\u7B49\u5F85\u5FEB\u7167" })
+              /* @__PURE__ */ jsx("strong", { "data-quality-section-count": "graph", children: "\u7B49\u5F85\u5FEB\u7167" })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "quality-section-placeholder", "data-quality-findings": "graph", children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u56FE\u8C31\u5065\u5EB7\u5EA6\u62A5\u544A\u3002" })
+            /* @__PURE__ */ jsx("div", { class: "quality-section-placeholder", "data-quality-findings": "graph", children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u56FE\u8C31\u5065\u5EB7\u5EA6\u62A5\u544A\u3002" })
           ] }),
-          /* @__PURE__ */ u2("section", { class: "quality-section", "data-quality-section": "freshness", children: [
-            /* @__PURE__ */ u2("header", { class: "quality-section-header", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "Refresh + Heal \xB7 \u53D7\u63A7\u4FEE\u590D" }),
-                /* @__PURE__ */ u2("h2", { children: "\u65B0\u9C9C\u5EA6\u4E0E\u4FEE\u590D" }),
-                /* @__PURE__ */ u2("span", { children: "\u672C\u9875\u4EC5\u5C55\u793A\u5DF2\u6709\u6765\u6E90\u5FEB\u7167\u548C\u5EFA\u8BAE\uFF1B\u4E0D\u4F1A\u76F4\u63A5\u8FD0\u884C refresh \u6216 heal\u3002" })
+          /* @__PURE__ */ jsxs("section", { class: "quality-section", "data-quality-section": "freshness", children: [
+            /* @__PURE__ */ jsxs("header", { class: "quality-section-header", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "Refresh + Heal \xB7 \u53D7\u63A7\u4FEE\u590D" }),
+                /* @__PURE__ */ jsx("h2", { children: "\u65B0\u9C9C\u5EA6\u4E0E\u4FEE\u590D" }),
+                /* @__PURE__ */ jsx("span", { children: "\u672C\u9875\u4EC5\u5C55\u793A\u5DF2\u6709\u6765\u6E90\u5FEB\u7167\u548C\u5EFA\u8BAE\uFF1B\u4E0D\u4F1A\u76F4\u63A5\u8FD0\u884C refresh \u6216 heal\u3002" })
               ] }),
-              /* @__PURE__ */ u2("strong", { "data-quality-section-count": "freshness", children: "\u7B49\u5F85\u5FEB\u7167" })
+              /* @__PURE__ */ jsx("strong", { "data-quality-section-count": "freshness", children: "\u7B49\u5F85\u5FEB\u7167" })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "quality-section-placeholder", "data-quality-recommendations": true, children: "\u6B63\u5728\u8BFB\u53D6\u6765\u6E90\u65B0\u9C9C\u5EA6\u5FEB\u7167\u3002" })
+            /* @__PURE__ */ jsx("div", { class: "quality-section-placeholder", "data-quality-recommendations": true, children: "\u6B63\u5728\u8BFB\u53D6\u6765\u6E90\u65B0\u9C9C\u5EA6\u5FEB\u7167\u3002" })
           ] }),
-          /* @__PURE__ */ u2("section", { class: "quality-metadata", "data-quality-metadata": true, id: "metadata-gaps", children: [
-            /* @__PURE__ */ u2("header", { class: "quality-section-header", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "Quartz \xB7 \u6784\u5EFA\u671F\u7D22\u5F15" }),
-                /* @__PURE__ */ u2("h2", { children: "\u9759\u6001 metadata \u8865\u5145" }),
-                /* @__PURE__ */ u2("span", { children: "\u7EDF\u8BA1\u672C\u6B21\u6784\u5EFA\u4E2D\u516C\u5F00\u5C55\u793A\u7684 source\u3001entity\u3001concept\u3001synthesis \u9875\u9762\uFF1B\u4E09\u7C7B\u7F3A\u53E3\u5206\u522B\u8BA1\u6570\uFF0C\u540C\u4E00\u5BF9\u8C61\u53EF\u540C\u65F6\u51FA\u73B0\u3002" })
+          /* @__PURE__ */ jsxs("section", { class: "quality-metadata", "data-quality-metadata": true, id: "metadata-gaps", children: [
+            /* @__PURE__ */ jsxs("header", { class: "quality-section-header", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "Quartz \xB7 \u6784\u5EFA\u671F\u7D22\u5F15" }),
+                /* @__PURE__ */ jsx("h2", { children: "\u9759\u6001 metadata \u8865\u5145" }),
+                /* @__PURE__ */ jsx("span", { children: "\u7EDF\u8BA1\u672C\u6B21\u6784\u5EFA\u4E2D\u516C\u5F00\u5C55\u793A\u7684 source\u3001entity\u3001concept\u3001synthesis \u9875\u9762\uFF1B\u4E09\u7C7B\u7F3A\u53E3\u5206\u522B\u8BA1\u6570\uFF0C\u540C\u4E00\u5BF9\u8C61\u53EF\u540C\u65F6\u51FA\u73B0\u3002" })
               ] }),
-              /* @__PURE__ */ u2("strong", { children: [
+              /* @__PURE__ */ jsxs("strong", { children: [
                 summary.affectedObjects,
                 " \u9879\u7F3A\u53E3"
               ] })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "quality-metadata-grid", children: [
-              /* @__PURE__ */ u2(
+            /* @__PURE__ */ jsxs("div", { class: "quality-metadata-grid", children: [
+              /* @__PURE__ */ jsx(
                 QualityIssueGroup,
                 {
                   title: "\u7F3A\u5C11\u6458\u8981",
@@ -985,7 +920,7 @@ var QualityPage_default = (() => {
                   currentSlug
                 }
               ),
-              /* @__PURE__ */ u2(
+              /* @__PURE__ */ jsx(
                 QualityIssueGroup,
                 {
                   title: "\u7F3A\u5C11\u6807\u7B7E",
@@ -995,7 +930,7 @@ var QualityPage_default = (() => {
                   currentSlug
                 }
               ),
-              /* @__PURE__ */ u2(
+              /* @__PURE__ */ jsx(
                 QualityIssueGroup,
                 {
                   title: "\u66F4\u65B0\u65F6\u95F4\u672A\u77E5",
@@ -1008,15 +943,15 @@ var QualityPage_default = (() => {
             ] })
           ] })
         ] }),
-        /* @__PURE__ */ u2("aside", { class: "quality-side", children: /* @__PURE__ */ u2("section", { class: "quality-evidence-panel", "data-quality-evidence": true, "aria-live": "polite", children: [
-          /* @__PURE__ */ u2("header", { class: "quality-evidence-header", children: [
-            /* @__PURE__ */ u2("div", { children: [
-              /* @__PURE__ */ u2("p", { children: "\u9009\u4E2D\u53D1\u73B0\u9879" }),
-              /* @__PURE__ */ u2("h2", { children: "\u8BC1\u636E\u5BF9\u6BD4" })
+        /* @__PURE__ */ jsx("aside", { class: "quality-side", children: /* @__PURE__ */ jsxs("section", { class: "quality-evidence-panel", "data-quality-evidence": true, "aria-live": "polite", children: [
+          /* @__PURE__ */ jsxs("header", { class: "quality-evidence-header", children: [
+            /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsx("p", { children: "\u9009\u4E2D\u53D1\u73B0\u9879" }),
+              /* @__PURE__ */ jsx("h2", { children: "\u8BC1\u636E\u5BF9\u6BD4" })
             ] }),
-            /* @__PURE__ */ u2("span", { "data-quality-evidence-state": true, children: "\u7B49\u5F85\u5FEB\u7167" })
+            /* @__PURE__ */ jsx("span", { "data-quality-evidence-state": true, children: "\u7B49\u5F85\u5FEB\u7167" })
           ] }),
-          /* @__PURE__ */ u2("div", { class: "quality-evidence-empty", "data-quality-evidence-body": true, children: "\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167\u52A0\u8F7D\u540E\uFF0C\u6B64\u5904\u5C06\u663E\u793A\u6D89\u53CA\u9875\u9762\u3001\u6700\u591A\u4E24\u6761\u6765\u6E90\u8BC1\u636E\u4E0E\u5EFA\u8BAE\u6838\u5BF9\u52A8\u4F5C\u3002" })
+          /* @__PURE__ */ jsx("div", { class: "quality-evidence-empty", "data-quality-evidence-body": true, children: "\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167\u52A0\u8F7D\u540E\uFF0C\u6B64\u5904\u5C06\u663E\u793A\u6D89\u53CA\u9875\u9762\u3001\u6700\u591A\u4E24\u6761\u6765\u6E90\u8BC1\u636E\u4E0E\u5EFA\u8BAE\u6838\u5BF9\u52A8\u4F5C\u3002" })
         ] }) })
       ] })
     ] });
@@ -1024,7 +959,93 @@ var QualityPage_default = (() => {
   QualityPage.afterDOMLoaded = qualityScript;
   return QualityPage;
 });
+var MANUAL_SOURCE_PREFIX = "raw/uploads/manual/";
+var NEW_TAB_EXTENSIONS = /* @__PURE__ */ new Set([
+  "pdf",
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "avif",
+  "md",
+  "markdown",
+  "txt"
+]);
+function getFileExtension(filename) {
+  const extension = filename.split(".").pop()?.trim().toLowerCase();
+  return extension && extension !== filename.toLowerCase() ? extension : null;
+}
+function getManualSourceReference(sourceFile) {
+  if (!sourceFile.startsWith(MANUAL_SOURCE_PREFIX)) return null;
+  if (sourceFile.includes("\\")) return null;
+  const relativePath = sourceFile.slice(MANUAL_SOURCE_PREFIX.length);
+  const segments = relativePath.split("/");
+  if (!relativePath || segments.some((segment) => !segment || segment === "." || segment === "..")) return null;
+  const filename = segments.at(-1);
+  const extension = getFileExtension(filename);
+  const normalizedExtension = extension?.toUpperCase() ?? "\u6587\u4EF6";
+  const opensInNewTab = extension ? NEW_TAB_EXTENSIONS.has(extension) : false;
+  return {
+    href: `/source-files/manual/${segments.map(encodeURIComponent).join("/")}`,
+    label: opensInNewTab ? "\u67E5\u770B\u539F\u6587" : "\u4E0B\u8F7D\u539F\u6587\u4EF6",
+    detail: `${filename} \xB7 ${normalizedExtension} \xB7 \u4EBA\u5DE5\u4E0A\u4F20`,
+    marker: `[${normalizedExtension}] ${filename}`,
+    searchText: filename,
+    ...opensInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : { download: true }
+  };
+}
+function getExternalSourceReference(sourceUrl) {
+  try {
+    const url = new URL(sourceUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return {
+      href: url.href,
+      label: "\u8BBF\u95EE\u539F\u6587",
+      detail: `${url.hostname} \xB7 \u5B9A\u65F6\u540C\u6B65`,
+      marker: `[URL] ${url.hostname}`,
+      searchText: url.hostname,
+      target: "_blank",
+      rel: "noopener noreferrer"
+    };
+  } catch {
+    return null;
+  }
+}
+function getSourceReference(object) {
+  if (object.sourceFile && object.sourceUrl) return null;
+  if (object.sourceFile) return getManualSourceReference(object.sourceFile);
+  if (object.sourceUrl) return getExternalSourceReference(object.sourceUrl);
+  return null;
+}
+var SourceReference_default = (() => {
+  const SourceReferenceCard = (props) => {
+    const frontmatter = props.fileData.frontmatter;
+    if (String(frontmatter?.type ?? "").trim().toLowerCase() !== "source") return null;
+    const sourceFile = typeof frontmatter?.source_file === "string" ? frontmatter.source_file.trim() : null;
+    const sourceUrl = typeof frontmatter?.source_url === "string" ? frontmatter.source_url.trim() : null;
+    const reference = getSourceReference({ sourceFile, sourceUrl });
+    if (!reference) return null;
+    return /* @__PURE__ */ jsxs("section", { class: "source-reference-card", "aria-labelledby": "source-reference-title", children: [
+      /* @__PURE__ */ jsx("p", { children: "\u539F\u59CB\u6765\u6E90" }),
+      /* @__PURE__ */ jsx("h2", { id: "source-reference-title", children: reference.detail }),
+      /* @__PURE__ */ jsx(
+        "a",
+        {
+          class: "source-reference-link",
+          href: reference.href,
+          target: reference.target,
+          rel: reference.rel,
+          download: reference.download ? "" : void 0,
+          "data-router-ignore": true,
+          children: reference.label
+        }
+      )
+    ] });
+  };
+  return SourceReferenceCard;
+});
 
-export { AppNavigation_default as AppNavigation, QualityPage_default as QualityPage };
+export { AppNavigation_default as AppNavigation, QualityPage_default as QualityPage, SourceReference_default as SourceReference };
 //# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map

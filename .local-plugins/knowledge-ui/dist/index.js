@@ -1,74 +1,7 @@
-// ../../node_modules/github-slugger/index.js
-var l;
-l = { __e: function(n2, l2, u3, t2) {
-  for (var i2, r2, o2; l2 = l2.__; ) if ((i2 = l2.__c) && !i2.__) try {
-    if ((r2 = i2.constructor) && null != r2.getDerivedStateFromError && (i2.setState(r2.getDerivedStateFromError(n2)), o2 = i2.__d), null != i2.componentDidCatch && (i2.componentDidCatch(n2, t2 || {}), o2 = i2.__d), o2) return i2.__E = i2;
-  } catch (l3) {
-    n2 = l3;
-  }
-  throw n2;
-} }, "function" == typeof Promise ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout, Math.random().toString(8);
+import { resolveRelative } from '@quartz-community/utils';
+import { jsxs, jsx } from 'preact/jsx-runtime';
 
-// node_modules/preact/jsx-runtime/dist/jsxRuntime.mjs
-var f2 = 0;
-function u2(e2, t2, n2, o2, i2, u3) {
-  t2 || (t2 = {});
-  var a2, c2, p2 = t2;
-  if ("ref" in p2) for (c2 in p2 = {}, t2) "ref" == c2 ? a2 = t2[c2] : p2[c2] = t2[c2];
-  var l2 = { type: e2, props: p2, key: n2, ref: a2, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: void 0, __v: --f2, __i: -1, __u: 0, __source: i2, __self: u3 };
-  if ("function" == typeof e2 && (a2 = e2.defaultProps)) for (c2 in a2) void 0 === p2[c2] && (p2[c2] = a2[c2]);
-  return l.vnode && l.vnode(l2), l2;
-}
-
-// node_modules/@quartz-community/utils/dist/index.js
-function simplifySlug(fp) {
-  const res = stripSlashes(trimSuffix(fp, "index"), true);
-  return res.length === 0 ? "/" : res;
-}
-function joinSegments(...args) {
-  if (args.length === 0) {
-    return "";
-  }
-  let joined = args.filter((segment) => segment !== "" && segment !== "/").map((segment) => stripSlashes(segment)).join("/");
-  const first = args[0];
-  const last = args[args.length - 1];
-  if (first?.startsWith("/")) {
-    joined = "/" + joined;
-  }
-  if (last?.endsWith("/")) {
-    joined = joined + "/";
-  }
-  return joined;
-}
-function endsWith(s2, suffix) {
-  return s2 === suffix || s2.endsWith("/" + suffix);
-}
-function trimSuffix(s2, suffix) {
-  if (endsWith(s2, suffix)) {
-    s2 = s2.slice(0, -suffix.length);
-  }
-  return s2;
-}
-function stripSlashes(s2, onlyStripPrefix) {
-  if (s2.startsWith("/")) {
-    s2 = s2.substring(1);
-  }
-  if (!onlyStripPrefix && s2.endsWith("/")) {
-    s2 = s2.slice(0, -1);
-  }
-  return s2;
-}
-function pathToRoot(slug2) {
-  let rootPath = slug2.split("/").filter((x2) => x2 !== "").slice(0, -1).map((_2) => "..").join("/");
-  if (rootPath.length === 0) {
-    rootPath = ".";
-  }
-  return rootPath;
-}
-function resolveRelative(current, target) {
-  const res = joinSegments(pathToRoot(current), simplifySlug(target));
-  return res;
-}
+// src/components/HomePage.tsx
 
 // src/knowledge.ts
 var TYPE_CODES = {
@@ -113,10 +46,10 @@ function parseDate(value) {
 function getKnowledgeUpdatedAt(file) {
   return parseDate(file.frontmatter?.last_updated) ?? parseDate(file.frontmatter?.modified) ?? parseDate(file.dates?.modified);
 }
-function getTitle(file, slug2) {
+function getTitle(file, slug) {
   const title = file.frontmatter?.title;
   if (typeof title === "string" && title.trim()) return title.trim();
-  return slug2.split("/").pop() ?? slug2;
+  return slug.split("/").pop() ?? slug;
 }
 function getDescription(file) {
   const candidates = [file.description, file.frontmatter?.description];
@@ -135,6 +68,31 @@ function getTags(file) {
   if (!Array.isArray(tags)) return [];
   return tags.filter((tag) => typeof tag === "string" && tag.trim().length > 0);
 }
+function getManualSourceFile(value) {
+  if (typeof value !== "string") return null;
+  const sourceFile = value.trim();
+  return sourceFile.startsWith("raw/uploads/manual/") && sourceFile.length > "raw/uploads/manual/".length ? sourceFile : null;
+}
+function getExternalSourceUrl(value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+function getSourceOrigin(file, type) {
+  if (type !== "source") return { sourceFile: null, sourceUrl: null };
+  const rawSourceFile = file.frontmatter?.source_file;
+  const rawSourceUrl = file.frontmatter?.source_url;
+  const hasBothOrigins = typeof rawSourceFile === "string" && rawSourceFile.trim() && typeof rawSourceUrl === "string" && rawSourceUrl.trim();
+  if (hasBothOrigins) return { sourceFile: null, sourceUrl: null };
+  return {
+    sourceFile: getManualSourceFile(rawSourceFile),
+    sourceUrl: getExternalSourceUrl(rawSourceUrl)
+  };
+}
 function getKnowledgeObjects(files) {
   const objects = [];
   for (const file of files) {
@@ -150,7 +108,8 @@ function getKnowledgeObjects(files) {
       description: getDescription(file),
       hasDescription: hasDescription(file),
       tags: getTags(file),
-      updatedAt: getKnowledgeUpdatedAt(file)
+      updatedAt: getKnowledgeUpdatedAt(file),
+      ...getSourceOrigin(file, type)
     });
   }
   return objects;
@@ -178,8 +137,6 @@ function getTopTags(objects, limit = 4) {
     return rightCount - leftCount || leftTag.localeCompare(rightTag);
   }).slice(0, Math.max(0, limit)).map(([tag]) => tag);
 }
-
-// src/components/HomePage.tsx
 var TYPE_META = {
   source: { label: "\u6765\u6E90\u8D44\u6599", pluralLabel: "Sources", order: 1 },
   entity: { label: "\u77E5\u8BC6\u5B9E\u4F53", pluralLabel: "Entities", order: 2 },
@@ -254,18 +211,18 @@ var HomePage_default = (() => {
       code: objects.find((object) => object.type === type)?.code ?? "---",
       ...TYPE_META[type]
     }));
-    return /* @__PURE__ */ u2("main", { class: "knowledge-home", children: [
-      /* @__PURE__ */ u2("header", { class: "knowledge-home-header", children: [
-        /* @__PURE__ */ u2("p", { class: "knowledge-home-updated", children: [
+    return /* @__PURE__ */ jsxs("main", { class: "knowledge-home", children: [
+      /* @__PURE__ */ jsxs("header", { class: "knowledge-home-header", children: [
+        /* @__PURE__ */ jsxs("p", { class: "knowledge-home-updated", children: [
           "\u8D44\u6599\u7D22\u5F15\u66F4\u65B0\u81F3 ",
           formatDate(latestDate)
         ] }),
-        /* @__PURE__ */ u2("h1", { children: "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93" }),
-        /* @__PURE__ */ u2("p", { class: "knowledge-home-intro", children: "\u68C0\u7D22\u4EA7\u54C1\u3001\u6280\u672F\u53C2\u6570\u3001\u6807\u51C6\u4E0E\u8BBE\u5907\u5173\u7CFB\uFF1B\u590D\u6742\u95EE\u9898\u53EF\u57FA\u4E8E\u5DF2\u53D1\u5E03\u8D44\u6599\u5F62\u6210\u5E26\u51FA\u5904\u7684\u7814\u7A76\u7B54\u590D\u3002" }),
-        /* @__PURE__ */ u2("div", { class: "knowledge-home-actions", children: [
-          /* @__PURE__ */ u2("form", { class: "knowledge-search", "data-knowledge-search": true, role: "search", children: [
-            /* @__PURE__ */ u2("label", { for: "knowledge-home-query", children: "\u67E5\u627E\u8D44\u6599" }),
-            /* @__PURE__ */ u2(
+        /* @__PURE__ */ jsx("h1", { children: "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93" }),
+        /* @__PURE__ */ jsx("p", { class: "knowledge-home-intro", children: "\u68C0\u7D22\u4EA7\u54C1\u3001\u6280\u672F\u53C2\u6570\u3001\u6807\u51C6\u4E0E\u8BBE\u5907\u5173\u7CFB\uFF1B\u590D\u6742\u95EE\u9898\u53EF\u57FA\u4E8E\u5DF2\u53D1\u5E03\u8D44\u6599\u5F62\u6210\u5E26\u51FA\u5904\u7684\u7814\u7A76\u7B54\u590D\u3002" }),
+        /* @__PURE__ */ jsxs("div", { class: "knowledge-home-actions", children: [
+          /* @__PURE__ */ jsxs("form", { class: "knowledge-search", "data-knowledge-search": true, role: "search", children: [
+            /* @__PURE__ */ jsx("label", { for: "knowledge-home-query", children: "\u67E5\u627E\u8D44\u6599" }),
+            /* @__PURE__ */ jsx(
               "input",
               {
                 id: "knowledge-home-query",
@@ -275,117 +232,117 @@ var HomePage_default = (() => {
                 placeholder: "\u8F93\u5165\u4EA7\u54C1\u3001\u53C2\u6570\u3001\u6807\u51C6\u6216\u6982\u5FF5"
               }
             ),
-            /* @__PURE__ */ u2("button", { type: "submit", children: "\u6253\u5F00\u641C\u7D22" })
+            /* @__PURE__ */ jsx("button", { type: "submit", children: "\u6253\u5F00\u641C\u7D22" })
           ] }),
-          /* @__PURE__ */ u2("a", { class: "knowledge-ask-link", href: chatsHref, children: [
+          /* @__PURE__ */ jsxs("a", { class: "knowledge-ask-link", href: chatsHref, children: [
             "\u8FDB\u5165\u77E5\u8BC6\u95EE\u7B54 ",
-            /* @__PURE__ */ u2("span", { "aria-hidden": "true", children: "\u2192" })
+            /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: "\u2192" })
           ] })
         ] }),
-        topTags.length > 0 && /* @__PURE__ */ u2("div", { class: "knowledge-topics", "aria-label": "\u5E38\u7528\u4E3B\u9898", children: [
-          /* @__PURE__ */ u2("span", { children: "\u5E38\u7528\u4E3B\u9898" }),
-          topTags.map((tag) => /* @__PURE__ */ u2("button", { type: "button", "data-topic": tag, children: tag }))
+        topTags.length > 0 && /* @__PURE__ */ jsxs("div", { class: "knowledge-topics", "aria-label": "\u5E38\u7528\u4E3B\u9898", children: [
+          /* @__PURE__ */ jsx("span", { children: "\u5E38\u7528\u4E3B\u9898" }),
+          topTags.map((tag) => /* @__PURE__ */ jsx("button", { type: "button", "data-topic": tag, children: tag }))
         ] })
       ] }),
-      /* @__PURE__ */ u2("section", { class: "knowledge-register", "aria-labelledby": "knowledge-overview-title", children: [
-        /* @__PURE__ */ u2("div", { class: "knowledge-section-heading", children: [
-          /* @__PURE__ */ u2("div", { children: [
-            /* @__PURE__ */ u2("p", { children: "\u6784\u5EFA\u671F\u7D22\u5F15" }),
-            /* @__PURE__ */ u2("h2", { id: "knowledge-overview-title", children: "\u77E5\u8BC6\u6982\u89C8" })
+      /* @__PURE__ */ jsxs("section", { class: "knowledge-register", "aria-labelledby": "knowledge-overview-title", children: [
+        /* @__PURE__ */ jsxs("div", { class: "knowledge-section-heading", children: [
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("p", { children: "\u6784\u5EFA\u671F\u7D22\u5F15" }),
+            /* @__PURE__ */ jsx("h2", { id: "knowledge-overview-title", children: "\u77E5\u8BC6\u6982\u89C8" })
           ] }),
-          /* @__PURE__ */ u2("span", { children: [
+          /* @__PURE__ */ jsxs("span", { children: [
             "\u5171 ",
             objects.length.toLocaleString("zh-CN"),
             " \u4E2A\u5BF9\u8C61"
           ] })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "knowledge-register-grid", children: typeCounts.map(({ type, code, label, pluralLabel, count }) => /* @__PURE__ */ u2(
+        /* @__PURE__ */ jsx("div", { class: "knowledge-register-grid", children: typeCounts.map(({ type, code, label, pluralLabel, count }) => /* @__PURE__ */ jsxs(
           "a",
           {
             class: `knowledge-register-cell type-${type}`,
             href: `${resolveRelative(currentSlug, "library")}?type=${type}`,
             children: [
-              /* @__PURE__ */ u2("span", { class: "knowledge-type-code", children: code }),
-              /* @__PURE__ */ u2("span", { children: [
-                /* @__PURE__ */ u2("small", { children: pluralLabel }),
-                /* @__PURE__ */ u2("strong", { children: label })
+              /* @__PURE__ */ jsx("span", { class: "knowledge-type-code", children: code }),
+              /* @__PURE__ */ jsxs("span", { children: [
+                /* @__PURE__ */ jsx("small", { children: pluralLabel }),
+                /* @__PURE__ */ jsx("strong", { children: label })
               ] }),
-              /* @__PURE__ */ u2("b", { children: count.toLocaleString("zh-CN") })
+              /* @__PURE__ */ jsx("b", { children: count.toLocaleString("zh-CN") })
             ]
           }
         )) })
       ] }),
-      /* @__PURE__ */ u2("div", { class: "knowledge-home-grid", children: [
-        /* @__PURE__ */ u2("section", { class: "knowledge-updates", "aria-labelledby": "knowledge-updates-title", children: [
-          /* @__PURE__ */ u2("div", { class: "knowledge-section-heading", children: [
-            /* @__PURE__ */ u2("div", { children: [
-              /* @__PURE__ */ u2("p", { children: "\u6309\u771F\u5B9E\u66F4\u65B0\u65F6\u95F4\u6392\u5E8F" }),
-              /* @__PURE__ */ u2("h2", { id: "knowledge-updates-title", children: "\u6700\u8FD1\u66F4\u65B0" })
+      /* @__PURE__ */ jsxs("div", { class: "knowledge-home-grid", children: [
+        /* @__PURE__ */ jsxs("section", { class: "knowledge-updates", "aria-labelledby": "knowledge-updates-title", children: [
+          /* @__PURE__ */ jsxs("div", { class: "knowledge-section-heading", children: [
+            /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsx("p", { children: "\u6309\u771F\u5B9E\u66F4\u65B0\u65F6\u95F4\u6392\u5E8F" }),
+              /* @__PURE__ */ jsx("h2", { id: "knowledge-updates-title", children: "\u6700\u8FD1\u66F4\u65B0" })
             ] }),
-            /* @__PURE__ */ u2("a", { href: sourcesHref, children: "\u8FDB\u5165\u8D44\u6599\u76EE\u5F55 \u2192" })
+            /* @__PURE__ */ jsx("a", { href: sourcesHref, children: "\u8FDB\u5165\u8D44\u6599\u76EE\u5F55 \u2192" })
           ] }),
-          latestObjects.length > 0 ? /* @__PURE__ */ u2("div", { class: "knowledge-update-list", children: latestObjects.map((object) => /* @__PURE__ */ u2(
+          latestObjects.length > 0 ? /* @__PURE__ */ jsx("div", { class: "knowledge-update-list", children: latestObjects.map((object) => /* @__PURE__ */ jsxs(
             "a",
             {
               class: `knowledge-update-row type-${object.type}`,
               href: resolveRelative(currentSlug, object.slug),
               children: [
-                /* @__PURE__ */ u2("span", { class: "knowledge-type-code", children: object.code }),
-                /* @__PURE__ */ u2("span", { class: "knowledge-update-copy", children: [
-                  /* @__PURE__ */ u2("strong", { children: object.title }),
-                  /* @__PURE__ */ u2("small", { children: object.description })
+                /* @__PURE__ */ jsx("span", { class: "knowledge-type-code", children: object.code }),
+                /* @__PURE__ */ jsxs("span", { class: "knowledge-update-copy", children: [
+                  /* @__PURE__ */ jsx("strong", { children: object.title }),
+                  /* @__PURE__ */ jsx("small", { children: object.description })
                 ] }),
-                /* @__PURE__ */ u2("span", { class: "knowledge-update-meta", children: [
-                  /* @__PURE__ */ u2("em", { children: TYPE_META[object.type].label }),
-                  /* @__PURE__ */ u2("time", { datetime: object.updatedAt?.toISOString(), children: formatDate(object.updatedAt, false) })
+                /* @__PURE__ */ jsxs("span", { class: "knowledge-update-meta", children: [
+                  /* @__PURE__ */ jsx("em", { children: TYPE_META[object.type].label }),
+                  /* @__PURE__ */ jsx("time", { datetime: object.updatedAt?.toISOString(), children: formatDate(object.updatedAt, false) })
                 ] })
               ]
             }
-          )) }) : /* @__PURE__ */ u2("p", { class: "knowledge-empty-state", children: "\u5F53\u524D\u6784\u5EFA\u672A\u53D1\u73B0 Source\u3001Entity\u3001Concept \u6216 Synthesis \u9875\u9762\u3002" })
+          )) }) : /* @__PURE__ */ jsx("p", { class: "knowledge-empty-state", children: "\u5F53\u524D\u6784\u5EFA\u672A\u53D1\u73B0 Source\u3001Entity\u3001Concept \u6216 Synthesis \u9875\u9762\u3002" })
         ] }),
-        /* @__PURE__ */ u2("aside", { class: "knowledge-home-side", "aria-label": "\u77E5\u8BC6\u5E93\u5173\u6CE8\u9879\u4E0E\u6D3B\u52A8", children: [
-          /* @__PURE__ */ u2("section", { class: "knowledge-attention", "aria-labelledby": "knowledge-attention-title", children: [
-            /* @__PURE__ */ u2("div", { class: "knowledge-section-heading", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "\u53EF\u6267\u884C\u68C0\u67E5" }),
-                /* @__PURE__ */ u2("h2", { id: "knowledge-attention-title", children: "\u9700\u8981\u5173\u6CE8" })
+        /* @__PURE__ */ jsxs("aside", { class: "knowledge-home-side", "aria-label": "\u77E5\u8BC6\u5E93\u5173\u6CE8\u9879\u4E0E\u6D3B\u52A8", children: [
+          /* @__PURE__ */ jsxs("section", { class: "knowledge-attention", "aria-labelledby": "knowledge-attention-title", children: [
+            /* @__PURE__ */ jsxs("div", { class: "knowledge-section-heading", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "\u53EF\u6267\u884C\u68C0\u67E5" }),
+                /* @__PURE__ */ jsx("h2", { id: "knowledge-attention-title", children: "\u9700\u8981\u5173\u6CE8" })
               ] }),
-              /* @__PURE__ */ u2("span", { children: [
+              /* @__PURE__ */ jsxs("span", { children: [
                 qualitySummary.affectedObjects,
                 " \u9879"
               ] })
             ] }),
-            /* @__PURE__ */ u2("a", { href: `${qualityHref}#metadata-gaps`, class: "knowledge-attention-row", children: [
-              /* @__PURE__ */ u2("span", { class: "knowledge-attention-code", children: "META" }),
-              /* @__PURE__ */ u2("span", { children: [
-                /* @__PURE__ */ u2("strong", { children: qualitySummary.affectedObjects > 0 ? `${qualitySummary.affectedObjects} \u4E2A\u5BF9\u8C61\u5B58\u5728\u5143\u6570\u636E\u7F3A\u53E3` : "\u672A\u53D1\u73B0\u5143\u6570\u636E\u7F3A\u53E3" }),
-                /* @__PURE__ */ u2("small", { children: "\u6458\u8981\u3001\u6807\u7B7E\u548C\u66F4\u65B0\u65F6\u95F4\u6309\u672C\u6B21\u6784\u5EFA\u6570\u636E\u68C0\u67E5\u3002" })
+            /* @__PURE__ */ jsxs("a", { href: `${qualityHref}#metadata-gaps`, class: "knowledge-attention-row", children: [
+              /* @__PURE__ */ jsx("span", { class: "knowledge-attention-code", children: "META" }),
+              /* @__PURE__ */ jsxs("span", { children: [
+                /* @__PURE__ */ jsx("strong", { children: qualitySummary.affectedObjects > 0 ? `${qualitySummary.affectedObjects} \u4E2A\u5BF9\u8C61\u5B58\u5728\u5143\u6570\u636E\u7F3A\u53E3` : "\u672A\u53D1\u73B0\u5143\u6570\u636E\u7F3A\u53E3" }),
+                /* @__PURE__ */ jsx("small", { children: "\u6458\u8981\u3001\u6807\u7B7E\u548C\u66F4\u65B0\u65F6\u95F4\u6309\u672C\u6B21\u6784\u5EFA\u6570\u636E\u68C0\u67E5\u3002" })
               ] })
             ] }),
-            /* @__PURE__ */ u2("a", { href: ingestHref, class: "knowledge-attention-row is-unknown", children: [
-              /* @__PURE__ */ u2("span", { class: "knowledge-attention-code", children: "PUB" }),
-              /* @__PURE__ */ u2("span", { children: [
-                /* @__PURE__ */ u2("strong", { children: "\u5F85\u53D1\u5E03\u53D8\u66F4\u6570\u91CF\u672A\u77E5" }),
-                /* @__PURE__ */ u2("small", { children: "\u8FDB\u5165\u6587\u6863\u5165\u5E93\u67E5\u770B\u771F\u5B9E\u4EFB\u52A1\uFF1B\u9759\u6001\u7D22\u5F15\u4E0D\u63A8\u65AD\u53D1\u5E03\u72B6\u6001\u3002" })
+            /* @__PURE__ */ jsxs("a", { href: ingestHref, class: "knowledge-attention-row is-unknown", children: [
+              /* @__PURE__ */ jsx("span", { class: "knowledge-attention-code", children: "PUB" }),
+              /* @__PURE__ */ jsxs("span", { children: [
+                /* @__PURE__ */ jsx("strong", { children: "\u5F85\u53D1\u5E03\u53D8\u66F4\u6570\u91CF\u672A\u77E5" }),
+                /* @__PURE__ */ jsx("small", { children: "\u8FDB\u5165\u6587\u6863\u5165\u5E93\u67E5\u770B\u771F\u5B9E\u4EFB\u52A1\uFF1B\u9759\u6001\u7D22\u5F15\u4E0D\u63A8\u65AD\u53D1\u5E03\u72B6\u6001\u3002" })
               ] })
             ] })
           ] }),
-          /* @__PURE__ */ u2("section", { class: "knowledge-activity", "aria-labelledby": "knowledge-activity-title", children: [
-            /* @__PURE__ */ u2("div", { class: "knowledge-section-heading", children: /* @__PURE__ */ u2("div", { children: [
-              /* @__PURE__ */ u2("p", { children: "\u6784\u5EFA\u53EF\u89C1\u8BB0\u5F55" }),
-              /* @__PURE__ */ u2("h2", { id: "knowledge-activity-title", children: "\u6700\u8FD1\u6D3B\u52A8" })
+          /* @__PURE__ */ jsxs("section", { class: "knowledge-activity", "aria-labelledby": "knowledge-activity-title", children: [
+            /* @__PURE__ */ jsx("div", { class: "knowledge-section-heading", children: /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsx("p", { children: "\u6784\u5EFA\u53EF\u89C1\u8BB0\u5F55" }),
+              /* @__PURE__ */ jsx("h2", { id: "knowledge-activity-title", children: "\u6700\u8FD1\u6D3B\u52A8" })
             ] }) }),
-            /* @__PURE__ */ u2("div", { class: "knowledge-activity-list", children: latestObjects.slice(0, 4).map((object) => /* @__PURE__ */ u2("a", { href: resolveRelative(currentSlug, object.slug), children: [
-              /* @__PURE__ */ u2("span", { class: "knowledge-type-code", children: object.code }),
-              /* @__PURE__ */ u2("span", { children: [
-                /* @__PURE__ */ u2("strong", { children: object.title }),
-                /* @__PURE__ */ u2("small", { children: [
+            /* @__PURE__ */ jsx("div", { class: "knowledge-activity-list", children: latestObjects.slice(0, 4).map((object) => /* @__PURE__ */ jsxs("a", { href: resolveRelative(currentSlug, object.slug), children: [
+              /* @__PURE__ */ jsx("span", { class: "knowledge-type-code", children: object.code }),
+              /* @__PURE__ */ jsxs("span", { children: [
+                /* @__PURE__ */ jsx("strong", { children: object.title }),
+                /* @__PURE__ */ jsxs("small", { children: [
                   formatDate(object.updatedAt, false),
                   "\u66F4\u65B0"
                 ] })
               ] })
             ] })) }),
-            /* @__PURE__ */ u2("p", { class: "knowledge-activity-note", children: "\u6B64\u5904\u53EA\u663E\u793A\u5F53\u524D Quartz \u6784\u5EFA\u80FD\u591F\u786E\u8BA4\u7684\u77E5\u8BC6\u66F4\u65B0\u65F6\u95F4\uFF0C\u4E0D\u4F2A\u88C5\u4E3A\u5B9E\u65F6\u64CD\u4F5C\u65E5\u5FD7\u3002" })
+            /* @__PURE__ */ jsx("p", { class: "knowledge-activity-note", children: "\u6B64\u5904\u53EA\u663E\u793A\u5F53\u524D Quartz \u6784\u5EFA\u80FD\u591F\u786E\u8BA4\u7684\u77E5\u8BC6\u66F4\u65B0\u65F6\u95F4\uFF0C\u4E0D\u4F2A\u88C5\u4E3A\u5B9E\u65F6\u64CD\u4F5C\u65E5\u5FD7\u3002" })
           ] })
         ] })
       ] })
@@ -394,8 +351,65 @@ var HomePage_default = (() => {
   HomePage2.afterDOMLoaded = homeScript;
   return HomePage2;
 });
-
-// src/components/LibraryPage.tsx
+var MANUAL_SOURCE_PREFIX = "raw/uploads/manual/";
+var NEW_TAB_EXTENSIONS = /* @__PURE__ */ new Set([
+  "pdf",
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "avif",
+  "md",
+  "markdown",
+  "txt"
+]);
+function getFileExtension(filename) {
+  const extension = filename.split(".").pop()?.trim().toLowerCase();
+  return extension && extension !== filename.toLowerCase() ? extension : null;
+}
+function getManualSourceReference(sourceFile) {
+  if (!sourceFile.startsWith(MANUAL_SOURCE_PREFIX)) return null;
+  if (sourceFile.includes("\\")) return null;
+  const relativePath = sourceFile.slice(MANUAL_SOURCE_PREFIX.length);
+  const segments = relativePath.split("/");
+  if (!relativePath || segments.some((segment) => !segment || segment === "." || segment === "..")) return null;
+  const filename = segments.at(-1);
+  const extension = getFileExtension(filename);
+  const normalizedExtension = extension?.toUpperCase() ?? "\u6587\u4EF6";
+  const opensInNewTab = extension ? NEW_TAB_EXTENSIONS.has(extension) : false;
+  return {
+    href: `/source-files/manual/${segments.map(encodeURIComponent).join("/")}`,
+    label: opensInNewTab ? "\u67E5\u770B\u539F\u6587" : "\u4E0B\u8F7D\u539F\u6587\u4EF6",
+    detail: `${filename} \xB7 ${normalizedExtension} \xB7 \u4EBA\u5DE5\u4E0A\u4F20`,
+    marker: `[${normalizedExtension}] ${filename}`,
+    searchText: filename,
+    ...opensInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : { download: true }
+  };
+}
+function getExternalSourceReference(sourceUrl) {
+  try {
+    const url = new URL(sourceUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return {
+      href: url.href,
+      label: "\u8BBF\u95EE\u539F\u6587",
+      detail: `${url.hostname} \xB7 \u5B9A\u65F6\u540C\u6B65`,
+      marker: `[URL] ${url.hostname}`,
+      searchText: url.hostname,
+      target: "_blank",
+      rel: "noopener noreferrer"
+    };
+  } catch {
+    return null;
+  }
+}
+function getSourceReference(object) {
+  if (object.type !== "source" || object.sourceFile && object.sourceUrl) return null;
+  if (object.sourceFile) return getManualSourceReference(object.sourceFile);
+  if (object.sourceUrl) return getExternalSourceReference(object.sourceUrl);
+  return null;
+}
 var TYPE_META2 = {
   source: { label: "\u6765\u6E90", pluralLabel: "Sources" },
   entity: { label: "\u5B9E\u4F53", pluralLabel: "Entities" },
@@ -546,34 +560,34 @@ var LibraryPage_default = (() => {
     const counts = Object.fromEntries(
       TYPE_ORDER.map((type) => [type, objects.filter((object) => object.type === type).length])
     );
-    return /* @__PURE__ */ u2("main", { class: "knowledge-library", "data-knowledge-library": true, children: [
-      /* @__PURE__ */ u2("header", { class: "knowledge-library-header", children: [
-        /* @__PURE__ */ u2("div", { children: [
-          /* @__PURE__ */ u2("p", { children: [
+    return /* @__PURE__ */ jsxs("main", { class: "knowledge-library", "data-knowledge-library": true, children: [
+      /* @__PURE__ */ jsxs("header", { class: "knowledge-library-header", children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsxs("p", { children: [
             objects.length.toLocaleString("zh-CN"),
             " \u4E2A\u53EF\u68C0\u7D22\u5BF9\u8C61"
           ] }),
-          /* @__PURE__ */ u2("h1", { children: "\u77E5\u8BC6\u5E93" }),
-          /* @__PURE__ */ u2("span", { children: "\u6309\u6765\u6E90\u8D44\u6599\u3001\u77E5\u8BC6\u5B9E\u4F53\u3001\u6838\u5FC3\u6982\u5FF5\u548C\u4E13\u9898\u5206\u6790\u6D4F\u89C8\u5DF2\u53D1\u5E03\u5185\u5BB9\u3002" })
+          /* @__PURE__ */ jsx("h1", { children: "\u77E5\u8BC6\u5E93" }),
+          /* @__PURE__ */ jsx("span", { children: "\u6309\u6765\u6E90\u8D44\u6599\u3001\u77E5\u8BC6\u5B9E\u4F53\u3001\u6838\u5FC3\u6982\u5FF5\u548C\u4E13\u9898\u5206\u6790\u6D4F\u89C8\u5DF2\u53D1\u5E03\u5185\u5BB9\u3002" })
         ] }),
-        /* @__PURE__ */ u2("a", { class: "knowledge-library-ask", href: resolveRelative(currentSlug, "chats"), children: "\u8BE2\u95EE\u77E5\u8BC6\u5E93" })
+        /* @__PURE__ */ jsx("a", { class: "knowledge-library-ask", href: resolveRelative(currentSlug, "chats"), children: "\u8BE2\u95EE\u77E5\u8BC6\u5E93" })
       ] }),
-      /* @__PURE__ */ u2("section", { class: "knowledge-library-controls", "aria-label": "\u77E5\u8BC6\u5E93\u7B5B\u9009\u4E0E\u6392\u5E8F", children: [
-        /* @__PURE__ */ u2("div", { class: "knowledge-library-tabs", role: "tablist", "aria-label": "\u77E5\u8BC6\u5BF9\u8C61\u7C7B\u578B", children: [
-          /* @__PURE__ */ u2("button", { type: "button", class: "is-active", "data-library-type": "all", role: "tab", children: [
+      /* @__PURE__ */ jsxs("section", { class: "knowledge-library-controls", "aria-label": "\u77E5\u8BC6\u5E93\u7B5B\u9009\u4E0E\u6392\u5E8F", children: [
+        /* @__PURE__ */ jsxs("div", { class: "knowledge-library-tabs", role: "tablist", "aria-label": "\u77E5\u8BC6\u5BF9\u8C61\u7C7B\u578B", children: [
+          /* @__PURE__ */ jsxs("button", { type: "button", class: "is-active", "data-library-type": "all", role: "tab", children: [
             "\u5168\u90E8 ",
-            /* @__PURE__ */ u2("span", { children: objects.length })
+            /* @__PURE__ */ jsx("span", { children: objects.length })
           ] }),
-          TYPE_ORDER.map((type) => /* @__PURE__ */ u2("button", { type: "button", "data-library-type": type, role: "tab", tabindex: -1, children: [
+          TYPE_ORDER.map((type) => /* @__PURE__ */ jsxs("button", { type: "button", "data-library-type": type, role: "tab", tabindex: -1, children: [
             TYPE_META2[type].label,
             " ",
-            /* @__PURE__ */ u2("span", { children: counts[type] })
+            /* @__PURE__ */ jsx("span", { children: counts[type] })
           ] }))
         ] }),
-        /* @__PURE__ */ u2("div", { class: "knowledge-library-tools", children: [
-          /* @__PURE__ */ u2("label", { children: [
-            /* @__PURE__ */ u2("span", { children: "\u5F53\u524D\u7ED3\u679C\u641C\u7D22" }),
-            /* @__PURE__ */ u2(
+        /* @__PURE__ */ jsxs("div", { class: "knowledge-library-tools", children: [
+          /* @__PURE__ */ jsxs("label", { children: [
+            /* @__PURE__ */ jsx("span", { children: "\u5F53\u524D\u7ED3\u679C\u641C\u7D22" }),
+            /* @__PURE__ */ jsx(
               "input",
               {
                 type: "search",
@@ -583,44 +597,51 @@ var LibraryPage_default = (() => {
               }
             )
           ] }),
-          /* @__PURE__ */ u2("label", { children: [
-            /* @__PURE__ */ u2("span", { children: "\u6392\u5E8F" }),
-            /* @__PURE__ */ u2("select", { "data-library-sort": true, children: [
-              /* @__PURE__ */ u2("option", { value: "updated", children: "\u6700\u8FD1\u66F4\u65B0" }),
-              /* @__PURE__ */ u2("option", { value: "title", children: "\u6807\u9898 A\u2013Z" }),
-              /* @__PURE__ */ u2("option", { value: "type", children: "\u5BF9\u8C61\u7C7B\u578B" })
+          /* @__PURE__ */ jsxs("label", { children: [
+            /* @__PURE__ */ jsx("span", { children: "\u6392\u5E8F" }),
+            /* @__PURE__ */ jsxs("select", { "data-library-sort": true, children: [
+              /* @__PURE__ */ jsx("option", { value: "updated", children: "\u6700\u8FD1\u66F4\u65B0" }),
+              /* @__PURE__ */ jsx("option", { value: "title", children: "\u6807\u9898 A\u2013Z" }),
+              /* @__PURE__ */ jsx("option", { value: "type", children: "\u5BF9\u8C61\u7C7B\u578B" })
             ] })
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ u2(
+      /* @__PURE__ */ jsxs(
         "section",
         {
           class: "knowledge-library-register",
           "aria-labelledby": "knowledge-library-results-title",
           children: [
-            /* @__PURE__ */ u2("header", { children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("h2", { id: "knowledge-library-results-title", children: "\u8D44\u4EA7\u6E05\u5355" }),
-                /* @__PURE__ */ u2("p", { "aria-live": "polite", children: [
+            /* @__PURE__ */ jsxs("header", { children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("h2", { id: "knowledge-library-results-title", children: "\u8D44\u4EA7\u6E05\u5355" }),
+                /* @__PURE__ */ jsxs("p", { "aria-live": "polite", children: [
                   "\u5F53\u524D\u663E\u793A ",
-                  /* @__PURE__ */ u2("strong", { "data-library-result-count": true, children: objects.length }),
+                  /* @__PURE__ */ jsx("strong", { "data-library-result-count": true, children: objects.length }),
                   " \u4E2A\u77E5\u8BC6\u5BF9\u8C61"
                 ] })
               ] }),
-              /* @__PURE__ */ u2("button", { type: "button", "data-library-clear": true, children: "\u6E05\u9664\u7B5B\u9009" })
+              /* @__PURE__ */ jsx("button", { type: "button", "data-library-clear": true, children: "\u6E05\u9664\u7B5B\u9009" })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "knowledge-library-columns", "aria-hidden": "true", children: [
-              /* @__PURE__ */ u2("span", { children: "\u7C7B\u578B" }),
-              /* @__PURE__ */ u2("span", { children: "\u6807\u9898\u4E0E\u6458\u8981" }),
-              /* @__PURE__ */ u2("span", { children: "\u6807\u7B7E" }),
-              /* @__PURE__ */ u2("span", { children: "\u66F4\u65B0\u65F6\u95F4" })
+            /* @__PURE__ */ jsxs("div", { class: "knowledge-library-columns", "aria-hidden": "true", children: [
+              /* @__PURE__ */ jsx("span", { children: "\u7C7B\u578B" }),
+              /* @__PURE__ */ jsx("span", { children: "\u6807\u9898\u4E0E\u6458\u8981" }),
+              /* @__PURE__ */ jsx("span", { children: "\u6807\u7B7E" }),
+              /* @__PURE__ */ jsx("span", { children: "\u66F4\u65B0\u65F6\u95F4" })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "knowledge-library-results", "data-library-results": true, children: objects.map((object) => {
+            /* @__PURE__ */ jsx("div", { class: "knowledge-library-results", "data-library-results": true, children: objects.map((object) => {
               const href = resolveRelative(currentSlug, object.slug);
               const timestamp = object.updatedAt?.getTime() ?? 0;
-              const searchText = [object.title, object.description, object.code, ...object.tags].join(" ").toLocaleLowerCase("zh-CN");
-              return /* @__PURE__ */ u2(
+              const sourceReference = getSourceReference(object);
+              const searchText = [
+                object.title,
+                object.description,
+                object.code,
+                ...object.tags,
+                sourceReference?.searchText
+              ].join(" ").toLocaleLowerCase("zh-CN");
+              return /* @__PURE__ */ jsxs(
                 "a",
                 {
                   class: `knowledge-library-row is-${object.type}`,
@@ -632,22 +653,23 @@ var LibraryPage_default = (() => {
                   "data-updated": String(timestamp),
                   "data-search": searchText,
                   children: [
-                    /* @__PURE__ */ u2("span", { class: "knowledge-library-code", children: object.code }),
-                    /* @__PURE__ */ u2("span", { class: "knowledge-library-copy", children: [
-                      /* @__PURE__ */ u2("strong", { children: object.title }),
-                      /* @__PURE__ */ u2("small", { children: object.description })
+                    /* @__PURE__ */ jsx("span", { class: "knowledge-library-code", children: object.code }),
+                    /* @__PURE__ */ jsxs("span", { class: "knowledge-library-copy", children: [
+                      /* @__PURE__ */ jsx("strong", { children: object.title }),
+                      sourceReference && /* @__PURE__ */ jsx("span", { class: "knowledge-library-source-reference", children: sourceReference.marker }),
+                      /* @__PURE__ */ jsx("small", { children: object.description })
                     ] }),
-                    /* @__PURE__ */ u2("span", { class: "knowledge-library-tags", children: object.tags.length > 0 ? object.tags.slice(0, 3).map((tag) => /* @__PURE__ */ u2("em", { children: tag })) : /* @__PURE__ */ u2("em", { children: "\u672A\u6807\u6CE8\u6807\u7B7E" }) }),
-                    /* @__PURE__ */ u2("time", { datetime: object.updatedAt?.toISOString(), children: formatDate2(object.updatedAt) })
+                    /* @__PURE__ */ jsx("span", { class: "knowledge-library-tags", children: object.tags.length > 0 ? object.tags.slice(0, 3).map((tag) => /* @__PURE__ */ jsx("em", { children: tag })) : /* @__PURE__ */ jsx("em", { children: "\u672A\u6807\u6CE8\u6807\u7B7E" }) }),
+                    /* @__PURE__ */ jsx("time", { datetime: object.updatedAt?.toISOString(), children: formatDate2(object.updatedAt) })
                   ]
                 }
               );
             }) }),
-            /* @__PURE__ */ u2("div", { class: "knowledge-library-empty", "data-library-empty": true, hidden: true, children: [
-              /* @__PURE__ */ u2("span", { "aria-hidden": "true", children: "\u2205" }),
-              /* @__PURE__ */ u2("h2", { children: "\u5F53\u524D\u6761\u4EF6\u4E0B\u6CA1\u6709\u77E5\u8BC6\u5BF9\u8C61" }),
-              /* @__PURE__ */ u2("p", { children: "\u7B5B\u9009\u6761\u4EF6\u4F1A\u4FDD\u7559\u3002\u53EF\u4EE5\u4FEE\u6539\u5173\u952E\u8BCD\u6216\u6E05\u9664\u5168\u90E8\u6761\u4EF6\u540E\u91CD\u65B0\u6D4F\u89C8\u3002" }),
-              /* @__PURE__ */ u2("button", { type: "button", "data-library-clear": true, children: "\u6E05\u9664\u5168\u90E8\u6761\u4EF6" })
+            /* @__PURE__ */ jsxs("div", { class: "knowledge-library-empty", "data-library-empty": true, hidden: true, children: [
+              /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: "\u2205" }),
+              /* @__PURE__ */ jsx("h2", { children: "\u5F53\u524D\u6761\u4EF6\u4E0B\u6CA1\u6709\u77E5\u8BC6\u5BF9\u8C61" }),
+              /* @__PURE__ */ jsx("p", { children: "\u7B5B\u9009\u6761\u4EF6\u4F1A\u4FDD\u7559\u3002\u53EF\u4EE5\u4FEE\u6539\u5173\u952E\u8BCD\u6216\u6E05\u9664\u5168\u90E8\u6761\u4EF6\u540E\u91CD\u65B0\u6D4F\u89C8\u3002" }),
+              /* @__PURE__ */ jsx("button", { type: "button", "data-library-clear": true, children: "\u6E05\u9664\u5168\u90E8\u6761\u4EF6" })
             ] })
           ]
         }
@@ -1073,8 +1095,6 @@ document.addEventListener("nav", () => {
   loadSnapshot(false)
 })
 `;
-
-// src/components/QualityPage.tsx
 function QualityIssueGroup({
   title,
   count,
@@ -1082,28 +1102,28 @@ function QualityIssueGroup({
   objects,
   currentSlug
 }) {
-  return /* @__PURE__ */ u2("section", { class: "quality-metadata-group", children: [
-    /* @__PURE__ */ u2("header", { children: [
-      /* @__PURE__ */ u2("div", { children: [
-        /* @__PURE__ */ u2("h2", { children: title }),
-        /* @__PURE__ */ u2("p", { children: description })
+  return /* @__PURE__ */ jsxs("section", { class: "quality-metadata-group", children: [
+    /* @__PURE__ */ jsxs("header", { children: [
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("h2", { children: title }),
+        /* @__PURE__ */ jsx("p", { children: description })
       ] }),
-      /* @__PURE__ */ u2("strong", { children: count })
+      /* @__PURE__ */ jsx("strong", { children: count })
     ] }),
-    objects.length > 0 ? /* @__PURE__ */ u2("div", { class: "quality-metadata-list", children: [
-      objects.slice(0, 8).map((object) => /* @__PURE__ */ u2("a", { href: resolveRelative(currentSlug, object.slug), children: [
-        /* @__PURE__ */ u2("span", { class: "knowledge-type-code", children: object.code }),
-        /* @__PURE__ */ u2("span", { children: [
-          /* @__PURE__ */ u2("strong", { children: object.title }),
-          /* @__PURE__ */ u2("small", { children: object.slug })
+    objects.length > 0 ? /* @__PURE__ */ jsxs("div", { class: "quality-metadata-list", children: [
+      objects.slice(0, 8).map((object) => /* @__PURE__ */ jsxs("a", { href: resolveRelative(currentSlug, object.slug), children: [
+        /* @__PURE__ */ jsx("span", { class: "knowledge-type-code", children: object.code }),
+        /* @__PURE__ */ jsxs("span", { children: [
+          /* @__PURE__ */ jsx("strong", { children: object.title }),
+          /* @__PURE__ */ jsx("small", { children: object.slug })
         ] })
       ] })),
-      objects.length > 8 && /* @__PURE__ */ u2("p", { children: [
+      objects.length > 8 && /* @__PURE__ */ jsxs("p", { children: [
         "\u53E6\u6709 ",
         objects.length - 8,
         " \u9879\uFF0C\u8BF7\u5728\u77E5\u8BC6\u5E93\u4E2D\u7EE7\u7EED\u7B5B\u9009\u3002"
       ] })
-    ] }) : /* @__PURE__ */ u2("p", { class: "quality-metadata-empty", children: "\u5F53\u524D\u6784\u5EFA\u672A\u53D1\u73B0\u6B64\u7C7B\u5143\u6570\u636E\u7F3A\u53E3\u3002" })
+    ] }) : /* @__PURE__ */ jsx("p", { class: "quality-metadata-empty", children: "\u5F53\u524D\u6784\u5EFA\u672A\u53D1\u73B0\u6B64\u7C7B\u5143\u6570\u636E\u7F3A\u53E3\u3002" })
   ] });
 }
 var QualityPage_default = (() => {
@@ -1114,133 +1134,133 @@ var QualityPage_default = (() => {
     const missingDescriptions = objects.filter((object) => !object.hasDescription);
     const missingTags = objects.filter((object) => object.tags.length === 0);
     const missingDates = objects.filter((object) => object.updatedAt === null);
-    return /* @__PURE__ */ u2("main", { class: "knowledge-quality", children: [
-      /* @__PURE__ */ u2("header", { class: "knowledge-quality-header", children: [
-        /* @__PURE__ */ u2("div", { children: [
-          /* @__PURE__ */ u2("p", { children: "\u8D28\u91CF\u5DE1\u68C0\u5FEB\u7167" }),
-          /* @__PURE__ */ u2("h1", { children: "\u77E5\u8BC6\u8D28\u91CF" }),
-          /* @__PURE__ */ u2("span", { children: "\u4EE5\u6700\u8FD1\u4E00\u6B21\u6210\u529F\u7684 health\u3001lint \u4E0E graph \u5DE1\u68C0\u4E3A\u4F9D\u636E\uFF1B\u8BED\u4E49\u53D1\u73B0\u5747\u9700\u56DE\u5230\u6765\u6E90\u8D44\u6599\u4EBA\u5DE5\u786E\u8BA4\u3002" })
+    return /* @__PURE__ */ jsxs("main", { class: "knowledge-quality", children: [
+      /* @__PURE__ */ jsxs("header", { class: "knowledge-quality-header", children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("p", { children: "\u8D28\u91CF\u5DE1\u68C0\u5FEB\u7167" }),
+          /* @__PURE__ */ jsx("h1", { children: "\u77E5\u8BC6\u8D28\u91CF" }),
+          /* @__PURE__ */ jsx("span", { children: "\u4EE5\u6700\u8FD1\u4E00\u6B21\u6210\u529F\u7684 health\u3001lint \u4E0E graph \u5DE1\u68C0\u4E3A\u4F9D\u636E\uFF1B\u8BED\u4E49\u53D1\u73B0\u5747\u9700\u56DE\u5230\u6765\u6E90\u8D44\u6599\u4EBA\u5DE5\u786E\u8BA4\u3002" })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "quality-header-actions", children: [
-          /* @__PURE__ */ u2("button", { type: "button", class: "quality-action-secondary", "data-quality-report": true, children: "\u67E5\u770B\u5DE1\u68C0\u62A5\u544A" }),
-          /* @__PURE__ */ u2("button", { type: "button", class: "quality-action-primary", "data-quality-run": true, children: "\u8FD0\u884C\u65B0\u4E00\u8F6E\u68C0\u67E5" })
+        /* @__PURE__ */ jsxs("div", { class: "quality-header-actions", children: [
+          /* @__PURE__ */ jsx("button", { type: "button", class: "quality-action-secondary", "data-quality-report": true, children: "\u67E5\u770B\u5DE1\u68C0\u62A5\u544A" }),
+          /* @__PURE__ */ jsx("button", { type: "button", class: "quality-action-primary", "data-quality-run": true, children: "\u8FD0\u884C\u65B0\u4E00\u8F6E\u68C0\u67E5" })
         ] })
       ] }),
-      /* @__PURE__ */ u2("section", { class: "quality-action-note", "data-quality-action-note": true, "aria-live": "polite", tabindex: -1, hidden: true, children: [
-        /* @__PURE__ */ u2("strong", { "data-quality-action-note-title": true, children: "\u8D28\u91CF\u9875\u8BF4\u660E" }),
-        /* @__PURE__ */ u2("p", { "data-quality-action-note-body": true })
+      /* @__PURE__ */ jsxs("section", { class: "quality-action-note", "data-quality-action-note": true, "aria-live": "polite", tabindex: -1, hidden: true, children: [
+        /* @__PURE__ */ jsx("strong", { "data-quality-action-note-title": true, children: "\u8D28\u91CF\u9875\u8BF4\u660E" }),
+        /* @__PURE__ */ jsx("p", { "data-quality-action-note-body": true })
       ] }),
-      /* @__PURE__ */ u2("section", { class: "quality-status", "aria-label": "\u5DE1\u68C0\u6982\u89C8", "data-quality-snapshot": true, "aria-busy": "true", children: [
-        /* @__PURE__ */ u2("div", { class: "quality-status-item", children: [
-          /* @__PURE__ */ u2("span", { class: "quality-status-label", children: "\u62A5\u544A\u751F\u6210\u65F6\u95F4" }),
-          /* @__PURE__ */ u2("strong", { "data-quality-generated-at": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
-          /* @__PURE__ */ u2("small", { "data-quality-generated-detail": true, children: "\u7B49\u5F85\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167" })
+      /* @__PURE__ */ jsxs("section", { class: "quality-status", "aria-label": "\u5DE1\u68C0\u6982\u89C8", "data-quality-snapshot": true, "aria-busy": "true", children: [
+        /* @__PURE__ */ jsxs("div", { class: "quality-status-item", children: [
+          /* @__PURE__ */ jsx("span", { class: "quality-status-label", children: "\u62A5\u544A\u751F\u6210\u65F6\u95F4" }),
+          /* @__PURE__ */ jsx("strong", { "data-quality-generated-at": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
+          /* @__PURE__ */ jsx("small", { "data-quality-generated-detail": true, children: "\u7B49\u5F85\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167" })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "quality-status-item", children: [
-          /* @__PURE__ */ u2("span", { class: "quality-status-label", children: "\u68C0\u67E5\u8986\u76D6" }),
-          /* @__PURE__ */ u2("strong", { "data-quality-coverage": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
-          /* @__PURE__ */ u2("small", { "data-quality-coverage-detail": true, children: "\u7B49\u5F85\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167" })
+        /* @__PURE__ */ jsxs("div", { class: "quality-status-item", children: [
+          /* @__PURE__ */ jsx("span", { class: "quality-status-label", children: "\u68C0\u67E5\u8986\u76D6" }),
+          /* @__PURE__ */ jsx("strong", { "data-quality-coverage": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
+          /* @__PURE__ */ jsx("small", { "data-quality-coverage-detail": true, children: "\u7B49\u5F85\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167" })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "quality-status-item", children: [
-          /* @__PURE__ */ u2("span", { class: "quality-status-label", children: "\u56FE\u8C31\u72B6\u6001" }),
-          /* @__PURE__ */ u2("strong", { "data-quality-graph-state": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
-          /* @__PURE__ */ u2("small", { "data-quality-graph-detail": true, children: "\u56FE\u8C31\u4E0D\u4F1A\u4EE5\u5386\u53F2\u7ED3\u679C\u4EE3\u66FF\u5F53\u524D\u7ED3\u8BBA" })
+        /* @__PURE__ */ jsxs("div", { class: "quality-status-item", children: [
+          /* @__PURE__ */ jsx("span", { class: "quality-status-label", children: "\u56FE\u8C31\u72B6\u6001" }),
+          /* @__PURE__ */ jsx("strong", { "data-quality-graph-state": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
+          /* @__PURE__ */ jsx("small", { "data-quality-graph-detail": true, children: "\u56FE\u8C31\u4E0D\u4F1A\u4EE5\u5386\u53F2\u7ED3\u679C\u4EE3\u66FF\u5F53\u524D\u7ED3\u8BBA" })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "quality-status-item", children: [
-          /* @__PURE__ */ u2("span", { class: "quality-status-label", children: "\u8BED\u4E49\u5DE1\u68C0" }),
-          /* @__PURE__ */ u2("strong", { "data-quality-lint-state": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
-          /* @__PURE__ */ u2("small", { "data-quality-lint-detail": true, children: "\u8BED\u4E49\u68C0\u67E5\u8303\u56F4\u5C06\u5728\u5FEB\u7167\u4E2D\u8BF4\u660E" })
+        /* @__PURE__ */ jsxs("div", { class: "quality-status-item", children: [
+          /* @__PURE__ */ jsx("span", { class: "quality-status-label", children: "\u8BED\u4E49\u5DE1\u68C0" }),
+          /* @__PURE__ */ jsx("strong", { "data-quality-lint-state": true, children: "\u6B63\u5728\u8BFB\u53D6" }),
+          /* @__PURE__ */ jsx("small", { "data-quality-lint-detail": true, children: "\u8BED\u4E49\u68C0\u67E5\u8303\u56F4\u5C06\u5728\u5FEB\u7167\u4E2D\u8BF4\u660E" })
         ] })
       ] }),
-      /* @__PURE__ */ u2("nav", { class: "quality-tabs", "aria-label": "\u8D28\u91CF\u7C7B\u522B", role: "tablist", children: [
-        /* @__PURE__ */ u2("button", { type: "button", class: "is-active", "data-quality-tab": "all", role: "tab", "aria-selected": "true", children: [
+      /* @__PURE__ */ jsxs("nav", { class: "quality-tabs", "aria-label": "\u8D28\u91CF\u7C7B\u522B", role: "tablist", children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", class: "is-active", "data-quality-tab": "all", role: "tab", "aria-selected": "true", children: [
           "\u5168\u90E8\u53D1\u73B0\u9879 ",
-          /* @__PURE__ */ u2("span", { "data-quality-tab-count": "all", children: "\u2014" })
+          /* @__PURE__ */ jsx("span", { "data-quality-tab-count": "all", children: "\u2014" })
         ] }),
-        /* @__PURE__ */ u2("button", { type: "button", "data-quality-tab": "structure", role: "tab", "aria-selected": "false", tabindex: -1, children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", "data-quality-tab": "structure", role: "tab", "aria-selected": "false", tabindex: -1, children: [
           "\u7ED3\u6784\u5B8C\u6574\u6027 ",
-          /* @__PURE__ */ u2("span", { "data-quality-tab-count": "structure", children: "\u2014" })
+          /* @__PURE__ */ jsx("span", { "data-quality-tab-count": "structure", children: "\u2014" })
         ] }),
-        /* @__PURE__ */ u2("button", { type: "button", "data-quality-tab": "consistency", role: "tab", "aria-selected": "false", tabindex: -1, children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", "data-quality-tab": "consistency", role: "tab", "aria-selected": "false", tabindex: -1, children: [
           "\u5185\u5BB9\u4E00\u81F4\u6027 ",
-          /* @__PURE__ */ u2("span", { "data-quality-tab-count": "consistency", children: "\u2014" })
+          /* @__PURE__ */ jsx("span", { "data-quality-tab-count": "consistency", children: "\u2014" })
         ] }),
-        /* @__PURE__ */ u2("button", { type: "button", "data-quality-tab": "graph", role: "tab", "aria-selected": "false", tabindex: -1, children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", "data-quality-tab": "graph", role: "tab", "aria-selected": "false", tabindex: -1, children: [
           "\u56FE\u8C31\u5065\u5EB7\u5EA6 ",
-          /* @__PURE__ */ u2("span", { "data-quality-tab-count": "graph", children: "\u2014" })
+          /* @__PURE__ */ jsx("span", { "data-quality-tab-count": "graph", children: "\u2014" })
         ] }),
-        /* @__PURE__ */ u2("button", { type: "button", "data-quality-tab": "freshness", role: "tab", "aria-selected": "false", tabindex: -1, children: [
+        /* @__PURE__ */ jsxs("button", { type: "button", "data-quality-tab": "freshness", role: "tab", "aria-selected": "false", tabindex: -1, children: [
           "\u65B0\u9C9C\u5EA6\u4E0E\u4FEE\u590D ",
-          /* @__PURE__ */ u2("span", { "data-quality-tab-count": "freshness", children: "\u2014" })
+          /* @__PURE__ */ jsx("span", { "data-quality-tab-count": "freshness", children: "\u2014" })
         ] })
       ] }),
-      /* @__PURE__ */ u2("div", { class: "quality-layout", children: [
-        /* @__PURE__ */ u2("div", { class: "quality-stream", "aria-live": "polite", children: [
-          /* @__PURE__ */ u2("section", { class: "quality-section", "data-quality-section": "structure", children: [
-            /* @__PURE__ */ u2("header", { class: "quality-section-header", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "Health + Lint \xB7 \u786E\u5B9A\u6027\u68C0\u67E5" }),
-                /* @__PURE__ */ u2("h2", { children: "\u7ED3\u6784\u5B8C\u6574\u6027" }),
-                /* @__PURE__ */ u2("span", { children: "\u7ED3\u6784\u7ED3\u679C\u53EF\u590D\u73B0\uFF1B\u672C\u9875\u4E0D\u4F1A\u7528\u5355\u4E00\u5065\u5EB7\u5206\u6570\u66FF\u4EE3\u5177\u4F53\u68C0\u67E5\u9879\u3002" })
+      /* @__PURE__ */ jsxs("div", { class: "quality-layout", children: [
+        /* @__PURE__ */ jsxs("div", { class: "quality-stream", "aria-live": "polite", children: [
+          /* @__PURE__ */ jsxs("section", { class: "quality-section", "data-quality-section": "structure", children: [
+            /* @__PURE__ */ jsxs("header", { class: "quality-section-header", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "Health + Lint \xB7 \u786E\u5B9A\u6027\u68C0\u67E5" }),
+                /* @__PURE__ */ jsx("h2", { children: "\u7ED3\u6784\u5B8C\u6574\u6027" }),
+                /* @__PURE__ */ jsx("span", { children: "\u7ED3\u6784\u7ED3\u679C\u53EF\u590D\u73B0\uFF1B\u672C\u9875\u4E0D\u4F1A\u7528\u5355\u4E00\u5065\u5EB7\u5206\u6570\u66FF\u4EE3\u5177\u4F53\u68C0\u67E5\u9879\u3002" })
               ] }),
-              /* @__PURE__ */ u2("strong", { "data-quality-section-count": "structure", children: "\u7B49\u5F85\u5FEB\u7167" })
+              /* @__PURE__ */ jsx("strong", { "data-quality-section-count": "structure", children: "\u7B49\u5F85\u5FEB\u7167" })
             ] }),
-            /* @__PURE__ */ u2("table", { class: "quality-check-matrix", children: [
-              /* @__PURE__ */ u2("thead", { children: /* @__PURE__ */ u2("tr", { children: [
-                /* @__PURE__ */ u2("th", { children: "\u68C0\u67E5\u9879" }),
-                /* @__PURE__ */ u2("th", { children: "\u672C\u6B21\u7ED3\u679C" }),
-                /* @__PURE__ */ u2("th", { children: "\u8BF4\u660E" })
+            /* @__PURE__ */ jsxs("table", { class: "quality-check-matrix", children: [
+              /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { children: [
+                /* @__PURE__ */ jsx("th", { children: "\u68C0\u67E5\u9879" }),
+                /* @__PURE__ */ jsx("th", { children: "\u672C\u6B21\u7ED3\u679C" }),
+                /* @__PURE__ */ jsx("th", { children: "\u8BF4\u660E" })
               ] }) }),
-              /* @__PURE__ */ u2("tbody", { "data-quality-structural": true, children: /* @__PURE__ */ u2("tr", { children: /* @__PURE__ */ u2("td", { colSpan: 3, children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u7ED3\u6784\u5DE1\u68C0\u62A5\u544A\u3002" }) }) })
+              /* @__PURE__ */ jsx("tbody", { "data-quality-structural": true, children: /* @__PURE__ */ jsx("tr", { children: /* @__PURE__ */ jsx("td", { colSpan: 3, children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u7ED3\u6784\u5DE1\u68C0\u62A5\u544A\u3002" }) }) })
             ] })
           ] }),
-          /* @__PURE__ */ u2("section", { class: "quality-section", "data-quality-section": "consistency", children: [
-            /* @__PURE__ */ u2("header", { class: "quality-section-header", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "Lint \xB7 \u8BED\u4E49\u5DE1\u68C0" }),
-                /* @__PURE__ */ u2("h2", { children: "\u5185\u5BB9\u4E00\u81F4\u6027" }),
-                /* @__PURE__ */ u2("span", { children: "\u540C\u4E00\u4E3B\u9898\u5728\u4E0D\u540C\u8D44\u6599\u4E2D\u7684\u51B2\u7A81\u6216\u53E3\u5F84\u5DEE\u5F02\uFF0C\u9700\u8981\u4EBA\u5DE5\u56DE\u5230\u6765\u6E90\u8D44\u6599\u786E\u8BA4\u3002" })
+          /* @__PURE__ */ jsxs("section", { class: "quality-section", "data-quality-section": "consistency", children: [
+            /* @__PURE__ */ jsxs("header", { class: "quality-section-header", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "Lint \xB7 \u8BED\u4E49\u5DE1\u68C0" }),
+                /* @__PURE__ */ jsx("h2", { children: "\u5185\u5BB9\u4E00\u81F4\u6027" }),
+                /* @__PURE__ */ jsx("span", { children: "\u540C\u4E00\u4E3B\u9898\u5728\u4E0D\u540C\u8D44\u6599\u4E2D\u7684\u51B2\u7A81\u6216\u53E3\u5F84\u5DEE\u5F02\uFF0C\u9700\u8981\u4EBA\u5DE5\u56DE\u5230\u6765\u6E90\u8D44\u6599\u786E\u8BA4\u3002" })
               ] }),
-              /* @__PURE__ */ u2("strong", { "data-quality-section-count": "consistency", children: "\u7B49\u5F85\u5FEB\u7167" })
+              /* @__PURE__ */ jsx("strong", { "data-quality-section-count": "consistency", children: "\u7B49\u5F85\u5FEB\u7167" })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "quality-section-placeholder", "data-quality-findings": "consistency", children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u8BED\u4E49\u5DE1\u68C0\u62A5\u544A\u3002" })
+            /* @__PURE__ */ jsx("div", { class: "quality-section-placeholder", "data-quality-findings": "consistency", children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u8BED\u4E49\u5DE1\u68C0\u62A5\u544A\u3002" })
           ] }),
-          /* @__PURE__ */ u2("section", { class: "quality-section", "data-quality-section": "graph", children: [
-            /* @__PURE__ */ u2("header", { class: "quality-section-header", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "Graph \xB7 \u5173\u8054\u97E7\u6027" }),
-                /* @__PURE__ */ u2("h2", { children: "\u56FE\u8C31\u5065\u5EB7\u5EA6" }),
-                /* @__PURE__ */ u2("span", { children: "\u4EC5\u4F7F\u7528\u4E0E\u5F53\u524D Wiki \u540C\u6B65\u7684\u56FE\u8C31\u7ED3\u679C\uFF1B\u8FC7\u671F\u56FE\u8C31\u4E0D\u4F1A\u4F5C\u4E3A\u5F53\u524D\u7ED3\u8BBA\u5C55\u793A\u3002" })
+          /* @__PURE__ */ jsxs("section", { class: "quality-section", "data-quality-section": "graph", children: [
+            /* @__PURE__ */ jsxs("header", { class: "quality-section-header", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "Graph \xB7 \u5173\u8054\u97E7\u6027" }),
+                /* @__PURE__ */ jsx("h2", { children: "\u56FE\u8C31\u5065\u5EB7\u5EA6" }),
+                /* @__PURE__ */ jsx("span", { children: "\u4EC5\u4F7F\u7528\u4E0E\u5F53\u524D Wiki \u540C\u6B65\u7684\u56FE\u8C31\u7ED3\u679C\uFF1B\u8FC7\u671F\u56FE\u8C31\u4E0D\u4F1A\u4F5C\u4E3A\u5F53\u524D\u7ED3\u8BBA\u5C55\u793A\u3002" })
               ] }),
-              /* @__PURE__ */ u2("strong", { "data-quality-section-count": "graph", children: "\u7B49\u5F85\u5FEB\u7167" })
+              /* @__PURE__ */ jsx("strong", { "data-quality-section-count": "graph", children: "\u7B49\u5F85\u5FEB\u7167" })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "quality-section-placeholder", "data-quality-findings": "graph", children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u56FE\u8C31\u5065\u5EB7\u5EA6\u62A5\u544A\u3002" })
+            /* @__PURE__ */ jsx("div", { class: "quality-section-placeholder", "data-quality-findings": "graph", children: "\u6B63\u5728\u8BFB\u53D6\u6700\u8FD1\u56FE\u8C31\u5065\u5EB7\u5EA6\u62A5\u544A\u3002" })
           ] }),
-          /* @__PURE__ */ u2("section", { class: "quality-section", "data-quality-section": "freshness", children: [
-            /* @__PURE__ */ u2("header", { class: "quality-section-header", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "Refresh + Heal \xB7 \u53D7\u63A7\u4FEE\u590D" }),
-                /* @__PURE__ */ u2("h2", { children: "\u65B0\u9C9C\u5EA6\u4E0E\u4FEE\u590D" }),
-                /* @__PURE__ */ u2("span", { children: "\u672C\u9875\u4EC5\u5C55\u793A\u5DF2\u6709\u6765\u6E90\u5FEB\u7167\u548C\u5EFA\u8BAE\uFF1B\u4E0D\u4F1A\u76F4\u63A5\u8FD0\u884C refresh \u6216 heal\u3002" })
+          /* @__PURE__ */ jsxs("section", { class: "quality-section", "data-quality-section": "freshness", children: [
+            /* @__PURE__ */ jsxs("header", { class: "quality-section-header", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "Refresh + Heal \xB7 \u53D7\u63A7\u4FEE\u590D" }),
+                /* @__PURE__ */ jsx("h2", { children: "\u65B0\u9C9C\u5EA6\u4E0E\u4FEE\u590D" }),
+                /* @__PURE__ */ jsx("span", { children: "\u672C\u9875\u4EC5\u5C55\u793A\u5DF2\u6709\u6765\u6E90\u5FEB\u7167\u548C\u5EFA\u8BAE\uFF1B\u4E0D\u4F1A\u76F4\u63A5\u8FD0\u884C refresh \u6216 heal\u3002" })
               ] }),
-              /* @__PURE__ */ u2("strong", { "data-quality-section-count": "freshness", children: "\u7B49\u5F85\u5FEB\u7167" })
+              /* @__PURE__ */ jsx("strong", { "data-quality-section-count": "freshness", children: "\u7B49\u5F85\u5FEB\u7167" })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "quality-section-placeholder", "data-quality-recommendations": true, children: "\u6B63\u5728\u8BFB\u53D6\u6765\u6E90\u65B0\u9C9C\u5EA6\u5FEB\u7167\u3002" })
+            /* @__PURE__ */ jsx("div", { class: "quality-section-placeholder", "data-quality-recommendations": true, children: "\u6B63\u5728\u8BFB\u53D6\u6765\u6E90\u65B0\u9C9C\u5EA6\u5FEB\u7167\u3002" })
           ] }),
-          /* @__PURE__ */ u2("section", { class: "quality-metadata", "data-quality-metadata": true, id: "metadata-gaps", children: [
-            /* @__PURE__ */ u2("header", { class: "quality-section-header", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "Quartz \xB7 \u6784\u5EFA\u671F\u7D22\u5F15" }),
-                /* @__PURE__ */ u2("h2", { children: "\u9759\u6001 metadata \u8865\u5145" }),
-                /* @__PURE__ */ u2("span", { children: "\u7EDF\u8BA1\u672C\u6B21\u6784\u5EFA\u4E2D\u516C\u5F00\u5C55\u793A\u7684 source\u3001entity\u3001concept\u3001synthesis \u9875\u9762\uFF1B\u4E09\u7C7B\u7F3A\u53E3\u5206\u522B\u8BA1\u6570\uFF0C\u540C\u4E00\u5BF9\u8C61\u53EF\u540C\u65F6\u51FA\u73B0\u3002" })
+          /* @__PURE__ */ jsxs("section", { class: "quality-metadata", "data-quality-metadata": true, id: "metadata-gaps", children: [
+            /* @__PURE__ */ jsxs("header", { class: "quality-section-header", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "Quartz \xB7 \u6784\u5EFA\u671F\u7D22\u5F15" }),
+                /* @__PURE__ */ jsx("h2", { children: "\u9759\u6001 metadata \u8865\u5145" }),
+                /* @__PURE__ */ jsx("span", { children: "\u7EDF\u8BA1\u672C\u6B21\u6784\u5EFA\u4E2D\u516C\u5F00\u5C55\u793A\u7684 source\u3001entity\u3001concept\u3001synthesis \u9875\u9762\uFF1B\u4E09\u7C7B\u7F3A\u53E3\u5206\u522B\u8BA1\u6570\uFF0C\u540C\u4E00\u5BF9\u8C61\u53EF\u540C\u65F6\u51FA\u73B0\u3002" })
               ] }),
-              /* @__PURE__ */ u2("strong", { children: [
+              /* @__PURE__ */ jsxs("strong", { children: [
                 summary.affectedObjects,
                 " \u9879\u7F3A\u53E3"
               ] })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "quality-metadata-grid", children: [
-              /* @__PURE__ */ u2(
+            /* @__PURE__ */ jsxs("div", { class: "quality-metadata-grid", children: [
+              /* @__PURE__ */ jsx(
                 QualityIssueGroup,
                 {
                   title: "\u7F3A\u5C11\u6458\u8981",
@@ -1250,7 +1270,7 @@ var QualityPage_default = (() => {
                   currentSlug
                 }
               ),
-              /* @__PURE__ */ u2(
+              /* @__PURE__ */ jsx(
                 QualityIssueGroup,
                 {
                   title: "\u7F3A\u5C11\u6807\u7B7E",
@@ -1260,7 +1280,7 @@ var QualityPage_default = (() => {
                   currentSlug
                 }
               ),
-              /* @__PURE__ */ u2(
+              /* @__PURE__ */ jsx(
                 QualityIssueGroup,
                 {
                   title: "\u66F4\u65B0\u65F6\u95F4\u672A\u77E5",
@@ -1273,15 +1293,15 @@ var QualityPage_default = (() => {
             ] })
           ] })
         ] }),
-        /* @__PURE__ */ u2("aside", { class: "quality-side", children: /* @__PURE__ */ u2("section", { class: "quality-evidence-panel", "data-quality-evidence": true, "aria-live": "polite", children: [
-          /* @__PURE__ */ u2("header", { class: "quality-evidence-header", children: [
-            /* @__PURE__ */ u2("div", { children: [
-              /* @__PURE__ */ u2("p", { children: "\u9009\u4E2D\u53D1\u73B0\u9879" }),
-              /* @__PURE__ */ u2("h2", { children: "\u8BC1\u636E\u5BF9\u6BD4" })
+        /* @__PURE__ */ jsx("aside", { class: "quality-side", children: /* @__PURE__ */ jsxs("section", { class: "quality-evidence-panel", "data-quality-evidence": true, "aria-live": "polite", children: [
+          /* @__PURE__ */ jsxs("header", { class: "quality-evidence-header", children: [
+            /* @__PURE__ */ jsxs("div", { children: [
+              /* @__PURE__ */ jsx("p", { children: "\u9009\u4E2D\u53D1\u73B0\u9879" }),
+              /* @__PURE__ */ jsx("h2", { children: "\u8BC1\u636E\u5BF9\u6BD4" })
             ] }),
-            /* @__PURE__ */ u2("span", { "data-quality-evidence-state": true, children: "\u7B49\u5F85\u5FEB\u7167" })
+            /* @__PURE__ */ jsx("span", { "data-quality-evidence-state": true, children: "\u7B49\u5F85\u5FEB\u7167" })
           ] }),
-          /* @__PURE__ */ u2("div", { class: "quality-evidence-empty", "data-quality-evidence-body": true, children: "\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167\u52A0\u8F7D\u540E\uFF0C\u6B64\u5904\u5C06\u663E\u793A\u6D89\u53CA\u9875\u9762\u3001\u6700\u591A\u4E24\u6761\u6765\u6E90\u8BC1\u636E\u4E0E\u5EFA\u8BAE\u6838\u5BF9\u52A8\u4F5C\u3002" })
+          /* @__PURE__ */ jsx("div", { class: "quality-evidence-empty", "data-quality-evidence-body": true, children: "\u6700\u8FD1\u8D28\u91CF\u5FEB\u7167\u52A0\u8F7D\u540E\uFF0C\u6B64\u5904\u5C06\u663E\u793A\u6D89\u53CA\u9875\u9762\u3001\u6700\u591A\u4E24\u6761\u6765\u6E90\u8BC1\u636E\u4E0E\u5EFA\u8BAE\u6838\u5BF9\u52A8\u4F5C\u3002" })
         ] }) })
       ] })
     ] });
@@ -1289,8 +1309,6 @@ var QualityPage_default = (() => {
   QualityPage2.afterDOMLoaded = qualityScript;
   return QualityPage2;
 });
-
-// src/components/SettingsPage.tsx
 var settingsSections = [
   {
     title: "Prompt",
@@ -1398,60 +1416,60 @@ var SettingsPage_default = (() => {
     const currentSlug = "settings";
     const qualityHref = resolveRelative(currentSlug, "quality");
     const ingestHref = resolveRelative(currentSlug, "ingest");
-    return /* @__PURE__ */ u2("main", { class: "system-settings", children: [
-      /* @__PURE__ */ u2("header", { class: "system-settings-header", children: [
-        /* @__PURE__ */ u2("div", { children: [
-          /* @__PURE__ */ u2("p", { children: "\u8FD0\u884C\u7BA1\u7406" }),
-          /* @__PURE__ */ u2("h1", { children: "\u7CFB\u7EDF\u8BBE\u7F6E" }),
-          /* @__PURE__ */ u2("span", { children: "\u914D\u7F6E\u7BA1\u7406\u4E0E\u77E5\u8BC6\u53D1\u5E03\u5206\u5F00\u6267\u884C\uFF1B\u6B64\u9875\u9762\u53EA\u5448\u73B0\u53EF\u786E\u8BA4\u7684\u7BA1\u7406\u8FB9\u754C\uFF0C\u4E0D\u5C06\u9759\u6001\u754C\u9762\u4F2A\u88C5\u6210\u53EF\u5199\u5165\u7684\u8FD0\u884C\u914D\u7F6E\u3002" })
+    return /* @__PURE__ */ jsxs("main", { class: "system-settings", children: [
+      /* @__PURE__ */ jsxs("header", { class: "system-settings-header", children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("p", { children: "\u8FD0\u884C\u7BA1\u7406" }),
+          /* @__PURE__ */ jsx("h1", { children: "\u7CFB\u7EDF\u8BBE\u7F6E" }),
+          /* @__PURE__ */ jsx("span", { children: "\u914D\u7F6E\u7BA1\u7406\u4E0E\u77E5\u8BC6\u53D1\u5E03\u5206\u5F00\u6267\u884C\uFF1B\u6B64\u9875\u9762\u53EA\u5448\u73B0\u53EF\u786E\u8BA4\u7684\u7BA1\u7406\u8FB9\u754C\uFF0C\u4E0D\u5C06\u9759\u6001\u754C\u9762\u4F2A\u88C5\u6210\u53EF\u5199\u5165\u7684\u8FD0\u884C\u914D\u7F6E\u3002" })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "system-settings-actions", children: [
-          /* @__PURE__ */ u2("a", { href: qualityHref, children: "\u67E5\u770B\u77E5\u8BC6\u8D28\u91CF" }),
-          /* @__PURE__ */ u2("a", { href: ingestHref, children: "\u8FDB\u5165\u6587\u6863\u5165\u5E93" })
+        /* @__PURE__ */ jsxs("div", { class: "system-settings-actions", children: [
+          /* @__PURE__ */ jsx("a", { href: qualityHref, children: "\u67E5\u770B\u77E5\u8BC6\u8D28\u91CF" }),
+          /* @__PURE__ */ jsx("a", { href: ingestHref, children: "\u8FDB\u5165\u6587\u6863\u5165\u5E93" })
         ] })
       ] }),
-      /* @__PURE__ */ u2("section", { class: "settings-runtime-note", "aria-labelledby": "settings-runtime-note-title", children: [
-        /* @__PURE__ */ u2("div", { children: [
-          /* @__PURE__ */ u2("p", { children: "\u5F53\u524D\u8FD0\u884C\u65B9\u5F0F" }),
-          /* @__PURE__ */ u2("h2", { id: "settings-runtime-note-title", children: "\u53C2\u6570\u7531\u670D\u52A1\u7AEF\u914D\u7F6E\uFF0C\u77E5\u8BC6\u53D8\u66F4\u7531\u53D1\u5E03\u961F\u5217\u6784\u5EFA" })
+      /* @__PURE__ */ jsxs("section", { class: "settings-runtime-note", "aria-labelledby": "settings-runtime-note-title", children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("p", { children: "\u5F53\u524D\u8FD0\u884C\u65B9\u5F0F" }),
+          /* @__PURE__ */ jsx("h2", { id: "settings-runtime-note-title", children: "\u53C2\u6570\u7531\u670D\u52A1\u7AEF\u914D\u7F6E\uFF0C\u77E5\u8BC6\u53D8\u66F4\u7531\u53D1\u5E03\u961F\u5217\u6784\u5EFA" })
         ] }),
-        /* @__PURE__ */ u2("p", { children: "\u6A21\u578B\u4E0E Prompt \u7531 `wiki-backend` \u7684\u53D7\u63A7\u914D\u7F6E\u63D0\u4F9B\uFF1BIngest \u6216 Synthesis \u6210\u529F\u540E\u4F1A\u8FDB\u5165 Quartz \u53D1\u5E03\u961F\u5217\uFF0C\u53D1\u5E03\u6210\u529F\u540E\u9759\u6001\u9875\u9762\u548C\u5185\u5BB9\u7D22\u5F15\u624D\u4F1A\u66F4\u65B0\u3002" })
+        /* @__PURE__ */ jsx("p", { children: "\u6A21\u578B\u4E0E Prompt \u7531 `wiki-backend` \u7684\u53D7\u63A7\u914D\u7F6E\u63D0\u4F9B\uFF1BIngest \u6216 Synthesis \u6210\u529F\u540E\u4F1A\u8FDB\u5165 Quartz \u53D1\u5E03\u961F\u5217\uFF0C\u53D1\u5E03\u6210\u529F\u540E\u9759\u6001\u9875\u9762\u548C\u5185\u5BB9\u7D22\u5F15\u624D\u4F1A\u66F4\u65B0\u3002" })
       ] }),
-      /* @__PURE__ */ u2("section", { class: "settings-model-profiles", "aria-labelledby": "settings-model-profiles-title", children: [
-        /* @__PURE__ */ u2("header", { children: [
-          /* @__PURE__ */ u2("div", { children: [
-            /* @__PURE__ */ u2("p", { children: "\u53EA\u8BFB\u6982\u89C8" }),
-            /* @__PURE__ */ u2("h2", { id: "settings-model-profiles-title", children: "\u77E5\u8BC6\u95EE\u7B54\u6A21\u578B" })
+      /* @__PURE__ */ jsxs("section", { class: "settings-model-profiles", "aria-labelledby": "settings-model-profiles-title", children: [
+        /* @__PURE__ */ jsxs("header", { children: [
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("p", { children: "\u53EA\u8BFB\u6982\u89C8" }),
+            /* @__PURE__ */ jsx("h2", { id: "settings-model-profiles-title", children: "\u77E5\u8BC6\u95EE\u7B54\u6A21\u578B" })
           ] }),
-          /* @__PURE__ */ u2("span", { children: "\u7531\u540E\u7AEF\u53D7\u63A7\u6863\u6848\u63D0\u4F9B" })
+          /* @__PURE__ */ jsx("span", { children: "\u7531\u540E\u7AEF\u53D7\u63A7\u6863\u6848\u63D0\u4F9B" })
         ] }),
-        /* @__PURE__ */ u2("p", { children: "\u7531\u540E\u7AEF\u8FD4\u56DE\u77E5\u8BC6\u95EE\u7B54 Chat \u5F53\u524D\u53EF\u9009\u62E9\u7684\u6A21\u578B\u540D\u79F0\uFF1B\u6B64\u9875\u9762\u4E0D\u5141\u8BB8\u4FEE\u6539\u6A21\u578B\u670D\u52A1\u3001\u51ED\u636E\u3001Prompt \u6216\u7CFB\u7EDF\u9ED8\u8BA4\u914D\u7F6E\u3002" }),
-        /* @__PURE__ */ u2("div", { class: "settings-model-profiles-list", "data-model-profiles-overview": true, children: /* @__PURE__ */ u2("p", { class: "settings-model-profiles-empty", children: "\u6B63\u5728\u52A0\u8F7D\u77E5\u8BC6\u95EE\u7B54\u6A21\u578B\u2026" }) })
+        /* @__PURE__ */ jsx("p", { children: "\u7531\u540E\u7AEF\u8FD4\u56DE\u77E5\u8BC6\u95EE\u7B54 Chat \u5F53\u524D\u53EF\u9009\u62E9\u7684\u6A21\u578B\u540D\u79F0\uFF1B\u6B64\u9875\u9762\u4E0D\u5141\u8BB8\u4FEE\u6539\u6A21\u578B\u670D\u52A1\u3001\u51ED\u636E\u3001Prompt \u6216\u7CFB\u7EDF\u9ED8\u8BA4\u914D\u7F6E\u3002" }),
+        /* @__PURE__ */ jsx("div", { class: "settings-model-profiles-list", "data-model-profiles-overview": true, children: /* @__PURE__ */ jsx("p", { class: "settings-model-profiles-empty", children: "\u6B63\u5728\u52A0\u8F7D\u77E5\u8BC6\u95EE\u7B54\u6A21\u578B\u2026" }) })
       ] }),
-      /* @__PURE__ */ u2("div", { class: "settings-section-grid settings-model-usage-grid", children: modelUsageSections.map((section) => /* @__PURE__ */ u2("section", { class: "settings-section", children: [
-        /* @__PURE__ */ u2("header", { children: [
-          /* @__PURE__ */ u2("div", { class: "settings-model-usage-copy", children: [
-            /* @__PURE__ */ u2("h2", { children: section.title }),
-            /* @__PURE__ */ u2("p", { children: section.description })
+      /* @__PURE__ */ jsx("div", { class: "settings-section-grid settings-model-usage-grid", children: modelUsageSections.map((section) => /* @__PURE__ */ jsxs("section", { class: "settings-section", children: [
+        /* @__PURE__ */ jsxs("header", { children: [
+          /* @__PURE__ */ jsxs("div", { class: "settings-model-usage-copy", children: [
+            /* @__PURE__ */ jsx("h2", { children: section.title }),
+            /* @__PURE__ */ jsx("p", { children: section.description })
           ] }),
-          /* @__PURE__ */ u2("strong", { class: "settings-internal-model", "data-internal-model": section.key, children: "\u6B63\u5728\u8BFB\u53D6\u670D\u52A1\u7AEF\u914D\u7F6E\u2026" })
+          /* @__PURE__ */ jsx("strong", { class: "settings-internal-model", "data-internal-model": section.key, children: "\u6B63\u5728\u8BFB\u53D6\u670D\u52A1\u7AEF\u914D\u7F6E\u2026" })
         ] }),
-        /* @__PURE__ */ u2("ul", { children: section.items.map((item) => /* @__PURE__ */ u2("li", { children: item })) })
+        /* @__PURE__ */ jsx("ul", { children: section.items.map((item) => /* @__PURE__ */ jsx("li", { children: item })) })
       ] })) }),
-      /* @__PURE__ */ u2("div", { class: "settings-section-grid", children: settingsSections.map((section) => /* @__PURE__ */ u2("section", { class: "settings-section", children: [
-        /* @__PURE__ */ u2("header", { children: [
-          /* @__PURE__ */ u2("div", { children: [
-            /* @__PURE__ */ u2("h2", { children: section.title }),
-            /* @__PURE__ */ u2("p", { children: section.description })
+      /* @__PURE__ */ jsx("div", { class: "settings-section-grid", children: settingsSections.map((section) => /* @__PURE__ */ jsxs("section", { class: "settings-section", children: [
+        /* @__PURE__ */ jsxs("header", { children: [
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("h2", { children: section.title }),
+            /* @__PURE__ */ jsx("p", { children: section.description })
           ] }),
-          /* @__PURE__ */ u2("span", { children: section.status })
+          /* @__PURE__ */ jsx("span", { children: section.status })
         ] }),
-        /* @__PURE__ */ u2("ul", { children: section.items.map((item) => /* @__PURE__ */ u2("li", { children: [
+        /* @__PURE__ */ jsx("ul", { children: section.items.map((item) => /* @__PURE__ */ jsxs("li", { children: [
           item,
-          /* @__PURE__ */ u2("span", { children: "\u67E5\u770B" })
+          /* @__PURE__ */ jsx("span", { children: "\u67E5\u770B" })
         ] })) })
       ] })) }),
-      /* @__PURE__ */ u2("p", { class: "settings-boundary", children: "\u6A21\u578B\u53C2\u6570\u3001Prompt \u548C\u7528\u6237\u6743\u9650\u6CA1\u6709\u524D\u7AEF\u5199\u63A5\u53E3\uFF1B\u53D1\u5E03\u72B6\u6001\u548C\u624B\u52A8\u53D1\u5E03\u5165\u53E3\u4F4D\u4E8E\u6587\u6863\u5165\u5E93\u9875\uFF0C \u5199\u64CD\u4F5C\u5FC5\u987B\u7531 `wiki-backend` \u548C\u5165\u53E3\u5C42\u6388\u6743\u63A7\u5236\u3002" })
+      /* @__PURE__ */ jsx("p", { class: "settings-boundary", children: "\u6A21\u578B\u53C2\u6570\u3001Prompt \u548C\u7528\u6237\u6743\u9650\u6CA1\u6709\u524D\u7AEF\u5199\u63A5\u53E3\uFF1B\u53D1\u5E03\u72B6\u6001\u548C\u624B\u52A8\u53D1\u5E03\u5165\u53E3\u4F4D\u4E8E\u6587\u6863\u5165\u5E93\u9875\uFF0C \u5199\u64CD\u4F5C\u5FC5\u987B\u7531 `wiki-backend` \u548C\u5165\u53E3\u5C42\u6388\u6743\u63A7\u5236\u3002" })
     ] });
   };
   SettingsPage2.afterDOMLoaded = settingsScript;
@@ -1483,7 +1501,7 @@ var KnowledgePage_default = (() => {
 var KnowledgePageType = () => ({
   name: "KnowledgePageType",
   priority: 100,
-  match: ({ slug: slug2 }) => slug2 === "index" || slug2 === "library" || slug2 === "quality" || slug2 === "settings",
+  match: ({ slug }) => slug === "index" || slug === "library" || slug === "quality" || slug === "settings",
   generate() {
     const virtualPages = [
       {
@@ -1517,8 +1535,8 @@ var KnowledgePageType = () => ({
   frame: "default",
   body: KnowledgePage_default,
   treeTransforms: () => [
-    (_root, slug2, componentData) => {
-      if (slug2 !== "index") return;
+    (_root, slug, componentData) => {
+      if (slug !== "index") return;
       componentData.fileData.frontmatter = {
         ...componentData.fileData.frontmatter,
         title: "\u4E2D\u538B\u5E02\u573A\u90E8\u77E5\u8BC6\u5E93",

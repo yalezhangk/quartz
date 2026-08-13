@@ -6,6 +6,8 @@
 
 - `.local-plugins/knowledge-ui`：唯一主导航、首页 `/`、知识库 `/library`、知识质量 `/quality` 和只读设置 `/settings`。
 - `.local-plugins/chats`：知识问答 `/chats`、回答模型选择、文档入库 `/ingest`、Synthesis 和发布状态。
+- `.local-plugins/source-files`：仅发布已发布 Source 页面引用的 manual 原文件；不会把整个 `raw/` 纳入 Quartz 内容输入。
+- `.local-plugins/source-reference`：将 `knowledge-ui` 的 Source 原文卡片挂载到知识正文；这是 Quartz 单组件布局约束下的最小适配层。
 - `.local-plugins/footer`：站点页脚。
 - `llm-wiki-agent/wiki`：唯一知识内容源；Quartz 不保存知识正文。
 - `wiki-backend`：保存 Chat、Ingest、Maintenance、Publish 状态，并在业务流程中读写 Wiki 数据。
@@ -31,6 +33,7 @@ ECS Nginx -> ECS 127.0.0.1:18080 -> FRP -> DGX Nginx :8080
 - DGX Nginx 的 `proxy_pass http://127.0.0.1:8081;` 后不加 `/`，保留后端 `/api/` 前缀。
 - `/api/` 不缓存；`/api/publish/` 和 `/api/maintenance/` 还必须使用 HTTPS、认证和限流。
 - `public/graph` 是无扩展名 HTML，Nginx 必须让 `/graph` 返回 `text/html`。
+- `source_file` 只能引用 `raw/uploads/manual/`；构建时必须通过 `WIKI_SOURCE_ROOT` 指向真实的 `llm-wiki-agent` 根目录。`source_url` 仅作为受限的 HTTP(S) 外链，不生成静态文件。
 
 ## 环境要求
 
@@ -48,7 +51,7 @@ ECS Nginx -> ECS 127.0.0.1:18080 -> FRP -> DGX Nginx :8080
 cd /home/dgx/Projects/knowledge_base_mkt/quartz
 npm ci
 
-for plugin in knowledge-ui chats footer; do
+for plugin in knowledge-ui chats source-reference source-files footer; do
   npm --prefix ".local-plugins/$plugin" ci
   npm --prefix ".local-plugins/$plugin" run build
 done
@@ -57,7 +60,7 @@ npx quartz plugin install --clean
 npx quartz plugin install --from-config
 ```
 
-三个本地插件的 `dist/` 都是 Quartz 实际包入口并由 Git 追踪。只修改一个插件时，只安装和构建该插件即可。
+五个本地插件的 `dist/` 都是 Quartz 实际包入口并由 Git 追踪。只修改一个插件时，只安装和构建该插件即可。
 
 ## DGX 打包与发布
 
@@ -68,6 +71,7 @@ Quartz 配置、插件、部署方式变化，或需要运维重建时执行：
 ```bash
 cd /home/dgx/Projects/knowledge_base_mkt/quartz
 
+WIKI_SOURCE_ROOT=/home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent \
 CHAT_PROXY_URL=/api npx quartz build \
   -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
 ```
@@ -79,13 +83,18 @@ cd /home/dgx/Projects/knowledge_base_mkt/quartz
 
 npm --prefix .local-plugins/knowledge-ui run build
 npm --prefix .local-plugins/chats run build
+npm --prefix .local-plugins/source-reference run build
+npm --prefix .local-plugins/source-files run build
 npm --prefix .local-plugins/footer run build
 
+WIKI_SOURCE_ROOT=/home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent \
 CHAT_PROXY_URL=/api npx quartz build \
   -d /home/dgx/Projects/knowledge_base_mkt/llm-wiki-agent/wiki
 ```
 
 未修改的插件不需要重复构建。
+
+`source-files` 只复制已发布 `sources/*.md` 中 `source_file: raw/uploads/manual/...` 实际引用的普通文件到 `public/source-files/manual/`。它会拒绝路径穿越、绝对路径、符号链接逃逸、目录和缺失文件；历史 scheduled 的旧平铺 `raw/uploads/...` 不会被发布。自动发布构建的是 Wiki 快照，`wiki-backend` 必须显式传入 `WIKI_SOURCE_ROOT`，不得依赖快照路径推导。
 
 ### 自动发布
 

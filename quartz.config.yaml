@@ -224,6 +224,14 @@ plugins:
     layout:
       position: left
       priority: 10
+  - source: ./.local-plugins/source-reference
+    enabled: true
+    layout:
+      position: beforeBody
+      priority: 5
+  - source: ./.local-plugins/source-files
+    enabled: true
+    order: 60
   - source: ./.local-plugins/footer
     enabled: true
   - source: ./.local-plugins/chats

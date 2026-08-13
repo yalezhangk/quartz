@@ -1,74 +1,7 @@
-// ../../node_modules/github-slugger/index.js
-var l;
-l = { __e: function(n2, l2, u3, t2) {
-  for (var i2, r2, o2; l2 = l2.__; ) if ((i2 = l2.__c) && !i2.__) try {
-    if ((r2 = i2.constructor) && null != r2.getDerivedStateFromError && (i2.setState(r2.getDerivedStateFromError(n2)), o2 = i2.__d), null != i2.componentDidCatch && (i2.componentDidCatch(n2, t2 || {}), o2 = i2.__d), o2) return i2.__E = i2;
-  } catch (l3) {
-    n2 = l3;
-  }
-  throw n2;
-} }, "function" == typeof Promise ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout, Math.random().toString(8);
+import { resolveRelative } from '@quartz-community/utils';
+import { jsxs, jsx } from 'preact/jsx-runtime';
 
-// node_modules/preact/jsx-runtime/dist/jsxRuntime.mjs
-var f2 = 0;
-function u2(e2, t2, n2, o2, i2, u3) {
-  t2 || (t2 = {});
-  var a2, c2, p2 = t2;
-  if ("ref" in p2) for (c2 in p2 = {}, t2) "ref" == c2 ? a2 = t2[c2] : p2[c2] = t2[c2];
-  var l2 = { type: e2, props: p2, key: n2, ref: a2, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: void 0, __v: --f2, __i: -1, __u: 0, __source: i2, __self: u3 };
-  if ("function" == typeof e2 && (a2 = e2.defaultProps)) for (c2 in a2) void 0 === p2[c2] && (p2[c2] = a2[c2]);
-  return l.vnode && l.vnode(l2), l2;
-}
-
-// node_modules/@quartz-community/utils/dist/index.js
-function simplifySlug(fp) {
-  const res = stripSlashes(trimSuffix(fp, "index"), true);
-  return res.length === 0 ? "/" : res;
-}
-function joinSegments(...args) {
-  if (args.length === 0) {
-    return "";
-  }
-  let joined = args.filter((segment) => segment !== "" && segment !== "/").map((segment) => stripSlashes(segment)).join("/");
-  const first = args[0];
-  const last = args[args.length - 1];
-  if (first?.startsWith("/")) {
-    joined = "/" + joined;
-  }
-  if (last?.endsWith("/")) {
-    joined = joined + "/";
-  }
-  return joined;
-}
-function endsWith(s2, suffix) {
-  return s2 === suffix || s2.endsWith("/" + suffix);
-}
-function trimSuffix(s2, suffix) {
-  if (endsWith(s2, suffix)) {
-    s2 = s2.slice(0, -suffix.length);
-  }
-  return s2;
-}
-function stripSlashes(s2, onlyStripPrefix) {
-  if (s2.startsWith("/")) {
-    s2 = s2.substring(1);
-  }
-  if (!onlyStripPrefix && s2.endsWith("/")) {
-    s2 = s2.slice(0, -1);
-  }
-  return s2;
-}
-function pathToRoot(slug2) {
-  let rootPath = slug2.split("/").filter((x2) => x2 !== "").slice(0, -1).map((_2) => "..").join("/");
-  if (rootPath.length === 0) {
-    rootPath = ".";
-  }
-  return rootPath;
-}
-function resolveRelative(current, target) {
-  const res = joinSegments(pathToRoot(current), simplifySlug(target));
-  return res;
-}
+// src/components/ChatPage.tsx
 
 // src/i18n/index.ts
 var localeStrings = {
@@ -130,8 +63,6 @@ var chat_inline_default = 'var zs=Object.defineProperty;var Us=(t,e,n)=>e in t?z
 
 // src/components/styles/chat.scss
 var chat_default = '@charset "UTF-8";\n.page:has(.chat-shell) {\n  width: 100%;\n  max-width: none;\n}\n\n.page:has(.chat-shell) > #quartz-body {\n  grid-template-columns: 224px minmax(0, 1fr);\n  grid-template-rows: 0 minmax(0, 1fr) 0;\n  grid-template-areas: "grid-sidebar-left grid-header" "grid-sidebar-left grid-center" "grid-sidebar-left grid-footer";\n  column-gap: 0;\n}\n\n.page:has(.chat-shell) > #quartz-body > .sidebar.right,\n.page:has(.chat-shell) .page-header,\n.page:has(.chat-shell) .center > hr,\n.page:has(.chat-shell) .page-footer,\n.page:has(.chat-shell) > #quartz-body > footer {\n  display: none;\n}\n\n.page:has(.chat-shell) > #quartz-body > .center {\n  width: 100%;\n  max-width: none;\n  min-height: 100vh;\n  padding: 0;\n  margin: 0;\n}\n\n.chat-nav-link {\n  display: inline-block;\n  padding: 0;\n  color: var(--kp-ink, var(--dark));\n  font-size: 1rem;\n  font-weight: 700;\n  text-decoration: none;\n}\n\n.chat-nav-link:hover {\n  color: var(--kp-brand, var(--secondary));\n}\n\n.chat-shell {\n  position: relative;\n  display: grid;\n  width: 100%;\n  height: 100vh;\n  min-height: 720px;\n  grid-template-columns: 240px minmax(0, 1fr) 296px;\n  overflow: hidden;\n  background: var(--kp-app-bg, var(--light));\n  color: var(--kp-ink, var(--dark));\n}\n\n.chat-sidebar-toggle {\n  position: absolute;\n  z-index: 5;\n  top: 20px;\n  left: 207px;\n  display: inline-grid;\n  width: 28px;\n  height: 28px;\n  padding: 0;\n  place-items: center;\n  border: 1px solid var(--kp-border, var(--lightgray));\n  border-radius: 2px;\n  background: var(--kp-surface, var(--light));\n  color: var(--kp-muted, var(--darkgray));\n  cursor: pointer;\n}\n\n.chat-sidebar-toggle:hover {\n  border-color: var(--kp-brand, var(--secondary));\n  color: var(--kp-brand, var(--secondary));\n}\n\n.chat-sidebar-toggle svg {\n  width: 16px;\n  height: 16px;\n}\n\n.chat-shell.sidebar-collapsed {\n  grid-template-columns: minmax(0, 1fr) 296px;\n}\n\n.chat-shell.sidebar-collapsed .chat-page-sidebar {\n  display: none;\n}\n\n.chat-shell.sidebar-collapsed .chat-sidebar-toggle {\n  left: 12px;\n}\n\n.chat-shell.sidebar-collapsed .chat-sidebar-toggle-chevron {\n  transform: rotate(180deg);\n  transform-origin: center;\n}\n\n.chat-page-sidebar {\n  display: flex;\n  min-width: 0;\n  min-height: 0;\n  flex-direction: column;\n  gap: 14px;\n  padding: 20px 14px 16px;\n  overflow: hidden;\n  border-right: 1px solid var(--kp-border, var(--lightgray));\n  background: #eeeee8;\n}\n\n.chats-sidebar-top {\n  display: grid;\n  gap: 13px;\n}\n\n.chats-record-heading {\n  padding: 1px 34px 0 2px;\n}\n\n.chats-record-heading span,\n.chat-workbench-header span,\n.chat-evidence > header span {\n  display: block;\n  margin-bottom: 3px;\n  color: var(--kp-muted-2, var(--gray));\n  font-size: 9px;\n  font-weight: 700;\n  letter-spacing: 0.06em;\n}\n\n.chats-record-heading h2,\n.chat-workbench-header h1,\n.chat-evidence > header h2 {\n  margin: 0;\n  color: var(--kp-ink, var(--dark));\n  font-family: var(--kp-serif, var(--titleFont));\n}\n\n.chats-record-heading h2 {\n  font-size: 19px;\n}\n\n.new-chat-button {\n  display: flex;\n  min-height: 38px;\n  align-items: center;\n  gap: 8px;\n  justify-content: center;\n  padding: 0 12px;\n  border: 1px solid var(--kp-brand, var(--secondary));\n  border-radius: 2px;\n  background: var(--kp-brand, var(--secondary));\n  color: #fff;\n  font: inherit;\n  font-size: 11px;\n  font-weight: 650;\n  cursor: pointer;\n}\n\n.new-chat-button:hover {\n  background: var(--kp-brand-hover, var(--secondary));\n}\n\n.new-chat-button svg {\n  width: 14px;\n  height: 14px;\n}\n\n.chats-history-panel {\n  display: flex;\n  min-height: 0;\n  flex: 1 1 auto;\n  flex-direction: column;\n  overflow: hidden;\n  border-top: 1px solid var(--kp-border, var(--lightgray));\n  border-bottom: 1px solid var(--kp-border, var(--lightgray));\n}\n\n.chats-header {\n  padding: 10px 3px 7px;\n}\n\n.chats-header span {\n  color: var(--kp-muted-2, var(--gray));\n  font-size: 9px;\n}\n\n.chats-history {\n  min-height: 0;\n  flex: 1 1 auto;\n  padding: 0 0 8px;\n  overflow-y: auto;\n}\n\n.chats-empty-state,\n.ingests-empty-state {\n  padding: 14px 4px;\n  color: var(--kp-muted, var(--gray));\n  font-size: 10px;\n  line-height: 1.5;\n}\n\n.chat-history-item {\n  display: block;\n  padding: 10px 8px;\n  border-top: 1px solid transparent;\n  border-bottom: 1px solid var(--kp-border-soft, var(--lightgray));\n  border-radius: 0;\n  color: var(--kp-muted, var(--darkgray));\n  text-decoration: none;\n}\n\n.chat-history-item:hover {\n  background: rgba(255, 255, 255, 0.45);\n  color: var(--kp-ink, var(--dark));\n}\n\n.chat-history-item.active {\n  border-top-color: var(--kp-brand, var(--secondary));\n  border-bottom-color: var(--kp-brand, var(--secondary));\n  background: var(--kp-surface, var(--light));\n  color: var(--kp-ink, var(--dark));\n}\n\n.chat-history-item.pending {\n  background: color-mix(in srgb, var(--kp-brand, var(--secondary)) 8%, transparent);\n}\n\n.chat-history-item.active::before {\n  display: inline-block;\n  margin-right: 6px;\n  color: var(--kp-brand, var(--secondary));\n  content: "\u5F53\u524D";\n  font-size: 8px;\n  font-weight: 700;\n}\n\n.chat-item-title,\n.chat-item-preview,\n.ingest-item-title,\n.ingest-item-status {\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.chat-item-title {\n  color: inherit;\n  font-size: 11px;\n  font-weight: 650;\n}\n\n.chat-item-preview {\n  margin-top: 4px;\n  color: var(--kp-muted-2, var(--gray));\n  font-size: 9px;\n}\n\n.chat-history-item.pending .chat-item-preview {\n  color: var(--kp-brand, var(--secondary));\n  font-weight: 650;\n}\n\n.ingests-panel {\n  flex: 0 0 auto;\n  border-top: 1px solid var(--kp-border, var(--lightgray));\n}\n\n.ingests-summary {\n  display: flex;\n  min-height: 30px;\n  align-items: center;\n  justify-content: space-between;\n  padding: 0 3px;\n  color: var(--kp-muted, var(--gray));\n  font-size: 9px;\n  font-weight: 650;\n  cursor: pointer;\n  list-style: none;\n}\n\n.ingests-summary::-webkit-details-marker {\n  display: none;\n}\n\n.ingests-summary::after {\n  content: "+";\n  font-family: var(--kp-mono, var(--codeFont));\n}\n\n.ingests-panel[open] .ingests-summary::after {\n  content: "\u2212";\n}\n\n.ingests-list {\n  max-height: 150px;\n  padding-bottom: 5px;\n  overflow-y: auto;\n}\n\n.ingest-item {\n  padding: 7px 3px;\n  border-top: 1px solid var(--kp-border-soft, var(--lightgray));\n}\n\n.ingest-item-title {\n  color: var(--kp-ink, var(--dark));\n  font-size: 9px;\n  font-weight: 650;\n}\n\n.ingest-item-status {\n  margin-top: 3px;\n  color: var(--kp-muted, var(--gray));\n  font-size: 8px;\n}\n\n.ingest-running .ingest-item-status,\n.ingest-queued .ingest-item-status {\n  color: var(--kp-info, #315c7a);\n}\n\n.ingest-succeeded .ingest-item-status {\n  color: var(--kp-success, #31664f);\n}\n\n.ingest-failed .ingest-item-status {\n  color: var(--kp-critical, #a53e35);\n}\n\n.chat-page {\n  display: flex;\n  min-width: 0;\n  min-height: 0;\n  flex-direction: column;\n  overflow: hidden;\n  border-right: 1px solid var(--kp-border, var(--lightgray));\n  background: var(--kp-surface, var(--light));\n}\n\n.chat-workbench-header {\n  display: flex;\n  min-height: 62px;\n  flex: 0 0 auto;\n  align-items: center;\n  justify-content: space-between;\n  padding: 0 24px;\n  border-bottom: 1px solid var(--kp-border, var(--lightgray));\n  background: #f7f7f3;\n}\n\n.chat-workbench-header h1 {\n  font-size: 21px;\n}\n\n.chat-workbench-header p {\n  margin: 0;\n  color: var(--kp-muted, var(--gray));\n  font-size: 9px;\n}\n\n.chat-stage {\n  display: flex;\n  min-height: 0;\n  flex: 1 1 auto;\n  flex-direction: column;\n}\n\n.chat-messages {\n  display: flex;\n  min-height: 0;\n  flex: 1 1 auto;\n  flex-direction: column;\n  gap: 22px;\n  padding: 28px clamp(20px, 4vw, 54px) 34px;\n  overflow-y: auto;\n}\n\n.chat-page:not(.has-messages) .chat-messages {\n  justify-content: center;\n}\n\n.message-greeting {\n  display: grid;\n  flex: 1 1 auto;\n  place-items: center;\n  text-align: center;\n}\n\n.greeting-content {\n  max-width: 520px;\n  padding: 32px 0;\n  border-top: 1px solid var(--kp-border, var(--lightgray));\n  border-bottom: 1px solid var(--kp-border, var(--lightgray));\n}\n\n.greeting-content > span {\n  color: var(--kp-brand, var(--secondary));\n  font-family: var(--kp-mono, var(--codeFont));\n  font-size: 9px;\n  font-weight: 700;\n  letter-spacing: 0.06em;\n}\n\n.greeting-content h2 {\n  margin: 8px 0;\n  color: var(--kp-ink, var(--dark));\n  font-family: var(--kp-serif, var(--titleFont));\n  font-size: 23px;\n}\n\n.greeting-content p {\n  margin: 0;\n  color: var(--kp-muted, var(--gray));\n  font-size: 11px;\n  line-height: 1.7;\n}\n\n.message {\n  display: grid;\n  width: min(100%, 860px);\n  grid-template-columns: 48px minmax(0, 1fr);\n  gap: 14px;\n  align-self: center;\n  padding: 0;\n  color: var(--kp-ink, var(--dark));\n  line-height: 1.7;\n  word-wrap: break-word;\n}\n\n.message-document-label {\n  padding-top: 2px;\n  color: var(--kp-muted-2, var(--gray));\n  font-family: var(--kp-mono, var(--codeFont));\n  font-size: 9px;\n  font-weight: 700;\n  letter-spacing: 0.06em;\n}\n\n.message-user {\n  padding: 15px 0;\n  border-top: 1px solid var(--kp-border, var(--lightgray));\n  border-bottom: 1px solid var(--kp-border, var(--lightgray));\n  background: #f1f1ec;\n}\n\n.message-user .message-document-label {\n  padding-left: 12px;\n  color: var(--kp-critical, #a53e35);\n}\n\n.message-user .message-content {\n  padding-right: 16px;\n  font-family: var(--kp-sans, var(--bodyFont));\n  font-size: 13px;\n  font-weight: 600;\n  line-height: 1.65;\n  white-space: pre-wrap;\n}\n\n.message-assistant {\n  padding-bottom: 20px;\n  border-bottom: 1px solid var(--kp-border, var(--lightgray));\n}\n\n.message-assistant .message-document-label {\n  color: var(--kp-brand, var(--secondary));\n}\n\n.message-body {\n  min-width: 0;\n}\n\n.message-document-meta {\n  display: flex;\n  gap: 12px;\n  align-items: baseline;\n  justify-content: space-between;\n  padding-bottom: 9px;\n  margin-bottom: 14px;\n  border-bottom: 1px solid var(--kp-border-soft, var(--lightgray));\n}\n\n.message-document-meta span {\n  color: var(--kp-ink, var(--dark));\n  font-family: var(--kp-serif, var(--titleFont));\n  font-size: 17px;\n  font-weight: 700;\n}\n\n.message-document-meta small {\n  color: var(--kp-muted-2, var(--gray));\n  font-size: 8px;\n}\n\n.message-model-profile {\n  display: inline-flex;\n  width: fit-content;\n  margin-top: 5px;\n  padding: 2px 5px;\n  border: 1px solid var(--kp-border-soft, var(--lightgray));\n  color: var(--kp-brand, var(--secondary));\n  font: 8px/1.3 var(--kp-mono, var(--codeFont));\n  font-style: normal;\n}\n\n.message-content {\n  min-width: 0;\n  max-width: 100%;\n  color: var(--kp-ink, var(--dark));\n  font-family: var(--kp-serif, var(--titleFont));\n  font-size: 14px;\n  font-weight: 400;\n  line-height: 1.82;\n  overflow-wrap: anywhere;\n}\n\n.message-content p,\n.message-content ul,\n.message-content ol,\n.message-content blockquote,\n.message-content pre,\n.message-content .message-table-wrap,\n.message-content h1,\n.message-content h2,\n.message-content h3,\n.message-content h4,\n.message-content h5,\n.message-content h6 {\n  margin-top: 0;\n  color: inherit;\n}\n\n.message-content p,\n.message-content ul,\n.message-content ol,\n.message-content blockquote,\n.message-content pre,\n.message-content .message-table-wrap {\n  margin-bottom: 15px;\n}\n\n.message-content p:last-child,\n.message-content ul:last-child,\n.message-content ol:last-child,\n.message-content blockquote:last-child,\n.message-content pre:last-child,\n.message-content .message-table-wrap:last-child {\n  margin-bottom: 0;\n}\n\n.message-content h1,\n.message-content h2,\n.message-content h3,\n.message-content h4,\n.message-content h5,\n.message-content h6 {\n  margin-bottom: 8px;\n  color: var(--kp-ink, var(--dark));\n  font-family: var(--kp-serif, var(--titleFont));\n  font-weight: 700;\n  line-height: 1.4;\n}\n\n.message-content h1 {\n  font-size: 21px;\n}\n\n.message-content h2 {\n  font-size: 18px;\n}\n\n.message-content h3 {\n  font-size: 16px;\n}\n\n.message-content h4,\n.message-content h5,\n.message-content h6 {\n  font-size: 14px;\n}\n\n.message-content p + h1,\n.message-content p + h2,\n.message-content p + h3,\n.message-content ul + h2,\n.message-content ol + h2 {\n  margin-top: 20px;\n}\n\n.message-content ul,\n.message-content ol {\n  padding-left: 22px;\n}\n\n.message-content li + li {\n  margin-top: 6px;\n}\n\n.message-content li::marker {\n  color: var(--kp-brand, var(--secondary));\n}\n\n.message-content blockquote {\n  padding: 9px 12px;\n  border-left: 3px solid var(--kp-brand, var(--secondary));\n  background: #f1f1ec;\n  color: var(--kp-muted, var(--darkgray));\n}\n\n.message-content blockquote > :last-child {\n  margin-bottom: 0;\n}\n\n.message-content hr {\n  margin: 20px 0;\n  border: 0;\n  border-top: 1px solid var(--kp-border, var(--lightgray));\n}\n\n.message-content img {\n  display: block;\n  max-width: 100%;\n  height: auto;\n  margin: 16px 0;\n  border: 1px solid var(--kp-border, var(--lightgray));\n  border-radius: 2px;\n}\n\n.message-content .message-table-wrap {\n  max-width: 100%;\n  overflow-x: auto;\n  border: 1px solid var(--kp-border, var(--lightgray));\n  border-radius: 2px;\n  overscroll-behavior-x: contain;\n}\n\n.message-content table {\n  width: 100%;\n  min-width: 620px;\n  border-collapse: collapse;\n  font-family: var(--kp-sans, var(--bodyFont));\n  font-size: 11px;\n}\n\n.message-content th,\n.message-content td {\n  padding: 8px 10px;\n  border-right: 1px solid var(--kp-border-soft, var(--lightgray));\n  border-bottom: 1px solid var(--kp-border-soft, var(--lightgray));\n  text-align: left;\n  vertical-align: top;\n}\n\n.message-content th {\n  background: #eeeee8;\n  font-weight: 700;\n}\n\n.message-content th:last-child,\n.message-content td:last-child {\n  border-right: 0;\n}\n\n.message-content tbody tr:last-child td {\n  border-bottom: 0;\n}\n\n.message-content code {\n  padding: 1px 4px;\n  border: 1px solid var(--kp-border-soft, var(--lightgray));\n  border-radius: 1px;\n  background: #f1f1ec;\n  font-family: var(--kp-mono, var(--codeFont));\n  font-size: 0.88em;\n}\n\n.message-content pre {\n  max-width: 100%;\n  padding: 12px 14px;\n  overflow-x: auto;\n  border: 1px solid var(--kp-border, var(--lightgray));\n  border-radius: 2px;\n  background: #f1f1ec;\n  font-family: var(--kp-mono, var(--codeFont));\n  font-size: 11px;\n  line-height: 1.6;\n  white-space: pre;\n}\n\n.message-content pre > code {\n  padding: 0;\n  border: 0;\n  background: transparent;\n  white-space: inherit;\n}\n\n.message-content strong {\n  color: var(--kp-ink, var(--dark));\n  font-weight: 700;\n}\n\n.message-content a {\n  color: var(--kp-brand, var(--secondary));\n  text-decoration: underline;\n  text-decoration-color: #9eaaa2;\n  text-underline-offset: 2px;\n}\n\n.message-content .chat-wikilink {\n  display: inline;\n  padding: 0;\n  border-bottom: 1px solid var(--kp-brand, var(--secondary));\n  color: var(--kp-brand, var(--secondary));\n  text-decoration: none;\n}\n\n.message-content .chat-citation {\n  display: inline-flex;\n  align-items: center;\n  margin: 0 2px;\n  border: 1px solid var(--kp-border, var(--lightgray));\n  border-radius: 2px;\n  padding: 0 4px;\n  color: var(--kp-brand, var(--secondary));\n  font-family: var(--kp-mono, var(--codeFont));\n  font-size: 0.8em;\n  line-height: 1.45;\n  text-decoration: none;\n}\n\n.message-content .chat-citation:hover {\n  border-color: var(--kp-brand, var(--secondary));\n  background: color-mix(in srgb, var(--kp-brand, var(--secondary)) 8%, transparent);\n}\n\n.message-loading {\n  display: none;\n  padding: 8px 0;\n  color: var(--kp-muted, var(--gray));\n  font-family: var(--kp-sans, var(--bodyFont));\n  font-size: 10px;\n}\n\n.message-assistant.is-loading .message-actions {\n  display: none;\n}\n\n.message-assistant.is-loading .message-loading {\n  display: inline-flex;\n  align-items: center;\n  gap: 7px;\n  min-height: 32px;\n  padding: 2px 0;\n  color: var(--kp-brand, var(--secondary));\n  font-weight: 650;\n}\n\n.message-assistant.is-loading .message-loading::before {\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  background: currentColor;\n  content: "";\n}\n\n.message-actions {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 7px;\n  justify-content: flex-end;\n  padding-top: 12px;\n  margin-top: 16px;\n  border-top: 1px solid var(--kp-border-soft, var(--lightgray));\n}\n\n.message-action-button {\n  display: inline-flex;\n  min-height: 30px;\n  align-items: center;\n  gap: 6px;\n  justify-content: center;\n  padding: 0 9px;\n  border: 1px solid var(--kp-border, var(--lightgray));\n  border-radius: 2px;\n  background: transparent;\n  color: var(--kp-muted, var(--darkgray));\n  font: inherit;\n  font-size: 9px;\n  cursor: pointer;\n}\n\n.message-action-button svg {\n  width: 13px;\n  height: 13px;\n}\n\n.message-action-button:hover {\n  border-color: var(--kp-brand, var(--secondary));\n  color: var(--kp-brand, var(--secondary));\n}\n\n.message-action-button:disabled {\n  cursor: default;\n}\n\n.message-copy-button.copied,\n.message-synthesis-button.saved {\n  border-color: var(--kp-success, #31664f);\n  color: var(--kp-success, #31664f);\n}\n\n.message-copy-button.copy-failed,\n.message-synthesis-button.save-failed {\n  border-color: var(--kp-critical, #a53e35);\n  color: var(--kp-critical, #a53e35);\n}\n\n.message-synthesis-button.saving {\n  opacity: 0.6;\n  cursor: wait;\n}\n\n.chat-input-wrap {\n  flex: 0 0 auto;\n  padding: 14px clamp(20px, 4vw, 54px) 12px;\n  border-top: 1px solid var(--kp-border, var(--lightgray));\n  background: #f7f7f3;\n}\n\n.chat-input-card {\n  width: min(100%, 860px);\n  padding: 10px 12px;\n  margin: 0 auto;\n  border: 1px solid #92978f;\n  border-radius: 2px;\n  background: var(--kp-surface, var(--light));\n}\n\n.chat-input-label-row {\n  display: flex;\n  min-width: 0;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n  margin-bottom: 5px;\n}\n\n.chat-input-label {\n  color: var(--kp-muted, var(--gray));\n  font-size: 9px;\n  font-weight: 650;\n}\n\n.chat-model-selector-label {\n  display: inline-flex;\n  min-width: 0;\n  align-items: center;\n  gap: 6px;\n  color: var(--kp-muted, var(--gray));\n  font-size: 9px;\n  font-weight: 650;\n}\n\n.chat-model-selector {\n  max-width: 270px;\n  min-height: 28px;\n  padding: 0 23px 0 7px;\n  border: 1px solid var(--kp-border, var(--lightgray));\n  border-radius: 2px;\n  background: var(--kp-surface, var(--light));\n  color: var(--kp-ink, var(--dark));\n  font: inherit;\n  font-size: 10px;\n}\n\n.chat-model-selector:disabled {\n  color: var(--kp-muted, var(--gray));\n  cursor: wait;\n}\n\n.chat-input-area {\n  display: grid;\n  grid-template-columns: auto minmax(0, 1fr) auto;\n  gap: 7px;\n  align-items: end;\n}\n\n.chat-attach-button,\n.chat-send-button {\n  display: inline-grid;\n  width: 34px;\n  height: 34px;\n  flex-shrink: 0;\n  padding: 0;\n  place-items: center;\n  border: 1px solid var(--kp-border, var(--lightgray));\n  border-radius: 2px;\n  background: transparent;\n  color: var(--kp-muted, var(--darkgray));\n}\n\n.chat-attach-button svg,\n.chat-send-button svg {\n  width: 15px;\n  height: 15px;\n}\n\n.chat-attach-button:not(:disabled),\n.chat-send-button:not(:disabled) {\n  cursor: pointer;\n}\n\n.chat-attach-button.uploading {\n  cursor: wait;\n}\n\n.chat-input {\n  min-width: 0;\n  min-height: 34px;\n  max-height: 200px;\n  padding: 7px 4px 4px;\n  border: 0;\n  outline: 0;\n  background: transparent;\n  color: var(--kp-ink, var(--dark));\n  font: inherit;\n  font-size: 12px;\n  line-height: 1.6;\n  resize: none;\n}\n\n.chat-input::placeholder {\n  color: var(--kp-muted-2, var(--gray));\n}\n\n.chat-send-button {\n  border-color: var(--kp-brand, var(--secondary));\n  background: var(--kp-brand, var(--secondary));\n  color: #fff;\n}\n\n.chat-send-button:hover:not(:disabled) {\n  background: var(--kp-brand-hover, var(--secondary));\n}\n\n.chat-send-button:disabled,\n.chat-attach-button:disabled {\n  opacity: 0.45;\n  cursor: not-allowed;\n}\n\n.chat-input-note {\n  width: min(100%, 860px);\n  margin: 6px auto 0;\n  color: var(--kp-muted-2, var(--gray));\n  font-size: 8px;\n  text-align: center;\n}\n\n.chat-evidence {\n  display: flex;\n  min-width: 0;\n  min-height: 0;\n  flex-direction: column;\n  padding: 20px 16px 16px;\n  overflow: hidden;\n  background: #eeeee8;\n}\n\n.chat-evidence > header {\n  display: flex;\n  flex: 0 0 auto;\n  align-items: center;\n  justify-content: space-between;\n  padding-bottom: 12px;\n  border-bottom: 1px solid var(--kp-border, var(--lightgray));\n}\n\n.chat-evidence > header h2 {\n  font-size: 18px;\n}\n\n.chat-evidence > header strong {\n  display: grid;\n  width: 26px;\n  height: 26px;\n  place-items: center;\n  border: 1px solid var(--kp-border, var(--lightgray));\n  border-radius: 1px;\n  color: var(--kp-brand, var(--secondary));\n  font-family: var(--kp-mono, var(--codeFont));\n  font-size: 9px;\n}\n\n.chat-evidence-list {\n  min-height: 0;\n  flex: 1 1 auto;\n  overflow-y: auto;\n}\n\n.chat-evidence-empty {\n  padding: 18px 2px;\n  color: var(--kp-muted, var(--gray));\n  font-size: 10px;\n  line-height: 1.65;\n}\n\n.chat-evidence-item {\n  display: block;\n  padding: 13px 2px;\n  border-bottom: 1px solid var(--kp-border-soft, var(--lightgray));\n  color: var(--kp-ink, var(--dark));\n}\n\n.chat-evidence-item:hover {\n  background: rgba(255, 255, 255, 0.4);\n  color: var(--kp-ink, var(--dark));\n}\n\n.chat-evidence-meta {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n}\n\n.chat-evidence-meta b,\n.chat-evidence-meta em {\n  font-family: var(--kp-mono, var(--codeFont));\n  font-size: 8px;\n  font-style: normal;\n}\n\n.chat-evidence-meta b {\n  color: var(--kp-brand, var(--secondary));\n}\n\n.chat-evidence-meta em {\n  color: var(--kp-muted-2, var(--gray));\n}\n\n.chat-evidence-item strong,\n.chat-evidence-item small {\n  display: block;\n}\n\n.chat-evidence-item strong {\n  margin-top: 8px;\n  color: var(--kp-ink, var(--dark));\n  font-family: var(--kp-serif, var(--titleFont));\n  font-size: 12px;\n  line-height: 1.45;\n}\n\n.chat-evidence-item small {\n  overflow: hidden;\n  margin-top: 5px;\n  color: var(--kp-muted-2, var(--gray));\n  font-size: 8px;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.chat-evidence-scope {\n  flex: 0 0 auto;\n  padding-top: 11px;\n  margin: 0;\n  border-top: 1px solid var(--kp-border, var(--lightgray));\n  color: var(--kp-muted, var(--gray));\n  font-size: 8px;\n  line-height: 1.5;\n}\n\n@media all and (min-width: 960px) and (max-width: 1279px) {\n  .chat-shell {\n    grid-template-columns: 236px minmax(0, 1fr);\n  }\n  .chat-shell.sidebar-collapsed {\n    grid-template-columns: minmax(0, 1fr);\n  }\n  .chat-sidebar-toggle {\n    left: 203px;\n  }\n  .chat-evidence {\n    display: none;\n  }\n}\n@media all and (max-width: 959px) {\n  .page:has(.chat-shell) > #quartz-body {\n    display: block;\n    padding: 0;\n  }\n  .page:has(.chat-shell) > #quartz-body > .center {\n    min-height: 0;\n    padding: 0;\n  }\n  .chat-shell,\n  .chat-shell.sidebar-collapsed {\n    display: grid;\n    height: auto;\n    min-height: calc(100vh - 130px);\n    grid-template-columns: 1fr;\n    overflow: visible;\n  }\n  .chat-page-sidebar {\n    min-height: 240px;\n    max-height: 340px;\n    border-right: 0;\n    border-bottom: 1px solid var(--kp-border, var(--lightgray));\n  }\n  .chat-sidebar-toggle,\n  .chat-shell.sidebar-collapsed .chat-sidebar-toggle {\n    top: 18px;\n    right: 14px;\n    left: auto;\n  }\n  .chat-shell.sidebar-collapsed .chat-page-sidebar {\n    display: none;\n  }\n  .chat-page {\n    min-height: 680px;\n    border-right: 0;\n  }\n  .chat-evidence {\n    display: none;\n  }\n}\n@media all and (max-width: 600px) {\n  .chat-page-sidebar {\n    min-height: 220px;\n    max-height: 300px;\n  }\n  .chat-workbench-header {\n    min-height: 58px;\n    padding: 0 16px;\n  }\n  .chat-workbench-header p {\n    display: none;\n  }\n  .chat-messages {\n    gap: 18px;\n    padding: 22px 16px 28px;\n  }\n  .message {\n    grid-template-columns: 1fr;\n    gap: 7px;\n  }\n  .message-document-label,\n  .message-user .message-document-label {\n    padding: 0;\n  }\n  .message-user {\n    padding: 12px;\n  }\n  .message-user .message-content {\n    padding: 0;\n  }\n  .message-content {\n    font-size: 13px;\n  }\n  .message-action-label {\n    display: none;\n  }\n  .message-action-button {\n    width: 30px;\n    padding: 0;\n  }\n  .chat-input-wrap {\n    padding: 12px 16px 10px;\n  }\n  .chat-input-label-row {\n    display: grid;\n    align-items: start;\n  }\n  .chat-model-selector-label {\n    justify-content: space-between;\n  }\n  .chat-model-selector {\n    max-width: min(70vw, 270px);\n  }\n  .chat-input-area {\n    grid-template-columns: minmax(0, 1fr) auto;\n  }\n  .chat-attach-button {\n    display: none;\n  }\n}';
-
-// src/components/ChatPage.tsx
 var defaultOptions = {
   // 默认使用同源 /api；quartz.config.yaml 可通过 CHAT_PROXY_URL 覆盖 proxyUrl。
   // 生产构建必须保持 /api，由 DGX Nginx 转发到 wiki-backend。
@@ -146,7 +77,7 @@ var ChatPage_default = ((userOpts) => {
     const collapseSidebarLabel = locale.startsWith("zh") ? "\u6536\u8D77\u4FA7\u8FB9\u680F" : "Collapse sidebar";
     const expandSidebarLabel = locale.startsWith("zh") ? "\u5C55\u5F00\u4FA7\u8FB9\u680F" : "Expand sidebar";
     const chatsHref = resolveRelative(props.fileData.slug, "chats");
-    return /* @__PURE__ */ u2(
+    return /* @__PURE__ */ jsxs(
       "div",
       {
         class: "chat-shell",
@@ -164,7 +95,7 @@ var ChatPage_default = ((userOpts) => {
         "data-new-chat-greeting-description": strings.newChatGreetingDescription,
         "data-reference-description": strings.referenceDescription,
         children: [
-          /* @__PURE__ */ u2(
+          /* @__PURE__ */ jsx(
             "button",
             {
               type: "button",
@@ -176,7 +107,7 @@ var ChatPage_default = ((userOpts) => {
               "aria-expanded": "true",
               "aria-label": collapseSidebarLabel,
               title: collapseSidebarLabel,
-              children: /* @__PURE__ */ u2(
+              children: /* @__PURE__ */ jsxs(
                 "svg",
                 {
                   xmlns: "http://www.w3.org/2000/svg",
@@ -190,15 +121,15 @@ var ChatPage_default = ((userOpts) => {
                   "stroke-linejoin": "round",
                   "aria-hidden": "true",
                   children: [
-                    /* @__PURE__ */ u2("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }),
-                    /* @__PURE__ */ u2("line", { x1: "9", y1: "3", x2: "9", y2: "21" }),
-                    /* @__PURE__ */ u2("polyline", { class: "chat-sidebar-toggle-chevron", points: "15 8 11 12 15 16" })
+                    /* @__PURE__ */ jsx("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }),
+                    /* @__PURE__ */ jsx("line", { x1: "9", y1: "3", x2: "9", y2: "21" }),
+                    /* @__PURE__ */ jsx("polyline", { class: "chat-sidebar-toggle-chevron", points: "15 8 11 12 15 16" })
                   ]
                 }
               )
             }
           ),
-          /* @__PURE__ */ u2(
+          /* @__PURE__ */ jsxs(
             "aside",
             {
               id: "chat-page-sidebar",
@@ -207,12 +138,12 @@ var ChatPage_default = ((userOpts) => {
               "data-ingest-poll-interval-ms": opts.ingestPollIntervalMs,
               "data-chats-path": chatsHref,
               children: [
-                /* @__PURE__ */ u2("div", { class: "chats-sidebar-top", children: [
-                  /* @__PURE__ */ u2("div", { class: "chats-record-heading", children: [
-                    /* @__PURE__ */ u2("span", { children: strings.historyEyebrow }),
-                    /* @__PURE__ */ u2("h2", { children: strings.historyTitle })
+                /* @__PURE__ */ jsxs("div", { class: "chats-sidebar-top", children: [
+                  /* @__PURE__ */ jsxs("div", { class: "chats-record-heading", children: [
+                    /* @__PURE__ */ jsx("span", { children: strings.historyEyebrow }),
+                    /* @__PURE__ */ jsx("h2", { children: strings.historyTitle })
                   ] }),
-                  /* @__PURE__ */ u2(
+                  /* @__PURE__ */ jsxs(
                     "button",
                     {
                       type: "button",
@@ -220,7 +151,7 @@ var ChatPage_default = ((userOpts) => {
                       "data-new-chat": true,
                       "aria-label": strings.newChat,
                       children: [
-                        /* @__PURE__ */ u2(
+                        /* @__PURE__ */ jsxs(
                           "svg",
                           {
                             xmlns: "http://www.w3.org/2000/svg",
@@ -233,65 +164,65 @@ var ChatPage_default = ((userOpts) => {
                             "stroke-linecap": "round",
                             "stroke-linejoin": "round",
                             children: [
-                              /* @__PURE__ */ u2("line", { x1: "12", y1: "5", x2: "12", y2: "19" }),
-                              /* @__PURE__ */ u2("line", { x1: "5", y1: "12", x2: "19", y2: "12" })
+                              /* @__PURE__ */ jsx("line", { x1: "12", y1: "5", x2: "12", y2: "19" }),
+                              /* @__PURE__ */ jsx("line", { x1: "5", y1: "12", x2: "19", y2: "12" })
                             ]
                           }
                         ),
-                        /* @__PURE__ */ u2("span", { children: strings.newChat })
+                        /* @__PURE__ */ jsx("span", { children: strings.newChat })
                       ]
                     }
                   )
                 ] }),
-                /* @__PURE__ */ u2("div", { class: "chats-history-panel", children: [
-                  /* @__PURE__ */ u2("div", { class: "chats-header", children: /* @__PURE__ */ u2("span", { children: strings.historySort }) }),
-                  /* @__PURE__ */ u2("div", { class: "chats-history", children: /* @__PURE__ */ u2("div", { class: "chats-empty-state", children: strings.emptyHistory }) })
+                /* @__PURE__ */ jsxs("div", { class: "chats-history-panel", children: [
+                  /* @__PURE__ */ jsx("div", { class: "chats-header", children: /* @__PURE__ */ jsx("span", { children: strings.historySort }) }),
+                  /* @__PURE__ */ jsx("div", { class: "chats-history", children: /* @__PURE__ */ jsx("div", { class: "chats-empty-state", children: strings.emptyHistory }) })
                 ] }),
-                /* @__PURE__ */ u2("details", { class: "ingests-panel", children: [
-                  /* @__PURE__ */ u2("summary", { class: "ingests-summary", children: /* @__PURE__ */ u2("span", { children: "\u4E34\u65F6\u4E0A\u4F20\u72B6\u6001" }) }),
-                  /* @__PURE__ */ u2("div", { class: "ingests-list", children: /* @__PURE__ */ u2("div", { class: "ingests-empty-state", children: "\u6682\u65E0\u4E0A\u4F20\u4EFB\u52A1" }) })
+                /* @__PURE__ */ jsxs("details", { class: "ingests-panel", children: [
+                  /* @__PURE__ */ jsx("summary", { class: "ingests-summary", children: /* @__PURE__ */ jsx("span", { children: "\u4E34\u65F6\u4E0A\u4F20\u72B6\u6001" }) }),
+                  /* @__PURE__ */ jsx("div", { class: "ingests-list", children: /* @__PURE__ */ jsx("div", { class: "ingests-empty-state", children: "\u6682\u65E0\u4E0A\u4F20\u4EFB\u52A1" }) })
                 ] }),
-                /* @__PURE__ */ u2("template", { id: "template-chat-item", children: /* @__PURE__ */ u2("a", { class: "chat-history-item", href: "#", "data-chat-id": "", children: [
-                  /* @__PURE__ */ u2("div", { class: "chat-item-title" }),
-                  /* @__PURE__ */ u2("div", { class: "chat-item-preview" })
+                /* @__PURE__ */ jsx("template", { id: "template-chat-item", children: /* @__PURE__ */ jsxs("a", { class: "chat-history-item", href: "#", "data-chat-id": "", children: [
+                  /* @__PURE__ */ jsx("div", { class: "chat-item-title" }),
+                  /* @__PURE__ */ jsx("div", { class: "chat-item-preview" })
                 ] }) })
               ]
             }
           ),
-          /* @__PURE__ */ u2(
+          /* @__PURE__ */ jsxs(
             "div",
             {
               class: "chat-page",
               "data-proxy-url": opts.proxyUrl,
               "data-ingest-poll-interval-ms": opts.ingestPollIntervalMs,
               children: [
-                /* @__PURE__ */ u2("header", { class: "chat-workbench-header", children: [
-                  /* @__PURE__ */ u2("div", { children: [
-                    /* @__PURE__ */ u2("span", { children: strings.workbenchEyebrow }),
-                    /* @__PURE__ */ u2("h1", { children: strings.title }),
-                    /* @__PURE__ */ u2("p", { children: strings.workbenchDescription })
+                /* @__PURE__ */ jsxs("header", { class: "chat-workbench-header", children: [
+                  /* @__PURE__ */ jsxs("div", { children: [
+                    /* @__PURE__ */ jsx("span", { children: strings.workbenchEyebrow }),
+                    /* @__PURE__ */ jsx("h1", { children: strings.title }),
+                    /* @__PURE__ */ jsx("p", { children: strings.workbenchDescription })
                   ] }),
-                  /* @__PURE__ */ u2("p", { children: "\u8303\u56F4\uFF1A\u5168\u90E8\u5DF2\u53D1\u5E03\u77E5\u8BC6" })
+                  /* @__PURE__ */ jsx("p", { children: "\u8303\u56F4\uFF1A\u5168\u90E8\u5DF2\u53D1\u5E03\u77E5\u8BC6" })
                 ] }),
-                /* @__PURE__ */ u2("div", { class: "chat-stage", children: /* @__PURE__ */ u2("div", { class: "chat-messages", id: "chat-messages" }) }),
-                /* @__PURE__ */ u2("div", { class: "chat-input-wrap", children: [
-                  /* @__PURE__ */ u2("div", { class: "chat-input-card", children: [
-                    /* @__PURE__ */ u2("div", { class: "chat-input-label-row", children: [
-                      /* @__PURE__ */ u2("label", { class: "chat-input-label", for: "chat-input-box", children: strings.newChatInputLabel }),
-                      /* @__PURE__ */ u2("label", { class: "chat-model-selector-label", for: "chat-model-selector", children: [
-                        /* @__PURE__ */ u2("span", { children: "\u6A21\u578B" }),
-                        /* @__PURE__ */ u2("select", { id: "chat-model-selector", class: "chat-model-selector", disabled: true, children: /* @__PURE__ */ u2("option", { children: "\u6B63\u5728\u52A0\u8F7D\u56DE\u7B54\u6A21\u5F0F\u2026" }) })
+                /* @__PURE__ */ jsx("div", { class: "chat-stage", children: /* @__PURE__ */ jsx("div", { class: "chat-messages", id: "chat-messages" }) }),
+                /* @__PURE__ */ jsxs("div", { class: "chat-input-wrap", children: [
+                  /* @__PURE__ */ jsxs("div", { class: "chat-input-card", children: [
+                    /* @__PURE__ */ jsxs("div", { class: "chat-input-label-row", children: [
+                      /* @__PURE__ */ jsx("label", { class: "chat-input-label", for: "chat-input-box", children: strings.newChatInputLabel }),
+                      /* @__PURE__ */ jsxs("label", { class: "chat-model-selector-label", for: "chat-model-selector", children: [
+                        /* @__PURE__ */ jsx("span", { children: "\u6A21\u578B" }),
+                        /* @__PURE__ */ jsx("select", { id: "chat-model-selector", class: "chat-model-selector", disabled: true, children: /* @__PURE__ */ jsx("option", { children: "\u6B63\u5728\u52A0\u8F7D\u56DE\u7B54\u6A21\u5F0F\u2026" }) })
                       ] })
                     ] }),
-                    /* @__PURE__ */ u2("div", { class: "chat-input-area", children: [
-                      /* @__PURE__ */ u2(
+                    /* @__PURE__ */ jsxs("div", { class: "chat-input-area", children: [
+                      /* @__PURE__ */ jsx(
                         "button",
                         {
                           type: "button",
                           class: "chat-attach-button",
                           "aria-label": "\u4E34\u65F6\u4E0A\u4F20\u8D44\u6599",
                           title: "\u4E34\u65F6\u4E0A\u4F20\u8D44\u6599\uFF1B\u5B8C\u6574\u4EFB\u52A1\u8BF7\u5728\u6587\u6863\u5165\u5E93\u9875\u67E5\u770B",
-                          children: /* @__PURE__ */ u2(
+                          children: /* @__PURE__ */ jsxs(
                             "svg",
                             {
                               xmlns: "http://www.w3.org/2000/svg",
@@ -304,14 +235,14 @@ var ChatPage_default = ((userOpts) => {
                               "stroke-linecap": "round",
                               "stroke-linejoin": "round",
                               children: [
-                                /* @__PURE__ */ u2("line", { x1: "12", y1: "5", x2: "12", y2: "19" }),
-                                /* @__PURE__ */ u2("line", { x1: "5", y1: "12", x2: "19", y2: "12" })
+                                /* @__PURE__ */ jsx("line", { x1: "12", y1: "5", x2: "12", y2: "19" }),
+                                /* @__PURE__ */ jsx("line", { x1: "5", y1: "12", x2: "19", y2: "12" })
                               ]
                             }
                           )
                         }
                       ),
-                      /* @__PURE__ */ u2(
+                      /* @__PURE__ */ jsx(
                         "textarea",
                         {
                           id: "chat-input-box",
@@ -321,7 +252,7 @@ var ChatPage_default = ((userOpts) => {
                           "aria-label": strings.newChatPlaceholder
                         }
                       ),
-                      /* @__PURE__ */ u2("button", { class: "chat-send-button", disabled: true, "aria-label": strings.send, children: /* @__PURE__ */ u2(
+                      /* @__PURE__ */ jsx("button", { class: "chat-send-button", disabled: true, "aria-label": strings.send, children: /* @__PURE__ */ jsxs(
                         "svg",
                         {
                           xmlns: "http://www.w3.org/2000/svg",
@@ -334,30 +265,30 @@ var ChatPage_default = ((userOpts) => {
                           "stroke-linecap": "round",
                           "stroke-linejoin": "round",
                           children: [
-                            /* @__PURE__ */ u2("line", { x1: "22", y1: "2", x2: "11", y2: "13" }),
-                            /* @__PURE__ */ u2("polygon", { points: "22 2 15 22 11 13 2 9 22 2" })
+                            /* @__PURE__ */ jsx("line", { x1: "22", y1: "2", x2: "11", y2: "13" }),
+                            /* @__PURE__ */ jsx("polygon", { points: "22 2 15 22 11 13 2 9 22 2" })
                           ]
                         }
                       ) })
                     ] })
                   ] }),
-                  /* @__PURE__ */ u2("p", { class: "chat-input-note", "data-model-profile-note": true, children: strings.inputNote })
+                  /* @__PURE__ */ jsx("p", { class: "chat-input-note", "data-model-profile-note": true, children: strings.inputNote })
                 ] }),
-                /* @__PURE__ */ u2("template", { id: "template-message-user", children: /* @__PURE__ */ u2("div", { class: "message message-user", children: [
-                  /* @__PURE__ */ u2("div", { class: "message-document-label", children: "\u95EE\u9898" }),
-                  /* @__PURE__ */ u2("div", { class: "message-content" })
+                /* @__PURE__ */ jsx("template", { id: "template-message-user", children: /* @__PURE__ */ jsxs("div", { class: "message message-user", children: [
+                  /* @__PURE__ */ jsx("div", { class: "message-document-label", children: "\u95EE\u9898" }),
+                  /* @__PURE__ */ jsx("div", { class: "message-content" })
                 ] }) }),
-                /* @__PURE__ */ u2("template", { id: "template-message-assistant", children: /* @__PURE__ */ u2("div", { class: "message message-assistant", children: [
-                  /* @__PURE__ */ u2("div", { class: "message-document-label", children: "\u56DE\u7B54" }),
-                  /* @__PURE__ */ u2("div", { class: "message-body", children: [
-                    /* @__PURE__ */ u2("div", { class: "message-document-meta", children: [
-                      /* @__PURE__ */ u2("span", { children: "\u77E5\u8BC6\u56DE\u7B54" }),
-                      /* @__PURE__ */ u2("small", { children: "\u57FA\u4E8E\u5DF2\u53D1\u5E03\u77E5\u8BC6" }),
-                      /* @__PURE__ */ u2("em", { class: "message-model-profile", "data-message-model-profile": true })
+                /* @__PURE__ */ jsx("template", { id: "template-message-assistant", children: /* @__PURE__ */ jsxs("div", { class: "message message-assistant", children: [
+                  /* @__PURE__ */ jsx("div", { class: "message-document-label", children: "\u56DE\u7B54" }),
+                  /* @__PURE__ */ jsxs("div", { class: "message-body", children: [
+                    /* @__PURE__ */ jsxs("div", { class: "message-document-meta", children: [
+                      /* @__PURE__ */ jsx("span", { children: "\u77E5\u8BC6\u56DE\u7B54" }),
+                      /* @__PURE__ */ jsx("small", { children: "\u57FA\u4E8E\u5DF2\u53D1\u5E03\u77E5\u8BC6" }),
+                      /* @__PURE__ */ jsx("em", { class: "message-model-profile", "data-message-model-profile": true })
                     ] }),
-                    /* @__PURE__ */ u2("div", { class: "message-content" }),
-                    /* @__PURE__ */ u2("div", { class: "message-actions", children: [
-                      /* @__PURE__ */ u2(
+                    /* @__PURE__ */ jsx("div", { class: "message-content" }),
+                    /* @__PURE__ */ jsxs("div", { class: "message-actions", children: [
+                      /* @__PURE__ */ jsxs(
                         "button",
                         {
                           type: "button",
@@ -365,7 +296,7 @@ var ChatPage_default = ((userOpts) => {
                           "aria-label": "Copy answer",
                           title: "Copy answer",
                           children: [
-                            /* @__PURE__ */ u2(
+                            /* @__PURE__ */ jsxs(
                               "svg",
                               {
                                 xmlns: "http://www.w3.org/2000/svg",
@@ -378,16 +309,16 @@ var ChatPage_default = ((userOpts) => {
                                 "stroke-linecap": "round",
                                 "stroke-linejoin": "round",
                                 children: [
-                                  /* @__PURE__ */ u2("rect", { x: "9", y: "9", width: "13", height: "13", rx: "3", ry: "3" }),
-                                  /* @__PURE__ */ u2("path", { d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" })
+                                  /* @__PURE__ */ jsx("rect", { x: "9", y: "9", width: "13", height: "13", rx: "3", ry: "3" }),
+                                  /* @__PURE__ */ jsx("path", { d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" })
                                 ]
                               }
                             ),
-                            /* @__PURE__ */ u2("span", { class: "message-action-label", children: "\u590D\u5236\u56DE\u7B54" })
+                            /* @__PURE__ */ jsx("span", { class: "message-action-label", children: "\u590D\u5236\u56DE\u7B54" })
                           ]
                         }
                       ),
-                      /* @__PURE__ */ u2(
+                      /* @__PURE__ */ jsxs(
                         "button",
                         {
                           type: "button",
@@ -395,7 +326,7 @@ var ChatPage_default = ((userOpts) => {
                           "aria-label": "Save as Synthesis",
                           title: "Save as Synthesis",
                           children: [
-                            /* @__PURE__ */ u2(
+                            /* @__PURE__ */ jsxs(
                               "svg",
                               {
                                 xmlns: "http://www.w3.org/2000/svg",
@@ -408,34 +339,34 @@ var ChatPage_default = ((userOpts) => {
                                 "stroke-linecap": "round",
                                 "stroke-linejoin": "round",
                                 children: [
-                                  /* @__PURE__ */ u2("path", { d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" }),
-                                  /* @__PURE__ */ u2("path", { d: "M14 2v4a2 2 0 0 0 2 2h4" }),
-                                  /* @__PURE__ */ u2("path", { d: "M12 11v6" }),
-                                  /* @__PURE__ */ u2("path", { d: "M9 14h6" })
+                                  /* @__PURE__ */ jsx("path", { d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" }),
+                                  /* @__PURE__ */ jsx("path", { d: "M14 2v4a2 2 0 0 0 2 2h4" }),
+                                  /* @__PURE__ */ jsx("path", { d: "M12 11v6" }),
+                                  /* @__PURE__ */ jsx("path", { d: "M9 14h6" })
                                 ]
                               }
                             ),
-                            /* @__PURE__ */ u2("span", { class: "message-action-label", children: "\u4FDD\u5B58\u4E3A Synthesis" })
+                            /* @__PURE__ */ jsx("span", { class: "message-action-label", children: "\u4FDD\u5B58\u4E3A Synthesis" })
                           ]
                         }
                       )
                     ] }),
-                    /* @__PURE__ */ u2("div", { class: "message-loading", children: strings.loading })
+                    /* @__PURE__ */ jsx("div", { class: "message-loading", children: strings.loading })
                   ] })
                 ] }) })
               ]
             }
           ),
-          /* @__PURE__ */ u2("aside", { class: "chat-evidence", "aria-labelledby": "chat-evidence-title", "data-chat-evidence": true, children: [
-            /* @__PURE__ */ u2("header", { children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("span", { children: strings.referenceEyebrow }),
-                /* @__PURE__ */ u2("h2", { id: "chat-evidence-title", children: strings.referenceTitle })
+          /* @__PURE__ */ jsxs("aside", { class: "chat-evidence", "aria-labelledby": "chat-evidence-title", "data-chat-evidence": true, children: [
+            /* @__PURE__ */ jsxs("header", { children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("span", { children: strings.referenceEyebrow }),
+                /* @__PURE__ */ jsx("h2", { id: "chat-evidence-title", children: strings.referenceTitle })
               ] }),
-              /* @__PURE__ */ u2("strong", { "data-evidence-count": true, children: "0" })
+              /* @__PURE__ */ jsx("strong", { "data-evidence-count": true, children: "0" })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "chat-evidence-list", "data-evidence-list": true, children: /* @__PURE__ */ u2("div", { class: "chat-evidence-empty", children: strings.referenceDescription }) }),
-            /* @__PURE__ */ u2("p", { class: "chat-evidence-scope", children: "\u5F53\u524D\u8303\u56F4\uFF1A\u5168\u90E8\u5DF2\u53D1\u5E03 Wiki \u9875\u9762" })
+            /* @__PURE__ */ jsx("div", { class: "chat-evidence-list", "data-evidence-list": true, children: /* @__PURE__ */ jsx("div", { class: "chat-evidence-empty", children: strings.referenceDescription }) }),
+            /* @__PURE__ */ jsx("p", { class: "chat-evidence-scope", children: "\u5F53\u524D\u8303\u56F4\uFF1A\u5168\u90E8\u5DF2\u53D1\u5E03 Wiki \u9875\u9762" })
           ] })
         ]
       }
@@ -451,15 +382,13 @@ var ingest_inline_default = 'var ue=Object.defineProperty;var le=(t,n,i)=>n in t
 
 // src/components/styles/ingest.scss
 var ingest_default = ".ingest-page {\n  --ingest-ink: var(--kp-ink, #17201b);\n  --ingest-muted: var(--kp-muted, #69716c);\n  --ingest-border: var(--kp-border, #d9ddd8);\n  --ingest-paper: var(--kp-paper, #f7f7f3);\n  box-sizing: border-box;\n  min-height: 100vh;\n  padding: 38px 42px 56px;\n  overflow-x: hidden;\n  color: var(--ingest-ink);\n  background: var(--ingest-paper);\n}\n\n.ingest-page *, .ingest-page *::before, .ingest-page *::after {\n  box-sizing: border-box;\n}\n\n.ingest-page h1, .ingest-page h2, .ingest-page h3, .ingest-page p {\n  margin: 0;\n}\n\n.ingest-page button, .ingest-page select, .ingest-page input {\n  font: inherit;\n}\n\n.ingest-header {\n  display: flex;\n  align-items: end;\n  justify-content: space-between;\n  gap: 28px;\n  padding-bottom: 24px;\n  border-bottom: 2px solid var(--ingest-ink);\n}\n\n.ingest-eyebrow, .ingest-section-heading p, .ingest-publish p {\n  margin-bottom: 7px !important;\n  color: var(--ingest-muted);\n  font: 650 0.7rem/1.2 var(--codeFont);\n  letter-spacing: 0.13em;\n  text-transform: uppercase;\n}\n\n.ingest-header h1 {\n  font-size: clamp(1.8rem, 3vw, 2.8rem);\n  line-height: 1;\n  letter-spacing: -0.045em;\n}\n\n.ingest-intro {\n  max-width: 620px;\n  margin-top: 10px !important;\n  color: var(--ingest-muted);\n  font-size: 0.9rem;\n}\n\n.ingest-refresh, .ingest-file-action {\n  display: inline-flex;\n  min-height: 40px;\n  align-items: center;\n  justify-content: center;\n  padding: 8px 16px;\n  border: 1px solid var(--ingest-ink);\n  color: var(--ingest-ink);\n  background: transparent;\n  font-weight: 650;\n  cursor: pointer;\n}\n\n.ingest-refresh:hover, .ingest-file-action:hover {\n  color: var(--ingest-paper);\n  background: var(--ingest-ink);\n}\n\n.ingest-refresh:disabled {\n  opacity: 0.45;\n  cursor: wait;\n}\n\n.ingest-upload {\n  display: grid;\n  grid-template-columns: 54px minmax(0, 1fr) auto;\n  align-items: center;\n  gap: 22px;\n  margin-top: 22px;\n  padding: 22px;\n  border: 1px dashed #9ba29d;\n  background: color-mix(in srgb, var(--ingest-paper) 85%, white);\n  transition: border-color 120ms ease, background-color 120ms ease;\n}\n\n.ingest-upload.is-dragging {\n  border-color: var(--secondary);\n  background: color-mix(in srgb, var(--secondary) 7%, var(--ingest-paper));\n}\n\n.ingest-upload-index {\n  font: 700 1.25rem/1 var(--codeFont);\n  letter-spacing: -0.08em;\n}\n\n.ingest-upload h2 {\n  font-size: 1.15rem;\n}\n\n.ingest-upload-copy > p {\n  margin-top: 4px;\n  color: var(--ingest-muted);\n  font-size: 0.82rem;\n}\n\n.ingest-upload-copy .ingest-upload-note {\n  font-size: 0.75rem;\n}\n\n.ingest-upload input {\n  position: absolute;\n  width: 1px;\n  height: 1px;\n  overflow: hidden;\n  clip: rect(0, 0, 0, 0);\n}\n\n.ingest-upload-status {\n  grid-column: 2/-1;\n  color: var(--ingest-muted);\n  font: 0.76rem/1.5 var(--codeFont);\n}\n\n.ingest-upload-status:empty {\n  display: none;\n}\n\n.ingest-upload-status.is-error {\n  padding: 12px 14px;\n  border: 2px solid #b42318;\n  color: #b42318;\n  background: #fff1f0;\n  font-weight: 650;\n}\n\n.ingest-metrics {\n  display: grid;\n  grid-template-columns: repeat(4, minmax(0, 1fr));\n  margin-top: 18px;\n  border-block: 1px solid var(--ingest-border);\n}\n\n.ingest-metrics > div {\n  display: flex;\n  align-items: baseline;\n  justify-content: space-between;\n  gap: 12px;\n  padding: 16px 18px;\n  border-right: 1px solid var(--ingest-border);\n}\n\n.ingest-metrics > div:last-child {\n  border-right: 0;\n}\n\n.ingest-metrics span {\n  color: var(--ingest-muted);\n  font: 0.7rem/1.2 var(--codeFont);\n  letter-spacing: 0.03em;\n}\n\n.ingest-metrics strong {\n  font: 650 1.65rem/1 var(--codeFont);\n}\n\n.ingest-workspace {\n  display: grid;\n  grid-template-columns: minmax(0, 1.35fr) minmax(330px, 0.65fr);\n  gap: 28px;\n  margin-top: 30px;\n}\n\n.ingest-jobs, .ingest-detail {\n  min-width: 0;\n}\n\n.ingest-section-heading {\n  display: flex;\n  align-items: end;\n  justify-content: space-between;\n  gap: 18px;\n  margin-bottom: 12px;\n}\n\n.ingest-section-heading h2, .ingest-detail h2, .ingest-publish h2 {\n  font-size: 1.15rem;\n  letter-spacing: -0.02em;\n}\n\n.ingest-section-heading label {\n  display: grid;\n  gap: 4px;\n  color: var(--ingest-muted);\n  font-size: 0.68rem;\n}\n\n.ingest-section-heading select {\n  min-height: 34px;\n  border: 1px solid var(--ingest-border);\n  border-radius: 0;\n  padding: 4px 28px 4px 8px;\n  color: var(--ingest-ink);\n  background: transparent;\n}\n\n.ingest-list {\n  border-top: 2px solid var(--ingest-ink);\n}\n\n.ingest-job {\n  display: grid;\n  width: 100%;\n  grid-template-columns: 120px minmax(0, 1fr) 96px;\n  align-items: center;\n  gap: 14px;\n  padding: 15px 10px;\n  border: 0;\n  border-bottom: 1px solid var(--ingest-border);\n  color: var(--ingest-ink);\n  background: transparent;\n  text-align: left;\n  cursor: pointer;\n}\n\n.ingest-job:hover, .ingest-job.is-selected {\n  background: color-mix(in srgb, var(--ingest-ink) 5%, transparent);\n}\n\n.ingest-job.is-selected {\n  box-shadow: inset 3px 0 0 var(--ingest-ink);\n}\n\n.ingest-status {\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n  color: var(--ingest-muted);\n  font: 650 0.72rem/1.2 var(--codeFont);\n}\n\n.ingest-status b {\n  display: inline-grid;\n  width: 24px;\n  height: 24px;\n  place-items: center;\n  border: 1px solid currentColor;\n}\n\n.ingest-status.is-running {\n  color: #8a5a00;\n}\n\n.ingest-status.is-succeeded {\n  color: #2c6e49;\n}\n\n.ingest-status.is-failed {\n  color: #a23a32;\n}\n\n.ingest-job-identity {\n  min-width: 0;\n}\n\n.ingest-job-identity strong, .ingest-job-identity small {\n  display: block;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.ingest-job-identity strong {\n  font-size: 0.88rem;\n}\n\n.ingest-job-identity small, .ingest-job time {\n  margin-top: 4px;\n  color: var(--ingest-muted);\n  font-size: 0.72rem;\n}\n\n.ingest-job time {\n  text-align: right;\n}\n\n.ingest-empty, .ingest-error {\n  padding: 24px 10px;\n  color: var(--ingest-muted);\n  border-bottom: 1px solid var(--ingest-border);\n}\n\n.ingest-error {\n  color: #a23a32;\n}\n\n.ingest-detail {\n  align-self: start;\n  padding: 20px;\n  border-top: 2px solid var(--ingest-ink);\n  background: color-mix(in srgb, var(--ingest-paper) 88%, white);\n}\n\n.ingest-detail-empty {\n  min-height: 210px;\n  display: flex;\n  flex-direction: column;\n  justify-content: center;\n}\n\n.ingest-detail-empty p, .ingest-detail-header p {\n  color: var(--ingest-muted);\n  font: 0.7rem/1.3 var(--codeFont);\n  letter-spacing: 0.06em;\n}\n\n.ingest-detail-empty span {\n  margin-top: 10px;\n  color: var(--ingest-muted);\n  font-size: 0.82rem;\n}\n\n.ingest-detail-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 10px;\n  margin-bottom: 13px;\n}\n\n.ingest-detail-header p {\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.ingest-detail-notice {\n  margin-top: 14px !important;\n  padding: 10px 12px;\n  border-left: 3px solid var(--ingest-muted);\n  color: var(--ingest-muted);\n  font-size: 0.8rem;\n}\n\n.ingest-detail-notice.is-succeeded {\n  border-color: #2c6e49;\n  color: #2c6e49;\n}\n\n.ingest-detail-notice.is-failed {\n  border-color: #a23a32;\n  color: #a23a32;\n}\n\n.ingest-detail-facts {\n  display: grid;\n  grid-template-columns: 78px minmax(0, 1fr);\n  margin: 18px 0 0;\n  padding: 14px 0;\n  border-block: 1px solid var(--ingest-border);\n  font-size: 0.74rem;\n}\n\n.ingest-detail-facts dt, .ingest-detail-facts dd {\n  padding: 4px 0;\n}\n\n.ingest-detail-facts dt {\n  color: var(--ingest-muted);\n}\n\n.ingest-detail-facts dd {\n  min-width: 0;\n  margin: 0;\n  overflow-wrap: anywhere;\n}\n\n.ingest-detail-section {\n  padding: 15px 0;\n  border-bottom: 1px solid var(--ingest-border);\n}\n\n.ingest-detail-section h3 {\n  font: 650 0.74rem/1.3 var(--codeFont);\n}\n\n.ingest-detail-section ul {\n  margin: 9px 0 0;\n  padding-left: 18px;\n  font-size: 0.76rem;\n}\n\n.ingest-detail-section li + li {\n  margin-top: 5px;\n}\n\n.ingest-detail-none {\n  margin-top: 7px !important;\n  color: var(--ingest-muted);\n  font-size: 0.75rem;\n}\n\n.ingest-publish {\n  display: grid;\n  grid-template-columns: 74px minmax(0, 1fr) auto;\n  align-items: center;\n  gap: 22px;\n  margin-top: 38px;\n  padding: 22px;\n  border: 1px solid var(--ingest-border);\n}\n\n.ingest-publish-code {\n  font: 700 1.1rem/1 var(--codeFont);\n}\n\n.ingest-publish span {\n  display: block;\n  max-width: 760px;\n  margin-top: 7px;\n  color: var(--ingest-muted);\n  font-size: 0.82rem;\n}\n\n.ingest-publish button {\n  min-height: 40px;\n  padding: 8px 16px;\n  border: 1px solid var(--ingest-ink);\n  color: var(--ingest-ink);\n  background: transparent;\n  cursor: pointer;\n}\n\n.ingest-publish button:disabled {\n  color: var(--ingest-muted);\n  border-color: var(--ingest-border);\n  cursor: wait;\n}\n\n@media all and (max-width: 1180px) {\n  .ingest-workspace {\n    grid-template-columns: 1fr;\n  }\n  .ingest-detail {\n    max-height: none;\n  }\n}\n@media all and (max-width: 720px) {\n  .ingest-page {\n    padding: 26px 18px 42px;\n  }\n  .ingest-header {\n    display: grid;\n  }\n  .ingest-refresh {\n    width: max-content;\n  }\n  .ingest-upload, .ingest-publish {\n    grid-template-columns: 42px minmax(0, 1fr);\n  }\n  .ingest-file-action, .ingest-publish button {\n    grid-column: 2;\n    width: max-content;\n  }\n  .ingest-upload-status {\n    grid-column: 1/-1;\n  }\n  .ingest-metrics {\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n  }\n  .ingest-metrics > div:nth-child(2) {\n    border-right: 0;\n  }\n  .ingest-metrics > div:nth-child(-n+2) {\n    border-bottom: 1px solid var(--ingest-border);\n  }\n  .ingest-job {\n    grid-template-columns: 100px minmax(0, 1fr);\n  }\n  .ingest-job time {\n    display: none;\n  }\n}";
-
-// src/components/IngestPage.tsx
 var defaultOptions2 = {
   proxyUrl: "/api",
   ingestPollIntervalMs: 3e4
 };
 var IngestPage_default = ((userOpts) => {
   const opts = { ...defaultOptions2, ...userOpts };
-  const IngestPage = () => /* @__PURE__ */ u2(
+  const IngestPage = () => /* @__PURE__ */ jsxs(
     "main",
     {
       class: "ingest-page",
@@ -467,76 +396,76 @@ var IngestPage_default = ((userOpts) => {
       "data-proxy-url": opts.proxyUrl,
       "data-ingest-poll-interval-ms": opts.ingestPollIntervalMs,
       children: [
-        /* @__PURE__ */ u2("header", { class: "ingest-header", children: [
-          /* @__PURE__ */ u2("div", { children: [
-            /* @__PURE__ */ u2("p", { class: "ingest-eyebrow", children: "\u8D44\u6599\u5904\u7406\u4E0E\u53D1\u5E03" }),
-            /* @__PURE__ */ u2("h1", { children: "\u6587\u6863\u5165\u5E93" }),
-            /* @__PURE__ */ u2("p", { class: "ingest-intro", children: "\u63D0\u4EA4\u539F\u59CB\u8D44\u6599\uFF0C\u8DDF\u8E2A\u77E5\u8BC6\u5199\u5165\u7ED3\u679C\uFF0C\u5E76\u68C0\u67E5\u53D1\u5E03\u524D\u7684\u9875\u9762\u4E0E\u94FE\u63A5\u72B6\u6001\u3002" })
+        /* @__PURE__ */ jsxs("header", { class: "ingest-header", children: [
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("p", { class: "ingest-eyebrow", children: "\u8D44\u6599\u5904\u7406\u4E0E\u53D1\u5E03" }),
+            /* @__PURE__ */ jsx("h1", { children: "\u6587\u6863\u5165\u5E93" }),
+            /* @__PURE__ */ jsx("p", { class: "ingest-intro", children: "\u63D0\u4EA4\u539F\u59CB\u8D44\u6599\uFF0C\u8DDF\u8E2A\u77E5\u8BC6\u5199\u5165\u7ED3\u679C\uFF0C\u5E76\u68C0\u67E5\u53D1\u5E03\u524D\u7684\u9875\u9762\u4E0E\u94FE\u63A5\u72B6\u6001\u3002" })
           ] }),
-          /* @__PURE__ */ u2("button", { type: "button", class: "ingest-refresh", "data-ingest-refresh": true, children: "\u5237\u65B0\u4EFB\u52A1" })
+          /* @__PURE__ */ jsx("button", { type: "button", class: "ingest-refresh", "data-ingest-refresh": true, children: "\u5237\u65B0\u4EFB\u52A1" })
         ] }),
-        /* @__PURE__ */ u2("section", { class: "ingest-upload", "data-ingest-dropzone": true, "aria-labelledby": "ingest-upload-title", children: [
-          /* @__PURE__ */ u2("div", { class: "ingest-upload-index", "aria-hidden": "true", children: "IN" }),
-          /* @__PURE__ */ u2("div", { class: "ingest-upload-copy", children: [
-            /* @__PURE__ */ u2("h2", { id: "ingest-upload-title", children: "\u5C06\u6587\u4EF6\u62D6\u653E\u5230\u8FD9\u91CC\uFF0C\u6216\u9009\u62E9\u672C\u5730\u8D44\u6599" }),
-            /* @__PURE__ */ u2("p", { class: "ingest-upload-note", children: "\u652F\u6301 Markdown\u3001PDF\u3001DOCX\u3001PPTX\u3001XLSX\u3001HTML\u3001\u97F3\u9891\u7B49\u6587\u4EF6\u683C\u5F0F\uFF0CMarkdown\u7684\u5904\u7406\u6548\u679C\u6700\u597D\uFF0C\u5355\u6587\u4EF6\u6700\u592710MB" })
+        /* @__PURE__ */ jsxs("section", { class: "ingest-upload", "data-ingest-dropzone": true, "aria-labelledby": "ingest-upload-title", children: [
+          /* @__PURE__ */ jsx("div", { class: "ingest-upload-index", "aria-hidden": "true", children: "IN" }),
+          /* @__PURE__ */ jsxs("div", { class: "ingest-upload-copy", children: [
+            /* @__PURE__ */ jsx("h2", { id: "ingest-upload-title", children: "\u5C06\u6587\u4EF6\u62D6\u653E\u5230\u8FD9\u91CC\uFF0C\u6216\u9009\u62E9\u672C\u5730\u8D44\u6599" }),
+            /* @__PURE__ */ jsx("p", { class: "ingest-upload-note", children: "\u652F\u6301 Markdown\u3001PDF\u3001DOCX\u3001PPTX\u3001XLSX\u3001HTML\u3001\u97F3\u9891\u7B49\u6587\u4EF6\u683C\u5F0F\uFF0CMarkdown\u7684\u5904\u7406\u6548\u679C\u6700\u597D\uFF0C\u5355\u6587\u4EF6\u6700\u592710MB" })
           ] }),
-          /* @__PURE__ */ u2("label", { class: "ingest-file-action", for: "ingest-file-input", children: "\u9009\u62E9\u6587\u4EF6" }),
-          /* @__PURE__ */ u2("input", { id: "ingest-file-input", type: "file", multiple: true, "data-ingest-file-input": true }),
-          /* @__PURE__ */ u2("p", { class: "ingest-upload-status", "data-ingest-upload-status": true, "aria-live": "polite" })
+          /* @__PURE__ */ jsx("label", { class: "ingest-file-action", for: "ingest-file-input", children: "\u9009\u62E9\u6587\u4EF6" }),
+          /* @__PURE__ */ jsx("input", { id: "ingest-file-input", type: "file", multiple: true, "data-ingest-file-input": true }),
+          /* @__PURE__ */ jsx("p", { class: "ingest-upload-status", "data-ingest-upload-status": true, "aria-live": "polite" })
         ] }),
-        /* @__PURE__ */ u2("section", { class: "ingest-metrics", "aria-label": "\u5165\u5E93\u4EFB\u52A1\u6982\u89C8", children: [
-          /* @__PURE__ */ u2("div", { children: [
-            /* @__PURE__ */ u2("span", { children: "Q / \u7B49\u5F85\u6267\u884C" }),
-            /* @__PURE__ */ u2("strong", { "data-ingest-count": "queued", children: "\u2014" })
+        /* @__PURE__ */ jsxs("section", { class: "ingest-metrics", "aria-label": "\u5165\u5E93\u4EFB\u52A1\u6982\u89C8", children: [
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("span", { children: "Q / \u7B49\u5F85\u6267\u884C" }),
+            /* @__PURE__ */ jsx("strong", { "data-ingest-count": "queued", children: "\u2014" })
           ] }),
-          /* @__PURE__ */ u2("div", { children: [
-            /* @__PURE__ */ u2("span", { children: "R / \u6B63\u5728\u5904\u7406" }),
-            /* @__PURE__ */ u2("strong", { "data-ingest-count": "running", children: "\u2014" })
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("span", { children: "R / \u6B63\u5728\u5904\u7406" }),
+            /* @__PURE__ */ jsx("strong", { "data-ingest-count": "running", children: "\u2014" })
           ] }),
-          /* @__PURE__ */ u2("div", { children: [
-            /* @__PURE__ */ u2("span", { children: "F / \u5904\u7406\u5931\u8D25" }),
-            /* @__PURE__ */ u2("strong", { "data-ingest-count": "failed", children: "\u2014" })
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("span", { children: "F / \u5904\u7406\u5931\u8D25" }),
+            /* @__PURE__ */ jsx("strong", { "data-ingest-count": "failed", children: "\u2014" })
           ] }),
-          /* @__PURE__ */ u2("div", { children: [
-            /* @__PURE__ */ u2("span", { children: "S / \u7B49\u5F85\u53D1\u5E03" }),
-            /* @__PURE__ */ u2("strong", { "data-ingest-count": "waitingPublish", children: "\u2014" })
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("span", { children: "S / \u7B49\u5F85\u53D1\u5E03" }),
+            /* @__PURE__ */ jsx("strong", { "data-ingest-count": "waitingPublish", children: "\u2014" })
           ] })
         ] }),
-        /* @__PURE__ */ u2("div", { class: "ingest-workspace", children: [
-          /* @__PURE__ */ u2("section", { class: "ingest-jobs", "aria-labelledby": "ingest-jobs-title", children: [
-            /* @__PURE__ */ u2("div", { class: "ingest-section-heading", children: [
-              /* @__PURE__ */ u2("div", { children: [
-                /* @__PURE__ */ u2("p", { children: "\u4EFB\u52A1\u53F0\u8D26" }),
-                /* @__PURE__ */ u2("h2", { id: "ingest-jobs-title", children: "\u6700\u8FD1 20 \u9879" })
+        /* @__PURE__ */ jsxs("div", { class: "ingest-workspace", children: [
+          /* @__PURE__ */ jsxs("section", { class: "ingest-jobs", "aria-labelledby": "ingest-jobs-title", children: [
+            /* @__PURE__ */ jsxs("div", { class: "ingest-section-heading", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("p", { children: "\u4EFB\u52A1\u53F0\u8D26" }),
+                /* @__PURE__ */ jsx("h2", { id: "ingest-jobs-title", children: "\u6700\u8FD1 20 \u9879" })
               ] }),
-              /* @__PURE__ */ u2("label", { children: [
-                /* @__PURE__ */ u2("span", { children: "\u7B5B\u9009\u72B6\u6001" }),
-                /* @__PURE__ */ u2("select", { "data-ingest-filter": true, children: [
-                  /* @__PURE__ */ u2("option", { value: "all", children: "\u5168\u90E8\u72B6\u6001" }),
-                  /* @__PURE__ */ u2("option", { value: "queued", children: "\u7B49\u5F85\u6267\u884C" }),
-                  /* @__PURE__ */ u2("option", { value: "running", children: "\u6B63\u5728\u5904\u7406" }),
-                  /* @__PURE__ */ u2("option", { value: "succeeded", children: "\u5199\u5165\u5B8C\u6210" }),
-                  /* @__PURE__ */ u2("option", { value: "failed", children: "\u5904\u7406\u5931\u8D25" })
+              /* @__PURE__ */ jsxs("label", { children: [
+                /* @__PURE__ */ jsx("span", { children: "\u7B5B\u9009\u72B6\u6001" }),
+                /* @__PURE__ */ jsxs("select", { "data-ingest-filter": true, children: [
+                  /* @__PURE__ */ jsx("option", { value: "all", children: "\u5168\u90E8\u72B6\u6001" }),
+                  /* @__PURE__ */ jsx("option", { value: "queued", children: "\u7B49\u5F85\u6267\u884C" }),
+                  /* @__PURE__ */ jsx("option", { value: "running", children: "\u6B63\u5728\u5904\u7406" }),
+                  /* @__PURE__ */ jsx("option", { value: "succeeded", children: "\u5199\u5165\u5B8C\u6210" }),
+                  /* @__PURE__ */ jsx("option", { value: "failed", children: "\u5904\u7406\u5931\u8D25" })
                 ] })
               ] })
             ] }),
-            /* @__PURE__ */ u2("div", { class: "ingest-list", "data-ingest-list": true, "aria-live": "polite", children: /* @__PURE__ */ u2("p", { class: "ingest-empty", children: "\u6B63\u5728\u8BFB\u53D6\u4EFB\u52A1\u2026" }) })
+            /* @__PURE__ */ jsx("div", { class: "ingest-list", "data-ingest-list": true, "aria-live": "polite", children: /* @__PURE__ */ jsx("p", { class: "ingest-empty", children: "\u6B63\u5728\u8BFB\u53D6\u4EFB\u52A1\u2026" }) })
           ] }),
-          /* @__PURE__ */ u2("aside", { class: "ingest-detail", "data-ingest-detail": true, "aria-labelledby": "ingest-detail-title", children: /* @__PURE__ */ u2("div", { class: "ingest-detail-empty", children: [
-            /* @__PURE__ */ u2("p", { children: "\u4EFB\u52A1\u68C0\u9A8C\u5355" }),
-            /* @__PURE__ */ u2("h2", { id: "ingest-detail-title", children: "\u9009\u62E9\u4E00\u9879\u4EFB\u52A1" }),
-            /* @__PURE__ */ u2("span", { children: "\u6B64\u5904\u5C06\u663E\u793A\u9875\u9762\u53D8\u66F4\u3001\u51B2\u7A81\u4E0E\u7D22\u5F15\u6821\u9A8C\u7ED3\u679C\u3002" })
+          /* @__PURE__ */ jsx("aside", { class: "ingest-detail", "data-ingest-detail": true, "aria-labelledby": "ingest-detail-title", children: /* @__PURE__ */ jsxs("div", { class: "ingest-detail-empty", children: [
+            /* @__PURE__ */ jsx("p", { children: "\u4EFB\u52A1\u68C0\u9A8C\u5355" }),
+            /* @__PURE__ */ jsx("h2", { id: "ingest-detail-title", children: "\u9009\u62E9\u4E00\u9879\u4EFB\u52A1" }),
+            /* @__PURE__ */ jsx("span", { children: "\u6B64\u5904\u5C06\u663E\u793A\u9875\u9762\u53D8\u66F4\u3001\u51B2\u7A81\u4E0E\u7D22\u5F15\u6821\u9A8C\u7ED3\u679C\u3002" })
           ] }) })
         ] }),
-        /* @__PURE__ */ u2("section", { class: "ingest-publish", "aria-labelledby": "ingest-publish-title", children: [
-          /* @__PURE__ */ u2("div", { class: "ingest-publish-code", "aria-hidden": "true", children: "PUB" }),
-          /* @__PURE__ */ u2("div", { children: [
-            /* @__PURE__ */ u2("p", { children: "\u9759\u6001\u7AD9\u70B9\u53D1\u5E03" }),
-            /* @__PURE__ */ u2("h2", { id: "ingest-publish-title", "data-publish-title": true, children: "\u6B63\u5728\u8BFB\u53D6\u53D1\u5E03\u72B6\u6001\u2026" }),
-            /* @__PURE__ */ u2("span", { "data-publish-summary": true, children: "\u5165\u5E93\u6210\u529F\u53EA\u8868\u793A\u77E5\u8BC6\u6587\u4EF6\u5DF2\u5199\u5165\uFF0C\u7AD9\u70B9\u4F1A\u5728\u5408\u5E76\u7A97\u53E3\u540E\u81EA\u52A8\u6784\u5EFA\u3002" })
+        /* @__PURE__ */ jsxs("section", { class: "ingest-publish", "aria-labelledby": "ingest-publish-title", children: [
+          /* @__PURE__ */ jsx("div", { class: "ingest-publish-code", "aria-hidden": "true", children: "PUB" }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("p", { children: "\u9759\u6001\u7AD9\u70B9\u53D1\u5E03" }),
+            /* @__PURE__ */ jsx("h2", { id: "ingest-publish-title", "data-publish-title": true, children: "\u6B63\u5728\u8BFB\u53D6\u53D1\u5E03\u72B6\u6001\u2026" }),
+            /* @__PURE__ */ jsx("span", { "data-publish-summary": true, children: "\u5165\u5E93\u6210\u529F\u53EA\u8868\u793A\u77E5\u8BC6\u6587\u4EF6\u5DF2\u5199\u5165\uFF0C\u7AD9\u70B9\u4F1A\u5728\u5408\u5E76\u7A97\u53E3\u540E\u81EA\u52A8\u6784\u5EFA\u3002" })
           ] }),
-          /* @__PURE__ */ u2("button", { type: "button", "data-publish-now": true, title: "\u7ACB\u5373\u6784\u5EFA\u5E76\u53D1\u5E03\u5F53\u524D Wiki", children: "\u6784\u5EFA\u5E76\u53D1\u5E03" })
+          /* @__PURE__ */ jsx("button", { type: "button", "data-publish-now": true, title: "\u7ACB\u5373\u6784\u5EFA\u5E76\u53D1\u5E03\u5F53\u524D Wiki", children: "\u6784\u5EFA\u5E76\u53D1\u5E03" })
         ] })
       ]
     }
@@ -554,8 +483,8 @@ var WorkspacePage_default = ((opts) => {
     ingestPollIntervalMs: opts?.ingestPollIntervalMs
   });
   const WorkspacePage = (props) => {
-    const slug2 = String(props.fileData.slug ?? "");
-    return slug2 === "ingest" ? IngestPageBody(props) : ChatPage(props);
+    const slug = String(props.fileData.slug ?? "");
+    return slug === "ingest" ? IngestPageBody(props) : ChatPage(props);
   };
   WorkspacePage.css = `${ChatPage.css ?? ""}
 ${IngestPageBody.css ?? ""}`;
@@ -569,8 +498,8 @@ ${IngestPageBody.afterDOMLoaded ?? ""}
 });
 
 // src/pageType.ts
-var workspaceMatcher = ({ slug: slug2 }) => {
-  return slug2 === "ingest" || slug2 === "chats" || slug2.startsWith("chats/");
+var workspaceMatcher = ({ slug }) => {
+  return slug === "ingest" || slug === "chats" || slug.startsWith("chats/");
 };
 var createWorkspacePageBody = (opts) => {
   return (bodyOpts) => WorkspacePage_default({ ...opts, ...bodyOpts });
@@ -607,8 +536,6 @@ var ChatPageType = (opts) => ({
     ingestPollIntervalMs: opts?.ingestPollIntervalMs
   })
 });
-
-// src/components/Chats.tsx
 var defaultOptions3 = {
   title: "Chats"
 };
@@ -617,7 +544,7 @@ var Chats_default = ((userOpts) => {
   const ChatsSidebar = (props) => {
     const displayClass = props.displayClass;
     const chatsHref = resolveRelative(props.fileData.slug, "chats");
-    return /* @__PURE__ */ u2("div", { class: displayClass, children: /* @__PURE__ */ u2("a", { class: "chat-nav-link", href: chatsHref, "aria-label": opts.title, children: opts.title }) });
+    return /* @__PURE__ */ jsx("div", { class: displayClass, children: /* @__PURE__ */ jsx("a", { class: "chat-nav-link", href: chatsHref, "aria-label": opts.title, children: opts.title }) });
   };
   ChatsSidebar.css = chat_default;
   return ChatsSidebar;

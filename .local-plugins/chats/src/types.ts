@@ -92,6 +92,8 @@ export interface IngestJobResponse {
   original_filename: string
   trigger?: IngestTrigger
   source_path: string
+  document_name_key?: string | null
+  source_url?: string | null
   created_pages: string[]
   updated_pages: string[]
   contradictions: string[]

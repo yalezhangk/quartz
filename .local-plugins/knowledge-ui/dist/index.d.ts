@@ -1,7 +1,5 @@
 import { QuartzPageTypePlugin } from '@quartz-community/types';
 
-declare const KnowledgePageType: QuartzPageTypePlugin;
-
 type KnowledgeObjectType = "source" | "entity" | "concept" | "synthesis";
 interface KnowledgeObject {
     slug: string;
@@ -12,6 +10,10 @@ interface KnowledgeObject {
     hasDescription: boolean;
     tags: string[];
     updatedAt: Date | null;
+    sourceFile: string | null;
+    sourceUrl: string | null;
 }
+
+declare const KnowledgePageType: QuartzPageTypePlugin;
 
 export { type KnowledgeObject, type KnowledgeObjectType, KnowledgePageType };

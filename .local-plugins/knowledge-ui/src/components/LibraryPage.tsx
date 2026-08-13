@@ -6,6 +6,7 @@ import type {
 } from "@quartz-community/types"
 import { resolveRelative } from "@quartz-community/utils"
 import { getKnowledgeObjects, type KnowledgeObject, type KnowledgeObjectType } from "../knowledge"
+import { getSourceReference } from "./SourceReference"
 
 const TYPE_META: Record<KnowledgeObjectType, { label: string; pluralLabel: string }> = {
   source: { label: "来源", pluralLabel: "Sources" },
@@ -235,7 +236,14 @@ export default (() => {
             {objects.map((object) => {
               const href = resolveRelative(currentSlug, object.slug as FullSlug)
               const timestamp = object.updatedAt?.getTime() ?? 0
-              const searchText = [object.title, object.description, object.code, ...object.tags]
+              const sourceReference = getSourceReference(object)
+              const searchText = [
+                object.title,
+                object.description,
+                object.code,
+                ...object.tags,
+                sourceReference?.searchText,
+              ]
                 .join(" ")
                 .toLocaleLowerCase("zh-CN")
 
@@ -253,6 +261,9 @@ export default (() => {
                   <span class="knowledge-library-code">{object.code}</span>
                   <span class="knowledge-library-copy">
                     <strong>{object.title}</strong>
+                    {sourceReference && (
+                      <span class="knowledge-library-source-reference">{sourceReference.marker}</span>
+                    )}
                     <small>{object.description}</small>
                   </span>
                   <span class="knowledge-library-tags">
