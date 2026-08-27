@@ -263,6 +263,7 @@ var HomePage_default = (() => {
           {
             class: `knowledge-register-cell type-${type}`,
             href: `${resolveRelative(currentSlug, "library")}?type=${type}`,
+            "data-router-ignore": true,
             children: [
               /* @__PURE__ */ jsx("span", { class: "knowledge-type-code", children: code }),
               /* @__PURE__ */ jsxs("span", { children: [

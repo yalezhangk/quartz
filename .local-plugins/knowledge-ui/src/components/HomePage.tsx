@@ -147,6 +147,7 @@ export default (() => {
               <a
                 class={`knowledge-register-cell type-${type}`}
                 href={`${resolveRelative(currentSlug, "library" as FullSlug)}?type=${type}`}
+                data-router-ignore
               >
                 <span class="knowledge-type-code">{code}</span>
                 <span>
